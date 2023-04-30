@@ -93,7 +93,9 @@ pub async fn start() {
 
 fn create_tunnel() {
     info!("creating tunnel");
-    let output = Command::new("./i2p-zero-linux.v1.20/router/bin/tunnel-control.sh")
+    let args = args::Args::parse();
+    let path = args.i2p_zero_dir;
+    let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
         .args(["server.create", "127.0.0.1", &format!("{}",utils::get_app_port())])
         .spawn()
         .expect("i2p-zero failed to create a tunnel");
