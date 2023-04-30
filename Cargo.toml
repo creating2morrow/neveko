@@ -1,0 +1,15 @@
+[package]
+name = "nevmes"
+version = "0.1.0-alpha"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+env_logger = "0.10.0"
+nevmes_auth    =   { path = "./nevmes-auth" }
+nevmes_contact =   { path = "./nevmes-contact" }
+nevmes_core    =   { path = "./nevmes-core" }
+nevmes_gui     =   { path = "./nevmes-gui" }
+nevmes_message =   { path = "./nevmes-message" }
+rocket = { version = "0.5.0-rc.2", features = ["json"] }

@@ -1,0 +1,60 @@
+[package]
+name = "nevmes_gui"
+version = "0.1.0-alpha"
+authors = ["emilk", "creating2morrow <creating2morrow@proton.me>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.65"
+publish = false
+default-run = "nevmes_gui"
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["glow", "persistence"]
+
+persistence = ["eframe/persistence", "egui/persistence", "serde"]
+web_screen_reader = ["eframe/web_screen_reader"]                  # experimental
+serde = ["dep:serde", "egui/serde"]
+
+glow = ["eframe/glow"]
+wgpu = ["eframe/wgpu", "bytemuck"]
+
+
+[dependencies]
+chrono = { version = "0.4", features = ["js-sys", "wasmbind"] }
+eframe = { version = "0.21.0", path = "./crates/eframe", default-features = false }
+egui = { version = "0.21.0", path = "./crates/egui", features = [
+  "extra_debug_asserts",
+] }
+hex = "0.4.3"
+nevmes_core = { path = "../nevmes-core" }
+log = "0.4"
+qrcode = "0.12"
+image = "0.23.14"
+reqwest = { version = "0.11", features = ["json"] }
+sha2 = "0.10.6"
+tokio = { version = "1", features = ["net", "rt-multi-thread"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Optional dependencies:
+
+bytemuck = { version = "1.7.1", optional = true }
+egui_extras = { version = "0.21.0", path = "./crates/egui_extras" }
+poll-promise = { version = "0.2", optional = true, default-features = false }
+serde = { version = "1", optional = true, features = ["derive"] }
+
+# native:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tracing-subscriber = "0.3"
+
+# web:
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.6"
+tracing-wasm = "0.2"
+wasm-bindgen-futures = "0.4"

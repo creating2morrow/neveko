@@ -1,0 +1,6 @@
+/target
+/core
+/test-lmdb
+/wallet
+monero-wallet-rpc.log
+notes.txt
