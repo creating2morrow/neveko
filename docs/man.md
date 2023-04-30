@@ -13,7 +13,7 @@
 * utilizes some external blockchain (nevmes uses monero) for authorization of auth tokens
 * 32 byte random signing keys generated on app start-up
 * `Hmac<Sha384>` internal, `Hmac<Sha512>` external (jwp)
-* see [proof.rs](./nevmes-core/src/proof.rs)
+* see [proof.rs](../nevmes-core/src/proof.rs)
 `eyJhbGciOiJIUzUxMiJ9.eyJhZGRyZXNzIjoiNThvaUJMQUtBQ3JaeTRqVnRYdUFXMzlCOW1zR3dlbVVkSm9HVlozcGdSY1RoWHZqWjZ0RERqRGpuOE1mTUZ5cEtZMlU1U1B6SkE3NnFHeHhDdjJzd1Y0NjhFYkI2dEsiLCJoYXNoIjoiNzRhOTM5NTU1Y2EyMWJmY2MxYzlhMjhlYjFkN2M5MWZiMjRhYzRiOTY4MDk2Yzg4ODU1ODA3ODcwMDA1NmQ2NiIsIm1lc3NhZ2UiOiIiLCJzaWduYXR1cmUiOiJPdXRQcm9vZlYyWHdYTEJYV0VtbXlWd3YyOHFQRWQ0Mk14bm1FNTU3aUFEVHFGNjZDWG9LQ1ZFeFBqTVU4NFNIeWprZmdLd01WZEI4OUZkTkJ5QUxyeU1ZamVxQlY1U0VtU0V4MUJWWE1ITVJNWHVuMzh5aWVtcWhCcmVSWUdpRGdMN1lmRmVmemJSTnhlIn0.gH4RlLrxu3xqxNvsHv7lX1yYomg07yTlv6VEKpDfXwbDV4O267CXzm30G4YBQOfuDf3xpegUmeVXOScPvIZVRw`
 
 ## Getting started
