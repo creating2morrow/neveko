@@ -71,7 +71,6 @@ impl Default for State {
         let (is_screen_locked_tx, is_screen_locked_rx) = std::sync::mpsc::channel();
         let (is_cred_set_tx, is_cred_set_rx) = std::sync::mpsc::channel();
         Self {
-            // clock: FractalClockApp, // TODO(c2m):: refactor to lock screen
             home: Default::default(),
             address_book: Default::default(),
             app_init_lock: true,

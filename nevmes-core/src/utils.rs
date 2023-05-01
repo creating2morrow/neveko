@@ -286,7 +286,7 @@ fn start_micro_servers() {
     debug!("{:?}", m_output.stdout);
 }
 
-/// open gui from i2m core launch
+/// open gui from nevmes core launch
 fn start_gui() {
     let args = args::Args::parse();
     if args.gui {
