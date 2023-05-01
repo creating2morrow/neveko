@@ -123,9 +123,12 @@ async fn send_message(out: &Message, jwp: &str) -> Result<(), Box<dyn Error>> {
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
+
+    // TODO(?): Need some assistance with message retry logic
+
     // check if the contact is online
-    let is_online: bool = is_contact_online(String::from(jwp)).await.unwrap_or(false);
-    if is_online {
+    // let is_online: bool = is_contact_online(String::from(jwp)).await.unwrap_or(false);
+    // if is_online {
        return match client?.post(format!("http://{}/message/rx", out.to))
             .header("proof", jwp).json(&out).send().await {
                 Ok(response) => {
@@ -135,7 +138,7 @@ async fn send_message(out: &Message, jwp: &str) -> Result<(), Box<dyn Error>> {
                         Ok(r) => {
                             if r.contains("402") { error!("Payment required"); }
                             // remove the mid from fts if necessary
-                            remove_from_retry(String::from(&out.mid));
+                            // remove_from_retry(String::from(&out.mid));
                             Ok(())
                         },
                         _ => Ok(()),
@@ -146,10 +149,10 @@ async fn send_message(out: &Message, jwp: &str) -> Result<(), Box<dyn Error>> {
                     Ok(())
                 }
             }   
-    } else {
-        send_to_retry(String::from(&out.mid)).await;
-        Ok(())
-    }
+    // } else {
+        // send_to_retry(String::from(&out.mid)).await;
+        // Ok(())
+    // }
 }
 
 /// Returns decrypted hex string of the encrypted message
@@ -165,6 +168,8 @@ pub fn delete(mid: &String) {
     let s = db::Interface::open();
     db::Interface::delete(&s.env, &s.handle, &String::from(mid));
 }
+
+/* TODO(?): failed-to-send (fts) needs some work to say the least
 
 /// ping the contact health check over i2p
 async fn is_contact_online(jwp: String) -> Result<bool, Box<dyn Error>> {
@@ -200,7 +205,10 @@ async fn send_to_retry(mid: String) {
     if r == utils::empty_string() {
         debug!("creating fts message index");
     }
-    let msg_list = [r, String::from(&mid)].join(",");
+    let mut msg_list = [String::from(&r), String::from(&mid)].join(",");
+    if String::from(&r).contains(&String::from(&mid)) {
+        msg_list = r;
+    }
     debug!("writing fts message index {} for id: {}", msg_list, list_key);
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
 }
@@ -246,3 +254,5 @@ pub async fn retry_fts() {
         }
     }
 }
+
+*/
