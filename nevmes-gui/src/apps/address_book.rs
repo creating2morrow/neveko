@@ -637,6 +637,8 @@ fn send_payment_req
                 let grace: i64 = seconds-BLOCK_TIME_IN_SECS_EST_I64;
                 let unix: i64 = chrono::offset::Utc::now().timestamp()+grace;
                 write_gui_db(String::from("gui-exp"), String::from(&contact), format!("{}", unix));
+                // TODO(c2m): edge case when proving payment fails to complete
+                //            case the payment proof data and set retry logic
                 ctx.request_repaint();
             }
             _ => log::error!("failed to obtain jwp"),

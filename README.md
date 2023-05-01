@@ -52,6 +52,7 @@ NEVidebla-MESago (invisible message)
 
 * gui password and screen lock needs fixing up
 * timeout out JWP payment approval screen with infinite loading
+* prove payment edge where payment succeeds but jwp is empty, currently require new payment
 * message retry login (untested)
 * test framework (in progress)
 * docs on all `fn` and `structs`
