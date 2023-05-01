@@ -196,6 +196,20 @@ async fn gen_app_gpg() {
     debug!("gpg key: {}", gpg_key);
 }
 
+/// Handles panic! for missing wallet directory
+fn create_wallet_dir() {
+    let file_path = format!("/home/{}/.nevmes",
+        std::env::var("USER").unwrap_or(String::from("user")));
+    let s_output = std::process::Command::new("mkdir")
+        .args(["-p", &format!("{}/stagenet/wallet", file_path)])
+        .spawn().expect("failed to create dir");
+    debug!("{:?}", s_output);
+    let m_output = std::process::Command::new("mkdir")
+        .args(["-p", &format!("{}/wallet", file_path)])
+        .spawn().expect("failed to create dir");
+    debug!("{:?}", m_output);
+}
+
 /// Generate application wallet at startup if none exist
 async fn gen_app_wallet() {
     info!("fetching application wallet");
@@ -306,6 +320,7 @@ pub async fn start_up() {
     if args.remote_access { start_micro_servers(); } 
     gen_signing_keys();
     if !is_using_remote_node() { monero::start_daemon(); }
+    create_wallet_dir();
     // wait for daemon for a bit
     tokio::time::sleep(std::time::Duration::new(5, 0)).await;
     monero::start_rpc();
