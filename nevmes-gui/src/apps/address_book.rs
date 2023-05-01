@@ -159,6 +159,14 @@ impl eframe::App for AddressBookApp {
                 self.approve_contact = true;
             }
             if self.showing_status {
+                let i2p_address = self.s_contact.i2p_address.clone();
+                if self.s_contact.xmr_address == utils::empty_string() {
+                    clear_gui_db(String::from("gui-online"), String::from(&i2p_address));
+                    write_gui_db(String::from("gui-online"), String::from(&i2p_address), String::from("0"));
+                } else {
+                    clear_gui_db(String::from("gui-online"), String::from(&i2p_address));
+                    write_gui_db(String::from("gui-online"), String::from(&i2p_address), String::from("1"));
+                }
                 self.is_pinging = false;
             }
         }
@@ -490,9 +498,11 @@ impl eframe::App for AddressBookApp {
                                             Ok(n) => n,
                                             Err(_e) => 0,
                                         };
+                                        let is_online_now = search_gui_db(String::from("gui-online"), String::from(&c.i2p_address));
                                         if now < expire && self.status.signed_key
                                             && self.status.jwp != utils::empty_string() 
-                                            && c.i2p_address == self.status.i2p {
+                                            && c.i2p_address == self.status.i2p
+                                            && is_online_now == String::from("1") {
                                                 if ui.button("Compose").clicked() {
                                                     self.is_composing = true;
                                                 }
