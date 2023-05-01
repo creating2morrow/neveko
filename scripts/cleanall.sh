@@ -3,6 +3,6 @@
 cd nevmes-auth && cargo clean
 cd ../nevmes-contact && cargo clean
 cd ../nevmes-core && cargo clean
-cd ../nevmes-gui && cargo clean
+cd ../nevmes-gui && rm nevmes && cargo clean
 cd ../nevmes-message && cargo clean
 cd ../ && cargo clean
