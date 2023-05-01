@@ -75,8 +75,7 @@ pub fn start_core(conn: &Connections) {
         "--i2p-zero-dir",           &conn.i2p_zero_dir,
         "-r",                       env,
         ];
-    let path = if conn.mainnet { "nevmes" } else { "../target/debug/nevmes" };
-    let output = std::process::Command::new(path)
+    let output = std::process::Command::new("./nevmes")
         .args(args)
         .spawn()
         .expect("core module failed to start");
