@@ -1,11 +1,7 @@
 use nevmes_core::*;
 use std::sync::mpsc::{Receiver, Sender};
 
-use crate::{
-    ADD_CONTACT_TIMEOUT_SECS,
-    BLOCK_TIME_IN_SECS_EST_U64,
-    BLOCK_TIME_IN_SECS_EST_I64
-};
+use crate::{ADD_CONTACT_TIMEOUT_SECS, BLOCK_TIME_IN_SECS_EST_I64, BLOCK_TIME_IN_SECS_EST_U64};
 
 // TODO(c2m): better error handling with and error_tx/error_rx channel
 //       hook into the error thread and show toast messages as required
@@ -20,7 +16,7 @@ impl Default for Compose {
     fn default() -> Self {
         Compose {
             message: utils::empty_string(),
-            to: utils::empty_string()
+            to: utils::empty_string(),
         }
     }
 }
@@ -36,7 +32,7 @@ struct Status {
     jwp: String,
     /// Alias for contact
     nick: String,
-    signed_key: bool, 
+    signed_key: bool,
     /// transaction proof signature of current status check
     txp: String,
 }
@@ -56,15 +52,15 @@ impl Default for Status {
 }
 
 /// The AddressBookApp unfornuately does more than that.
-/// 
+///
 /// Herein lies the logic for filtering contacts, generating JWPs,
-/// 
+///
 /// transaction proofs, etc. Once a contact has a valid JWP that has
-/// 
+///
 /// not yet expired the `Compose` button will appear by their i2p address.
-/// 
+///
 /// NOTE: the `Sign Key` must be pressed for trusted contacts before a
-/// 
+///
 /// message can be composed.
 pub struct AddressBookApp {
     add_nick: String,
@@ -150,7 +146,6 @@ impl Default for AddressBookApp {
 
 impl eframe::App for AddressBookApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-
         // Hook into async channel threads
         //-----------------------------------------------------------------------------------
         if let Ok(contact_info) = self.contact_info_rx.try_recv() {
@@ -159,14 +154,6 @@ impl eframe::App for AddressBookApp {
                 self.approve_contact = true;
             }
             if self.showing_status {
-                let i2p_address = self.s_contact.i2p_address.clone();
-                if self.s_contact.xmr_address == utils::empty_string() {
-                    clear_gui_db(String::from("gui-online"), String::from(&i2p_address));
-                    write_gui_db(String::from("gui-online"), String::from(&i2p_address), String::from("0"));
-                } else {
-                    clear_gui_db(String::from("gui-online"), String::from(&i2p_address));
-                    write_gui_db(String::from("gui-online"), String::from(&i2p_address), String::from("1"));
-                }
                 self.is_pinging = false;
             }
         }
@@ -205,7 +192,7 @@ impl eframe::App for AddressBookApp {
                 self.compose.message = utils::empty_string();
             }
         }
-        
+
         // initial contact load
         if !self.contacts_init {
             self.contacts = contact::find_all();
@@ -223,9 +210,7 @@ impl eframe::App for AddressBookApp {
                     ui.add(egui::Spinner::new());
                     ui.label("sending nevmes...");
                 }
-                ui.horizontal(|ui| {
-                    ui.label(format!("to: {}", self.status.i2p))
-                });
+                ui.horizontal(|ui| ui.label(format!("to: {}", self.status.i2p)));
                 ui.horizontal(|ui| {
                     let message_label = ui.label("msg: ");
                     ui.text_edit_multiline(&mut self.compose.message)
@@ -236,8 +221,13 @@ impl eframe::App for AddressBookApp {
                     if self.status.jwp != utils::empty_string() {
                         if ui.button("Send").clicked() {
                             self.is_loading = true;
-                            send_message_req(self.send_message_tx.clone(), ctx.clone(),
-                                self.compose.message.clone(), self.compose.to.clone(), self.status.jwp.clone());
+                            send_message_req(
+                                self.send_message_tx.clone(),
+                                ctx.clone(),
+                                self.compose.message.clone(),
+                                self.compose.to.clone(),
+                                self.status.jwp.clone(),
+                            );
                         }
                     }
                     if ui.button("Exit").clicked() {
@@ -248,7 +238,8 @@ impl eframe::App for AddressBookApp {
 
         // Payment approval window
         //-----------------------------------------------------------------------------------
-        let mut is_approving_payment = self.approve_payment && self.s_invoice.address != utils::empty_string();
+        let mut is_approving_payment =
+            self.approve_payment && self.s_invoice.address != utils::empty_string();
         let address = self.s_invoice.address.clone();
         let amount = self.s_invoice.pay_threshold;
         let expire = self.s_invoice.conf_threshold;
@@ -269,7 +260,13 @@ impl eframe::App for AddressBookApp {
                         if ui.button("Approve").clicked() {
                             // activate xmr "transfer", check the hash, update db and refresh
                             let d: reqres::Destination = reqres::Destination { address, amount };
-                            send_payment_req(self.payment_tx.clone(), ctx.clone(), d, self.status.i2p.clone(), expire);
+                            send_payment_req(
+                                self.payment_tx.clone(),
+                                ctx.clone(),
+                                d,
+                                self.status.i2p.clone(),
+                                expire,
+                            );
                             self.is_loading = true;
                         }
                     }
@@ -293,7 +290,11 @@ impl eframe::App for AddressBookApp {
                     ui.add(egui::Spinner::new());
                     ui.label("pinging...");
                 }
-                let status = if self.s_contact.xmr_address != utils::empty_string() { "online" } else { "offline" };
+                let status = if self.s_contact.xmr_address != utils::empty_string() {
+                    "online"
+                } else {
+                    "offline"
+                };
                 ui.label(format!("status: {}", status));
                 ui.label(format!("nick: {}", self.status.nick));
                 ui.label(format!("tx proof: {}", self.status.txp));
@@ -301,10 +302,16 @@ impl eframe::App for AddressBookApp {
                 ui.label(format!("expiration: {}", self.status.h_exp));
                 ui.label(format!("signed key: {}", self.status.signed_key));
                 if self.status.jwp == utils::empty_string()
-                    && !self.is_pinging && status == "online"
-                    && self.status.txp == utils::empty_string() {
+                    && !self.is_pinging
+                    && status == "online"
+                    && self.status.txp == utils::empty_string()
+                {
                     if ui.button("Create JWP").clicked() {
-                        send_invoice_req(self.invoice_tx.clone(), ctx.clone(), self.status.i2p.clone());
+                        send_invoice_req(
+                            self.invoice_tx.clone(),
+                            ctx.clone(),
+                            self.status.i2p.clone(),
+                        );
                         self.approve_payment = true;
                         self.showing_status = false;
                     }
@@ -312,7 +319,11 @@ impl eframe::App for AddressBookApp {
                 if !self.status.signed_key {
                     if ui.button("Sign Key").clicked() {
                         contact::trust_gpg(self.status.i2p.clone());
-                        write_gui_db(String::from("gui-signed-key"), self.status.i2p.clone(), String::from("1"));
+                        write_gui_db(
+                            String::from("gui-signed-key"),
+                            self.status.i2p.clone(),
+                            String::from("1"),
+                        );
                         self.showing_status = false;
                     }
                 }
@@ -328,7 +339,8 @@ impl eframe::App for AddressBookApp {
                 }
                 ui.horizontal(|ui| {
                     let nick_label = ui.label("nick: ");
-                    ui.text_edit_singleline(&mut self.add_nick).labelled_by(nick_label.id);
+                    ui.text_edit_singleline(&mut self.add_nick)
+                        .labelled_by(nick_label.id);
                 });
                 if ui.button("Change nick").clicked() {
                     change_nick_req(self.status.i2p.clone(), self.add_nick.clone());
@@ -348,7 +360,8 @@ impl eframe::App for AddressBookApp {
             );
             ui.horizontal(|ui| {
                 let contact_label = ui.label("contact: ");
-                ui.text_edit_singleline(&mut self.contact).labelled_by(contact_label.id);
+                ui.text_edit_singleline(&mut self.contact)
+                    .labelled_by(contact_label.id);
             });
             let mut is_approved = self.approve_contact;
             let mut is_added = self.added;
@@ -356,7 +369,7 @@ impl eframe::App for AddressBookApp {
             let i2p_address = self.s_contact.i2p_address.clone();
             let xmr_address = self.s_contact.xmr_address.clone();
             let gpg_key = self.s_contact.gpg_key.iter().cloned().collect();
-            
+
             // Contact added confirmation screen
             //-----------------------------------------------------------------------------------
             egui::Window::new("Added contact")
@@ -370,10 +383,12 @@ impl eframe::App for AddressBookApp {
                         self.is_adding = false;
                         self.approve_contact = false;
                         self.contacts = contact::find_all();
-                        for c in &self.contacts { ui.label(format!("{}", c.i2p_address)); }
+                        for c in &self.contacts {
+                            ui.label(format!("{}", c.i2p_address));
+                        }
                     }
                 });
-            
+
             // Contact approval screen
             //-----------------------------------------------------------------------------------
             egui::Window::new("Approve Contact")
@@ -386,7 +401,10 @@ impl eframe::App for AddressBookApp {
                     }
                     ui.label(format!("i2p: {}", i2p_address));
                     ui.label(format!("xmr: {}", xmr_address));
-                    ui.label(format!("gpg: {}", String::from_utf8(gpg_key).unwrap_or(utils::empty_string())));
+                    ui.label(format!(
+                        "gpg: {}",
+                        String::from_utf8(gpg_key).unwrap_or(utils::empty_string())
+                    ));
                     ui.horizontal(|ui| {
                         if !is_loading {
                             if ui.button("Approve").clicked() {
@@ -394,9 +412,15 @@ impl eframe::App for AddressBookApp {
                                 self.approve_contact = false;
                                 let c_contact: models::Contact = models::Contact {
                                     cid: self.s_contact.cid.clone(),
-                                    i2p_address, xmr_address, gpg_key: self.s_contact.gpg_key.iter().cloned().collect()
+                                    i2p_address,
+                                    xmr_address,
+                                    gpg_key: self.s_contact.gpg_key.iter().cloned().collect(),
                                 };
-                                send_create_contact_req(self.contact_add_tx.clone(), ctx.clone(), c_contact);  
+                                send_create_contact_req(
+                                    self.contact_add_tx.clone(),
+                                    ctx.clone(),
+                                    c_contact,
+                                );
                             }
                             if ui.button("Exit").clicked() {
                                 self.approve_contact = false;
@@ -425,100 +449,123 @@ impl eframe::App for AddressBookApp {
             );
             ui.horizontal(|ui| {
                 let find_contact_label = ui.label("filter contacts: ");
-                ui.text_edit_singleline(&mut self.find_contact).labelled_by(find_contact_label.id);
+                ui.text_edit_singleline(&mut self.find_contact)
+                    .labelled_by(find_contact_label.id);
             });
             ui.label("\n");
             use egui_extras::{Column, TableBuilder};
+            let table = TableBuilder::new(ui)
+                .striped(true)
+                .resizable(true)
+                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                .column(Column::auto())
+                .column(Column::initial(100.0).at_least(40.0).clip(true))
+                .column(Column::initial(100.0).at_least(40.0).clip(true))
+                .column(Column::initial(100.0).at_least(40.0).clip(true))
+                .column(Column::remainder())
+                .min_scrolled_height(0.0);
 
-                let table = TableBuilder::new(ui)
-                    .striped(true)
-                    .resizable(true)
-                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                    .column(Column::auto())
-                    .column(Column::initial(100.0).at_least(40.0).clip(true))
-                    .column(Column::initial(100.0).at_least(40.0).clip(true))
-                    .column(Column::initial(100.0).at_least(40.0).clip(true))
-                    .column(Column::remainder())
-                    .min_scrolled_height(0.0);
-
-                table
-                    .header(20.0, |mut header| {
-                        header.col(|ui| {
-                            ui.strong("Nickname");
-                        });
-                        header.col(|ui| {
-                            ui.strong(".b32.i2p");
-                        });
-                        header.col(|ui| {
-                            ui.strong("");
-                        });
-                        header.col(|ui| {
-                            ui.strong("");
-                        });
-                    })
-                    .body(|mut body|
-                        for c in &self.contacts {
-                            if c.i2p_address.contains(&self.find_contact) {
-                                let row_height =  20.0;
-                                body.row(row_height, |mut row| {
-                                    row.col(|ui| {
-                                        ui.label("anon");
-                                    });
-                                    row.col(|ui| {
-                                        ui.label(format!("{}", c.i2p_address));
-                                    });
-                                    row.col(|ui| {
-                                        if ui.button("Check Status").clicked() {
-                                            let nick_db = search_gui_db(String::from("gui-nick"), String::from(&c.i2p_address));
-                                            let nick = if nick_db == utils::empty_string() { String::from("anon") } else { nick_db };
-                                            self.status.nick = nick;
-                                            self.status.i2p = String::from(&c.i2p_address);
-                                            // get the txp
-                                            self.status.txp = search_gui_db(String::from("gui-txp"), String::from(&c.i2p_address));
-                                            // get the jwp
-                                            self.status.jwp = search_gui_db(String::from("gui-jwp"), String::from(&c.i2p_address));
-                                            let r_exp = search_gui_db(String::from("gui-exp"), String::from(&c.i2p_address));
-                                            self.status.exp = r_exp;
-                                            let expire = match self.status.exp.parse::<i64>() {
-                                                Ok(n) => n,
-                                                Err(_e) => 0,
-                                            };
-                                            self.status.h_exp = chrono::NaiveDateTime::from_timestamp_opt(expire, 0)
-                                                .unwrap().to_string();
-                                            // MESSAGES WON'T BE SENT UNTIL KEY IS SIGNED AND TRUSTED!
-                                            self.status.signed_key = check_signed_key(self.status.i2p.clone());
-                                            send_contact_info_req(self.contact_info_tx.clone(), ctx.clone(), self.status.i2p.clone());
-                                            self.showing_status = true;
-                                            self.is_pinging = true;
-                                        }
-                                    });
-                                    row.col(|ui| {
-                                        let now = chrono::offset::Utc::now().timestamp();
+            table
+                .header(20.0, |mut header| {
+                    header.col(|ui| {
+                        ui.strong("Nickname");
+                    });
+                    header.col(|ui| {
+                        ui.strong(".b32.i2p");
+                    });
+                    header.col(|ui| {
+                        ui.strong("");
+                    });
+                    header.col(|ui| {
+                        ui.strong("");
+                    });
+                })
+                .body(|mut body| {
+                    for c in &self.contacts {
+                        if c.i2p_address.contains(&self.find_contact) {
+                            let row_height = 20.0;
+                            body.row(row_height, |mut row| {
+                                row.col(|ui| {
+                                    ui.label("anon");
+                                });
+                                row.col(|ui| {
+                                    ui.label(format!("{}", c.i2p_address));
+                                });
+                                row.col(|ui| {
+                                    if ui.button("Check Status").clicked() {
+                                        let nick_db = search_gui_db(
+                                            String::from("gui-nick"),
+                                            String::from(&c.i2p_address),
+                                        );
+                                        let nick = if nick_db == utils::empty_string() {
+                                            String::from("anon")
+                                        } else {
+                                            nick_db
+                                        };
+                                        self.status.nick = nick;
+                                        self.status.i2p = String::from(&c.i2p_address);
+                                        // get the txp
+                                        self.status.txp = search_gui_db(
+                                            String::from("gui-txp"),
+                                            String::from(&c.i2p_address),
+                                        );
+                                        // get the jwp
+                                        self.status.jwp = search_gui_db(
+                                            String::from("gui-jwp"),
+                                            String::from(&c.i2p_address),
+                                        );
+                                        let r_exp = search_gui_db(
+                                            String::from("gui-exp"),
+                                            String::from(&c.i2p_address),
+                                        );
+                                        self.status.exp = r_exp;
                                         let expire = match self.status.exp.parse::<i64>() {
                                             Ok(n) => n,
                                             Err(_e) => 0,
                                         };
-                                        let is_online_now = search_gui_db(String::from("gui-online"), String::from(&c.i2p_address));
-                                        if now < expire && self.status.signed_key
-                                            && self.status.jwp != utils::empty_string() 
-                                            && c.i2p_address == self.status.i2p
-                                            && is_online_now == String::from("1") {
-                                                if ui.button("Compose").clicked() {
-                                                    self.is_composing = true;
-                                                }
-                                        }
-                                    });
+                                        self.status.h_exp =
+                                            chrono::NaiveDateTime::from_timestamp_opt(expire, 0)
+                                                .unwrap()
+                                                .to_string();
+                                        // MESSAGES WON'T BE SENT UNTIL KEY IS SIGNED AND TRUSTED!
+                                        self.status.signed_key =
+                                            check_signed_key(self.status.i2p.clone());
+                                        send_contact_info_req(
+                                            self.contact_info_tx.clone(),
+                                            ctx.clone(),
+                                            self.status.i2p.clone(),
+                                        );
+                                        self.showing_status = true;
+                                        self.is_pinging = true;
+                                    }
                                 });
-                            }
-                    });
+                                row.col(|ui| {
+                                    let now = chrono::offset::Utc::now().timestamp();
+                                    let expire = match self.status.exp.parse::<i64>() {
+                                        Ok(n) => n,
+                                        Err(_e) => 0,
+                                    };
+                                    if now < expire
+                                        && self.status.signed_key
+                                        && self.status.jwp != utils::empty_string()
+                                        && c.i2p_address == self.status.i2p
+                                    {
+                                        if ui.button("Compose").clicked() {
+                                            self.is_composing = true;
+                                        }
+                                    }
+                                });
+                            });
+                        }
+                    }
+                });
         });
     }
 }
 
 // Send asyc requests to nevmes-core
 //------------------------------------------------------------------------------
-fn send_contact_info_req
-(tx: Sender<models::Contact>, ctx: egui::Context, contact: String) {
+fn send_contact_info_req(tx: Sender<models::Contact>, ctx: egui::Context, contact: String) {
     log::debug!("async send_contact_info_req");
     tokio::spawn(async move {
         match contact::add_contact_request(contact).await {
@@ -531,8 +578,7 @@ fn send_contact_info_req
     });
 }
 
-fn send_create_contact_req
-(tx: Sender<models::Contact>, ctx: egui::Context, c: models::Contact) {
+fn send_create_contact_req(tx: Sender<models::Contact>, ctx: egui::Context, c: models::Contact) {
     log::debug!("async send_create_contact_req");
     tokio::spawn(async move {
         let j_contact = utils::contact_to_json(&c);
@@ -542,8 +588,7 @@ fn send_create_contact_req
     });
 }
 
-fn add_contact_timeout
-(tx: Sender<bool>, ctx: egui::Context) {
+fn add_contact_timeout(tx: Sender<bool>, ctx: egui::Context) {
     tokio::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_secs(ADD_CONTACT_TIMEOUT_SECS)).await;
         log::error!("add contact timeout");
@@ -552,29 +597,25 @@ fn add_contact_timeout
     });
 }
 
-fn search_gui_db
-(f: String, data: String) -> String {
+fn search_gui_db(f: String, data: String) -> String {
     let s = db::Interface::open();
     let k = format!("{}-{}", f, data);
     db::Interface::read(&s.env, &s.handle, &k)
 }
 
-fn write_gui_db
-(f: String, key: String, data: String) {
+fn write_gui_db(f: String, key: String, data: String) {
     let s = db::Interface::open();
     let k = format!("{}-{}", f, key);
     db::Interface::write(&s.env, &s.handle, &k, &data);
 }
 
-fn clear_gui_db
-(f: String, key: String) {
+fn clear_gui_db(f: String, key: String) {
     let s = db::Interface::open();
     let k = format!("{}-{}", f, key);
     db::Interface::delete(&s.env, &s.handle, &k);
 }
 
-fn send_invoice_req
-(tx: Sender<reqres::Invoice>, ctx: egui::Context, contact: String) {
+fn send_invoice_req(tx: Sender<reqres::Invoice>, ctx: egui::Context, contact: String) {
     log::debug!("async send_invoice_req");
     tokio::spawn(async move {
         match contact::request_invoice(contact).await {
@@ -587,8 +628,13 @@ fn send_invoice_req
     });
 }
 
-fn send_payment_req
-(tx: Sender<bool>, ctx: egui::Context, d: reqres::Destination, contact: String, expire: u64) {
+fn send_payment_req(
+    tx: Sender<bool>,
+    ctx: egui::Context,
+    d: reqres::Destination,
+    contact: String,
+    expire: u64,
+) {
     log::debug!("async send_payment_req");
     log::debug!("cleaning stale jwp values");
     clear_gui_db(String::from("gui-txp"), String::from(&contact));
@@ -619,7 +665,7 @@ fn send_payment_req
         let ftxp: proof::TxProof = proof::TxProof {
             address: ftxp_address,
             confirmations: 0,
-            hash:ftxp_hash ,
+            hash: ftxp_hash,
             message: utils::empty_string(),
             signature: get_txp.result.signature,
         };
@@ -635,31 +681,46 @@ fn send_payment_req
             tokio::time::sleep(std::time::Duration::from_secs(BLOCK_TIME_IN_SECS_EST_U64)).await;
             retry_count += 1;
         }
-        write_gui_db(String::from("gui-txp"), String::from(&contact), String::from(&ftxp.signature));
-        log::debug!("proving payment to {} for: {}", String::from(&contact), &ftxp.hash);
+        write_gui_db(
+            String::from("gui-txp"),
+            String::from(&contact),
+            String::from(&ftxp.signature),
+        );
+        log::debug!(
+            "proving payment to {} for: {}",
+            String::from(&contact),
+            &ftxp.hash
+        );
         // if we made it this far we can now request a JWP from our friend
         match proof::prove_payment(String::from(&contact), &ftxp).await {
             Ok(result) => {
-                write_gui_db(String::from("gui-jwp"), String::from(&contact), String::from(&result.jwp));
+                write_gui_db(
+                    String::from("gui-jwp"),
+                    String::from(&contact),
+                    String::from(&result.jwp),
+                );
                 // this is just an estimate expiration but should suffice
-                let seconds: i64 = expire as i64*2*60;
+                let seconds: i64 = expire as i64 * 2 * 60;
                 // subtract 120 seconds since we had to wait for one confirmation
-                let grace: i64 = seconds-BLOCK_TIME_IN_SECS_EST_I64;
-                let unix: i64 = chrono::offset::Utc::now().timestamp()+grace;
-                write_gui_db(String::from("gui-exp"), String::from(&contact), format!("{}", unix));
+                let grace: i64 = seconds - BLOCK_TIME_IN_SECS_EST_I64;
+                let unix: i64 = chrono::offset::Utc::now().timestamp() + grace;
+                write_gui_db(
+                    String::from("gui-exp"),
+                    String::from(&contact),
+                    format!("{}", unix),
+                );
                 // TODO(c2m): edge case when proving payment fails to complete
                 //            case the payment proof data and set retry logic
                 ctx.request_repaint();
             }
             _ => log::error!("failed to obtain jwp"),
         }
-        let _= tx.send(true);
+        let _ = tx.send(true);
         ctx.request_repaint();
     });
 }
 
-fn send_message_req
-(tx: Sender<bool>, ctx: egui::Context, body: String, to: String, jwp: String) {
+fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: String, jwp: String) {
     log::debug!("constructing message");
     let m: models::Message = models::Message {
         body: body.into_bytes(),
@@ -674,7 +735,7 @@ fn send_message_req
         let result = message::create(j_message, jwp).await;
         if result.mid != utils::empty_string() {
             log::info!("sent message: {}", result.mid);
-            let _= tx.send(true);
+            let _ = tx.send(true);
             ctx.request_repaint();
         }
     });
