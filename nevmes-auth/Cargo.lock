@@ -869,41 +869,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nevmes_auth"
-version = "0.1.0-alpha"
-dependencies = [
- "env_logger",
- "nevmes_core",
- "log 0.4.17",
- "rocket",
-]
-
-[[package]]
-name = "nevmes_core"
-version = "0.1.0-alpha"
-dependencies = [
- "chrono",
- "clap",
- "diqwest",
- "env_logger",
- "gpgme",
- "hex",
- "hmac",
- "jwt",
- "lmdb-rs",
- "log 0.4.17",
- "rand",
- "rand_core",
- "reqwest",
- "rocket",
- "schedule_recv",
- "serde",
- "serde_json",
- "sha2 0.10.6",
- "tokio",
-]
-
-[[package]]
 name = "iana-time-zone"
 version = "0.1.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1220,6 +1185,41 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
+]
+
+[[package]]
+name = "nevmes_auth"
+version = "0.1.0-alpha"
+dependencies = [
+ "env_logger",
+ "log 0.4.17",
+ "nevmes_core",
+ "rocket",
+]
+
+[[package]]
+name = "nevmes_core"
+version = "0.1.0-alpha"
+dependencies = [
+ "chrono",
+ "clap",
+ "diqwest",
+ "env_logger",
+ "gpgme",
+ "hex",
+ "hmac",
+ "jwt",
+ "lmdb-rs",
+ "log 0.4.17",
+ "rand",
+ "rand_core",
+ "reqwest",
+ "rocket",
+ "schedule_recv",
+ "serde",
+ "serde_json",
+ "sha2 0.10.6",
+ "tokio",
 ]
 
 [[package]]

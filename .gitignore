@@ -3,6 +3,7 @@
 /core
 /test-lmdb
 /wallet
+/.build
 genkey-batch
 monero-wallet-rpc.log
 notes.txt
