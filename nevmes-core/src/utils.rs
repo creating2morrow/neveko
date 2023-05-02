@@ -1,7 +1,7 @@
 use rand_core::RngCore;
 use clap::Parser;
 use rocket::serde::json::Json;
-use crate::{args, db, i2p, models, monero, gpg, utils, reqres};
+use crate::{args, db, i2p, message, models, monero, gpg, utils, reqres};
 use log::{info, debug, error, warn};
 use std::time::Duration;
 
@@ -332,7 +332,7 @@ pub async fn start_up() {
     gen_app_gpg().await;
     let env: String = get_release_env().value();
     start_gui();
-    // { tokio::spawn(async { message::retry_fts().await; }); }
+    { tokio::spawn(async { message::retry_fts().await; }); }
     info!("{} - nevmes is online", env);
 }
 

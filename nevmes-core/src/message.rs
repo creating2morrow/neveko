@@ -118,17 +118,14 @@ pub fn find_all() -> Vec<Message> {
 
 /// Tx message
 async fn send_message(out: &Message, jwp: &str) -> Result<(), Box<dyn Error>> {
-
     // TODO(c2m): Error handling for http 402 status
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
 
-    // TODO(?): Need some assistance with message retry logic
-
     // check if the contact is online
-    // let is_online: bool = is_contact_online(String::from(jwp)).await.unwrap_or(false);
-    // if is_online {
+    let is_online: bool = is_contact_online(&out.to, String::from(jwp)).await.unwrap_or(false);
+    if is_online {
        return match client?.post(format!("http://{}/message/rx", out.to))
             .header("proof", jwp).json(&out).send().await {
                 Ok(response) => {
@@ -138,7 +135,7 @@ async fn send_message(out: &Message, jwp: &str) -> Result<(), Box<dyn Error>> {
                         Ok(r) => {
                             if r.contains("402") { error!("Payment required"); }
                             // remove the mid from fts if necessary
-                            // remove_from_retry(String::from(&out.mid));
+                            remove_from_retry(String::from(&out.mid));
                             Ok(())
                         },
                         _ => Ok(()),
@@ -149,10 +146,10 @@ async fn send_message(out: &Message, jwp: &str) -> Result<(), Box<dyn Error>> {
                     Ok(())
                 }
             }   
-    // } else {
-        // send_to_retry(String::from(&out.mid)).await;
-        // Ok(())
-    // }
+     } else {
+        send_to_retry(String::from(&out.mid)).await;
+        Ok(())
+    }
 }
 
 /// Returns decrypted hex string of the encrypted message
@@ -169,14 +166,12 @@ pub fn delete(mid: &String) {
     db::Interface::delete(&s.env, &s.handle, &String::from(mid));
 }
 
-/* TODO(?): failed-to-send (fts) needs some work to say the least
-
 /// ping the contact health check over i2p
-async fn is_contact_online(jwp: String) -> Result<bool, Box<dyn Error>> {
+async fn is_contact_online(contact: &String, jwp: String) -> Result<bool, Box<dyn Error>> {
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
-    match client?.get(format!("http://{}/xmr/rpc/version", host))
+    match client?.get(format!("http://{}/xmr/rpc/version", contact))
         .header("proof", jwp).send().await {
             Ok(response) => {
                 let res = response.json::<reqres::XmrRpcVersionResponse>().await;
@@ -198,14 +193,16 @@ async fn is_contact_online(jwp: String) -> Result<bool, Box<dyn Error>> {
 
 /// stage message for async retry
 async fn send_to_retry(mid: String) {
+    info!("sending {} to fts", &mid);
     let s = db::Interface::open();
-    // in order to retrieve FTS (failed-to-send), write keys to with fts
+    // in order to retrieve FTS (failed-to-send), write keys to db with fts
     let list_key = format!("fts");
     let r = db::Interface::read(&s.env, &s.handle, &String::from(&list_key));
     if r == utils::empty_string() {
         debug!("creating fts message index");
     }
     let mut msg_list = [String::from(&r), String::from(&mid)].join(",");
+    // don't duplicate message ids in fts
     if String::from(&r).contains(&String::from(&mid)) {
         msg_list = r;
     }
@@ -215,6 +212,7 @@ async fn send_to_retry(mid: String) {
 
 /// clear fts message from index
 fn remove_from_retry(mid: String) {
+    info!("removing id {} from fts", &mid);
     let s = db::Interface::open();
     // in order to retrieve FTS (failed-to-send), write keys to with fts
     let list_key = format!("fts");
@@ -233,6 +231,7 @@ fn remove_from_retry(mid: String) {
 pub async fn retry_fts() {
     let tick: std::sync::mpsc::Receiver<()> = schedule_recv::periodic_ms(60000);
     loop {
+        debug!("running retry failed-to-send thread");
         tick.recv().unwrap();
         let s = db::Interface::open();
         let list_key = format!("fts");
@@ -254,5 +253,3 @@ pub async fn retry_fts() {
         }
     }
 }
-
-*/
