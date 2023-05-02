@@ -1189,7 +1189,7 @@ dependencies = [
 
 [[package]]
 name = "nevmes_auth"
-version = "0.1.0-alpha"
+version = "0.2.0-alpha"
 dependencies = [
  "env_logger",
  "log 0.4.17",
@@ -1199,7 +1199,7 @@ dependencies = [
 
 [[package]]
 name = "nevmes_core"
-version = "0.1.0-alpha"
+version = "0.2.0-alpha"
 dependencies = [
  "chrono",
  "clap",
