@@ -15,31 +15,31 @@ curl -iv -x localhost:9043/login/<SIGNATURE>/<AUTHID>/<UID>
 ## generate invoice
 
 ```bash
-curl -iv  http://localhost:9000/invoice
+curl -iv  http://bob.b32.i2p/invoice
 ```
 
 ## get contact info
 
 ```bash
-curl -iv  http://localhost:9000/share
+curl -iv  http://bob.b32.i2p/share
 ```
 
 ## generate jwp
 
 ```bash
-curl -iv -X POST http://localhost:9000/prove -d '{"address": "", "confirmations":0,"hash":"", "message":"", "signature": ""}' -H 'Content-Type: application/json'
+curl -iv -X POST http://bob.b32.i2p/prove -d '{"address": "", "confirmations":0,"hash":"", "message":"", "signature": ""}' -H 'Content-Type: application/json'
 ```
 
 ## health check
 
 ```bash
-curl -iv http://localhost:9000/xmr/version -H 'proof: eyJhbGciOiJIUzUxMiJ9...'
+curl -iv http://bob.b32.i2p/xmr/version -H 'proof: eyJhbGciOiJIUzUxMiJ9...'
 ```
 
 ## add contact
 
 ```bash
-curl -iv -X POST http://localhost:9044/contact -d '{"cid": "KEEP EMPTY", "gpg_key": [1,2,3...], "i2p_address": "", "xmr_address": ""}' -H 'Content-Type: application/json'
+curl -iv -X POST http://localhost:9044/contact -d '{"cid": "KEEP EMPTY", "gpg_key": [1,2,3...], "i2p_address": "", "xmr_address": ""}' -H 'Content-Type: application/json' 
 ```
 
 ## view contacts
@@ -51,17 +51,23 @@ curl -iv http://localhost:9044/contacts
 ## send message
 
 ```bash
-curl -ivk localhost:9045/tx -d '{"uid":"123", "mid": "", "body": [1,2,3 <PLAINTEXT_BYTES>], "from": "alice.b32.i2p", "created": 0, "to": "bob.b32.i2p"}' -H 'Content-Type: application/json'
+curl -ivk http://localhost:9045/tx -d '{"uid":"123", "mid": "", "body": [1,2,3 <PLAINTEXT_BYTES>], "from": "alice.b32.i2p", "created": 0, "to": "bob.b32.i2p"}' -H 'Content-Type: application/json'
 ```
 
 ## receive message
 
 ```bash
-curl -ivk localhost:9000/message/rx -d '{"uid":"", "mid": "", "body": [1,2,3 <ENCRYPTED_BYTES>], "from": "alice.b32.i2p", "created": 0, "to": "bob.b32.i2p"}' -H 'Content-Type: application/json' -H 'proof: eyJhbGciOiJIUzUxMiJ9...'
+curl -iv http://alice.b32.i2p/message/rx -d '{"uid":"", "mid": "", "body": [1,2,3 <ENCRYPTED_BYTES>], "from": "bob.b32.i2p", "created": 0, "to": "alice.b32.i2p"}' -H 'Content-Type: application/json' -H 'proof: eyJhbGciOiJIUzUxMiJ9...'
 ```
 
 ## view messages
 
 ```bash
-curl -iv http://localhost:9044/messages
+curl -iv http://localhost:9045/messages
+```
+
+## decrypt message
+
+```bash
+curl -iv http://localhost:9045/message/decrypt/<MESSAGE_ID>
 ```
