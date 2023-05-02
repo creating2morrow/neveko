@@ -27,7 +27,7 @@ impl eframe::App for LoginApp {
             ui.label("it will not be displayed again after logging in");
             ui.label("use this or set your own secure password.");
             ui.horizontal(|ui| {
-                let cred_label = ui.label("send to: \t");
+                let cred_label = ui.label("credential: \t");
                 ui.text_edit_singleline(&mut self.credential)
                     .labelled_by(cred_label.id);
             });

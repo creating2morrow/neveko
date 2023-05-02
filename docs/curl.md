@@ -9,7 +9,7 @@ NOTE: JWT for micro servers disabled in dev
 * send second request with signature to get AUTHID and UID
 
 ```bash
-curl -iv -x localhost:9043/alice.b32.i2p/login/<SIGNATURE>/<AUTHID>/<UID>
+curl -iv -x localhost:9043/<XMR_ADDRESS>/login/<SIGNATURE>/<AUTHID>/<UID>
 ```
 
 ## generate invoice
