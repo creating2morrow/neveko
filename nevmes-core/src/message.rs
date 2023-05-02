@@ -42,11 +42,12 @@ pub async fn create(m: Json<Message>, jwp: String) -> Message {
 
 /// Rx message
 pub async fn rx(m: Json<Message>) {
+    // make sure the message isn't something strange
+    let is_valid = validate_message(&m);
+    if !is_valid { return; }
     // don't allow messages from outside the contact list
     let is_in_contact_list = contact::exists(&m.from);
-    if !is_in_contact_list {
-        return;
-    }
+    if !is_in_contact_list { return; }
     let f_mid: String = format!("m{}", utils::generate_rnd());
     let new_message = Message {
         mid: String::from(&f_mid),
@@ -252,4 +253,13 @@ pub async fn retry_fts() {
             }
         }
     }
+}
+
+/// check message field lengths to prevent db spam
+fn validate_message(j: &Json<Message>) -> bool {
+    info!("validating message: {}", &j.mid);
+    j.mid.len() < utils::string_limit()
+    && j.body.len() < utils::message_limit()
+    && j.to == i2p::get_destination()
+    && j.uid .len() < utils::string_limit()
 }
