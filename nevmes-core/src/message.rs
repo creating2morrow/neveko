@@ -136,7 +136,7 @@ async fn send_message(out: &Message, jwp: &str) -> Result<(), Box<dyn Error>> {
                         Ok(r) => {
                             if r.contains("402") { error!("Payment required"); }
                             // remove the mid from fts if necessary
-                            remove_from_retry(String::from(&out.mid));
+                            remove_from_fts(String::from(&out.mid));
                             Ok(())
                         },
                         _ => Ok(()),
@@ -209,10 +209,17 @@ async fn send_to_retry(mid: String) {
     }
     debug!("writing fts message index {} for id: {}", msg_list, list_key);
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
+    // restart fts if is empty
+    let list_key = format!("fts");
+    let r = db::Interface::read(&s.env, &s.handle, &String::from(&list_key));
+    if r == utils::empty_string() {
+        debug!("restarting fts");
+        utils::restart_retry_fts();
+    }
 }
 
 /// clear fts message from index
-fn remove_from_retry(mid: String) {
+fn remove_from_fts(mid: String) {
     info!("removing id {} from fts", &mid);
     let s = db::Interface::open();
     // in order to retrieve FTS (failed-to-send), write keys to with fts
@@ -228,7 +235,11 @@ fn remove_from_retry(mid: String) {
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
 }
 
-/// triggered on app startup, retries to send fts every minute
+/// Triggered on app startup, retries to send fts every minute
+/// 
+/// FTS thread terminates when empty and gets restarted on the next
+/// 
+/// failed-to-send message.
 pub async fn retry_fts() {
     let tick: std::sync::mpsc::Receiver<()> = schedule_recv::periodic_ms(60000);
     loop {
@@ -239,6 +250,7 @@ pub async fn retry_fts() {
         let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
         if r == utils::empty_string() {
             info!("fts message index not found");
+            break; // terminate fts if no message to send
         }
         let v_mid = r.split(",");
         let v: Vec<String> = v_mid.map(|s| String::from(s)).collect();

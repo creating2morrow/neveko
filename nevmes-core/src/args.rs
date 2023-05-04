@@ -124,4 +124,11 @@ pub struct Args {
         default_value = "false"
     )]
     pub remote_access: bool,
+    /// Remove all failed-to-send messages from db on app startup
+    #[arg(
+        long,
+        help = "this will clear failed-to-send messages from the databse",
+        default_value = "false"
+    )]
+    pub clear_fts: bool,
 }

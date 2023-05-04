@@ -334,7 +334,8 @@ fn start_gui() {
 pub async fn start_up() {
     info!("nevmes is starting up");
     let args = args::Args::parse();
-    if args.remote_access { start_micro_servers(); } 
+    if args.remote_access { start_micro_servers(); }
+    if args.clear_fts { clear_fts(); }
     gen_signing_keys();
     if !is_using_remote_node() { monero::start_daemon(); }
     create_wallet_dir();
@@ -384,6 +385,18 @@ pub fn kill_child_processes(cm: bool) {
         .spawn()
         .expect("i2p-zero failed to stop");
     debug!("{:?}", i2pz_output.stdout);
+}
+
+/// We can restart fts from since it gets terminated when empty
+pub fn restart_retry_fts() {
+    tokio::spawn(async move { message::retry_fts().await; });
+}
+
+/// Called on app startup if `--clear-fts` flag is passed.
+fn clear_fts() {
+    info!("clear fts");
+    let s = db::Interface::open();
+    db::Interface::delete(&s.env, &s.handle, "fts");
 }
 
 /// Move temp files to /tmp
