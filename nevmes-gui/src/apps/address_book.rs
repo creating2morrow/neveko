@@ -1,7 +1,7 @@
 use nevmes_core::*;
 use std::sync::mpsc::{Receiver, Sender};
 
-use crate::{ADD_CONTACT_TIMEOUT_SECS, BLOCK_TIME_IN_SECS_EST_I64, BLOCK_TIME_IN_SECS_EST_U64};
+use crate::{ADD_CONTACT_TIMEOUT_SECS, BLOCK_TIME_IN_SECS_EST};
 
 // TODO(c2m): better error handling with and error_tx/error_rx channel
 //       hook into the error thread and show toast messages as required
@@ -20,6 +20,7 @@ impl Default for Compose {
         }
     }
 }
+
 /// Struct for the contact status window
 struct Status {
     /// UNIX timestamp of expiration as string
@@ -678,7 +679,7 @@ fn send_payment_req(
             if check_txp.result.good && check_txp.result.confirmations > 0 {
                 break;
             }
-            tokio::time::sleep(std::time::Duration::from_secs(BLOCK_TIME_IN_SECS_EST_U64)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(BLOCK_TIME_IN_SECS_EST as u64)).await;
             retry_count += 1;
         }
         write_gui_db(
@@ -702,7 +703,7 @@ fn send_payment_req(
                 // this is just an estimate expiration but should suffice
                 let seconds: i64 = expire as i64 * 2 * 60;
                 // subtract 120 seconds since we had to wait for one confirmation
-                let grace: i64 = seconds - BLOCK_TIME_IN_SECS_EST_I64;
+                let grace: i64 = seconds - BLOCK_TIME_IN_SECS_EST as i64;
                 let unix: i64 = chrono::offset::Utc::now().timestamp() + grace;
                 write_gui_db(
                     String::from("gui-exp"),
