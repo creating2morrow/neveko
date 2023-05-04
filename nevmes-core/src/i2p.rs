@@ -117,12 +117,20 @@ pub fn get_destination() -> String {
         "/home/{}/.i2p-zero/config/tunnels.json",
         env::var("USER").unwrap_or(String::from("user"))
     );
-    let contents = fs::read_to_string(file_path).expect("read tunnels.json");
-    let input = format!(r#"{contents}"#);
-    let mut j: Tunnels = serde_json::from_str(&input).unwrap_or(Default::default());
-    let destination: String = j.tunnels.remove(0).dest.ok_or(utils::empty_string())
-        .unwrap_or(utils::empty_string());
-    destination
+    // Don't panic if i2p-zero isn't installed
+    let contents = match fs::read_to_string(file_path)
+        {
+            Ok(file) => file,
+            _=> utils::empty_string(),
+        };
+    if contents != utils::empty_string() {
+        let input = format!(r#"{contents}"#);
+        let mut j: Tunnels = serde_json::from_str(&input).unwrap_or(Default::default());
+        let destination: String = j.tunnels.remove(0).dest.ok_or(utils::empty_string())
+            .unwrap_or(utils::empty_string());
+        return destination
+    }
+    utils::empty_string()
 }
 
 pub async fn get_proxy_status() -> HttpProxyStatus {
