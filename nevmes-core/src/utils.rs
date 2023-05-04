@@ -1,7 +1,7 @@
 use rand_core::RngCore;
 use clap::Parser;
 use rocket::serde::json::Json;
-use crate::{args, db, i2p, message, models, monero, gpg, utils, reqres, MONERO_RELEASE_VERSION };
+use crate::{args, db, i2p, message, models, monero, gpg, utils, reqres };
 use log::{info, debug, error, warn};
 use std::time::Duration;
 
@@ -421,7 +421,7 @@ pub async fn install_software(installations: Installations) {
                 debug!("{:?}", curl_output);
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                 let tar_output = std::process::Command::new("tar")
-                    .args(["-xvf", MONERO_RELEASE_VERSION])
+                    .args(["-xvf", crate::MONERO_RELEASE_VERSION])
                     .spawn()
                     .expect("monero tar extraction failed");
                 debug!("{:?}", tar_output.stdout);
