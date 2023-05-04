@@ -8,4 +8,5 @@ genkey-batch
 monero-wallet-rpc.log
 notes.txt
 .vscode/settings.json
-.bz2
+*.bz2
+*/monero-x86_64-linux-gnu-v0.18.2.2/**

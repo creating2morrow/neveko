@@ -3,7 +3,6 @@ use sha2::{Digest, Sha512};
 
 use crate::CREDENTIAL_KEY;
 
-
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SettingsApp {
     credential: String,

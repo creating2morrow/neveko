@@ -238,7 +238,7 @@ pub async fn retry_fts() {
         let list_key = format!("fts");
         let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
         if r == utils::empty_string() {
-            error!("fts message index not found");
+            info!("fts message index not found");
         }
         let v_mid = r.split(",");
         let v: Vec<String> = v_mid.map(|s| String::from(s)).collect();

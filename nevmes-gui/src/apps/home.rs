@@ -12,9 +12,13 @@ pub struct HomeApp {
     connections: utils::Connections,
     core_timeout_tx: Sender<bool>,
     core_timeout_rx: Receiver<bool>,
+    installations: utils::Installations,
+    installation_tx: Sender<bool>,
+    installation_rx: Receiver<bool>,
     is_core_running: bool,
     is_editing_connections: bool,
     is_init: bool,
+    is_installing: bool,
     is_loading: bool,
     is_timeout: bool,
     is_updated: bool,
@@ -46,9 +50,11 @@ pub struct HomeApp {
 impl Default for HomeApp {
     fn default() -> Self {
         let connections = Default::default();
+        let installations = Default::default();
         let is_core_running = false;
         let is_editing_connections = false;
         let is_init = true;
+        let is_installing = false;
         let is_loading = false;
         let is_timeout = false;
         let is_updated = false;
@@ -59,6 +65,7 @@ impl Default for HomeApp {
         let (xmr_balance_tx, xmr_balance_rx) = std::sync::mpsc::channel();
         let (can_refresh_tx, can_refresh_rx) = std::sync::mpsc::channel();
         let (i2p_status_tx, i2p_status_rx) = std::sync::mpsc::channel();
+        let (installation_tx, installation_rx) = std::sync::mpsc::channel();
         let s_xmr_rpc_ver = Default::default();
         let s_xmr_address = Default::default();
         let s_xmr_balance = Default::default();
@@ -73,9 +80,13 @@ impl Default for HomeApp {
             connections,
             core_timeout_rx,
             core_timeout_tx,
+            installations,
+            installation_rx,
+            installation_tx,
             is_core_running,
             is_editing_connections,
             is_init,
+            is_installing,
             is_loading,
             is_timeout,
             is_updated,
@@ -126,11 +137,16 @@ impl eframe::App for HomeApp {
         if let Ok(info) = self.xmrd_get_info_rx.try_recv() {
             self.s_xmrd_get_info = info;
         }
+        if let Ok(install) = self.installation_rx.try_recv() {
+            self.is_installing = !install;
+            self.is_loading = false;
+        }
         if let Ok(timeout) = self.core_timeout_rx.try_recv() {
             self.is_timeout = true;
             if timeout {
                 self.is_loading = false;
                 self.is_core_running = false;
+                self.is_installing = false;
             }
         }
 
@@ -194,6 +210,38 @@ impl eframe::App for HomeApp {
                 }
             });
         
+        // Installation Manager window
+        //-----------------------------------------------------------------------------------
+        let mut is_installing = self.is_installing;
+        egui::Window::new("Installation Manager")
+            .open(&mut is_installing)
+            .vscroll(true)
+            .show(&ctx, |ui| {
+                // let mut wants_i2p = self.installations.i2p;
+                // let mut wants_i2p_zero = self.installations.i2p_zero;
+                let mut wants_xmr = self.installations.xmr;
+                // if ui.checkbox(&mut wants_i2p, "i2p").changed() {
+                //     self.installations.i2p = !self.installations.i2p;
+                // }
+                // if ui.checkbox(&mut wants_i2p_zero, "i2p-zero").changed() {
+                //     self.installations.i2p_zero = !self.installations.i2p_zero;
+                // }
+                if ui.checkbox(&mut wants_xmr, "xmr").changed() {
+                    self.installations.xmr = !self.installations.xmr;
+                }
+                let install = &self.installations;
+                if install.i2p || install.i2p_zero || install.xmr {
+                    if ui.button("Install").clicked() {
+                        self.is_loading = true;
+                        install_software_req(self.installation_tx.clone(), ctx.clone(), &self.installations);    
+                    }
+                }
+                if ui.button("Exit").clicked() {
+                    self.is_installing = false;
+                    self.is_loading = false;
+                }
+            });
+
         //----------------------------------------------------------------------------------------------
         egui::CentralPanel::default().show(ctx, |ui| {
             if !self.is_updated {
@@ -245,13 +293,22 @@ impl eframe::App for HomeApp {
             ui.label("____________________________________________________________________\n");
             ui.label("\n");
             if self.is_loading {
+                let label = if self.is_installing { "installing software" } else { "starting nevmes-core..." };
                 ui.add(egui::Spinner::new());
-                ui.label("starting nevmes-core...");
+                ui.label(label);
             }
             if !self.is_core_running && self.s_xmr_rpc_ver.result.version == 0 {
                 if !self.is_loading {
                     if ui.button("Edit Connections").clicked() {
                         self.is_editing_connections = true;
+                    }
+                }
+            }
+            if !self.is_core_running && !self.is_installing
+            && (self.s_xmr_rpc_ver.result.version == 0 || self.s_i2p_status) {
+                if !self.is_loading {
+                    if ui.button("Install Software").clicked() {
+                        self.is_installing = true;
                     }
                 }
             }
@@ -318,6 +375,20 @@ fn start_core_timeout
     tokio::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_secs(START_CORE_TIMEOUT_SECS)).await;
         log::error!("start nevmes-core timeout");
+        let _ = tx.send(true);
+        ctx.request_repaint();
+    });
+}
+
+fn install_software_req
+(tx: Sender<bool>, ctx: egui::Context, installations: &utils::Installations) {
+    let req_install: utils::Installations = utils::Installations {
+        i2p: installations.i2p,
+        i2p_zero: installations.i2p_zero,
+        xmr: installations.xmr,
+    };
+    tokio::spawn(async move {
+        utils::install_software(req_install).await;
         let _ = tx.send(true);
         ctx.request_repaint();
     });

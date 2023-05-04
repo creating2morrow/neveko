@@ -1,9 +1,26 @@
 use rand_core::RngCore;
 use clap::Parser;
 use rocket::serde::json::Json;
-use crate::{args, db, i2p, message, models, monero, gpg, utils, reqres};
+use crate::{args, db, i2p, message, models, monero, gpg, utils, reqres, MONERO_RELEASE_VERSION };
 use log::{info, debug, error, warn};
 use std::time::Duration;
+
+/// Handles the state for the installation manager popup
+pub struct Installations {
+    pub xmr: bool,
+    pub i2p: bool,
+    pub i2p_zero: bool,
+}
+
+impl Default for Installations {
+    fn default() -> Self {
+        Installations {
+            xmr: false,
+            i2p: false,
+            i2p_zero: false,
+        }
+    }
+}
 
 /// Handles the state for the connection manager popup
 pub struct Connections {
@@ -377,4 +394,39 @@ pub fn stage_cleanup(f: String) {
         .spawn()
         .expect("cleanup staging failed");
     debug!("{:?}", output.stdout);
+}
+
+/// Handle the request from user to additional software
+/// 
+/// from gui startup. Power users will most like install
+/// 
+/// software on their own. Note that software pull is over
+/// 
+/// clearnet. TODO(c2m): trusted download locations over i2p.
+pub async fn install_software(installations: Installations) {
+    if installations.i2p {
+        info!("installing i2p");
+    }
+    if installations.i2p_zero {
+        info!("installing i2p-zero");
+    }
+    if installations.xmr {
+        info!("installing monero");
+        let link = format!("https://downloads.getmonero.org/cli/{}", crate::MONERO_RELEASE_VERSION);
+        let curl = std::process::Command::new("curl")
+            .args(["-O#", &link])
+            .status();
+        match curl {
+            Ok(curl_output) => {
+                debug!("{:?}", curl_output);
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                let tar_output = std::process::Command::new("tar")
+                    .args(["-xvf", MONERO_RELEASE_VERSION])
+                    .spawn()
+                    .expect("monero tar extraction failed");
+                debug!("{:?}", tar_output.stdout);
+            },
+            _=> error!("monero download failed")
+        }
+    }
 }
