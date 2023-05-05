@@ -1,7 +1,7 @@
 [package]
 name = "nevmes_gui"
-version = "0.2.0-alpha"
-authors = ["emilk", "creating2morrow <creating2morrow@proton.me>"]
+version = "0.3.0-alpha"
+authors = ["emilk", "creating2morrow"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
 rust-version = "1.65"

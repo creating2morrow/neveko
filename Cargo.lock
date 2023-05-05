@@ -2019,7 +2019,7 @@ dependencies = [
 
 [[package]]
 name = "nevmes"
-version = "0.2.0-alpha"
+version = "0.3.0-alpha"
 dependencies = [
  "env_logger",
  "nevmes_auth",
@@ -2032,7 +2032,7 @@ dependencies = [
 
 [[package]]
 name = "nevmes_auth"
-version = "0.2.0-alpha"
+version = "0.3.0-alpha"
 dependencies = [
  "env_logger",
  "log 0.4.17",
@@ -2042,7 +2042,7 @@ dependencies = [
 
 [[package]]
 name = "nevmes_contact"
-version = "0.2.0-alpha"
+version = "0.3.0-alpha"
 dependencies = [
  "env_logger",
  "log 0.4.17",
@@ -2052,7 +2052,7 @@ dependencies = [
 
 [[package]]
 name = "nevmes_core"
-version = "0.2.0-alpha"
+version = "0.3.0-alpha"
 dependencies = [
  "chrono",
  "clap",
@@ -2077,7 +2077,7 @@ dependencies = [
 
 [[package]]
 name = "nevmes_gui"
-version = "0.2.0-alpha"
+version = "0.3.0-alpha"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -2101,7 +2101,7 @@ dependencies = [
 
 [[package]]
 name = "nevmes_message"
-version = "0.2.0-alpha"
+version = "0.3.0-alpha"
 dependencies = [
  "env_logger",
  "log 0.4.17",

@@ -34,5 +34,5 @@ fn main() -> Result<(), eframe::Error> {
     std::thread::spawn(move || {
         rt.block_on(async { loop { tokio::time::sleep(Duration::from_secs(3600)).await; } })
     });
-    eframe::run_native("nevmes-gui-v0.2.0-alpha", options, Box::new(|cc| Box::new(nevmes_gui::WrapApp::new(cc))),)
+    eframe::run_native("nevmes-gui-v0.3.0-alpha", options, Box::new(|cc| Box::new(nevmes_gui::WrapApp::new(cc))),)
 }

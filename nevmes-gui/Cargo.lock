@@ -2409,7 +2409,7 @@ dependencies = [
 
 [[package]]
 name = "nevmes_core"
-version = "0.2.0-alpha"
+version = "0.3.0-alpha"
 dependencies = [
  "chrono",
  "clap",
@@ -2434,7 +2434,7 @@ dependencies = [
 
 [[package]]
 name = "nevmes_gui"
-version = "0.2.0-alpha"
+version = "0.3.0-alpha"
 dependencies = [
  "bytemuck",
  "chrono",
