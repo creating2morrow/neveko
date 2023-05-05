@@ -1,14 +1,18 @@
 name: Release
-
+# test release artifacts from workflow
 on:
   push:
     paths-ignore:
       - 'docs/**'
       - 'scripts/**'
       - 'README.md'
-    branches: [ "!main" ]
+    branches:
+      - "release*"
+      - "!main" 
   pull_request:
-    branches: [ "!main" ]
+    branches:
+      - "release*"
+      - "!main" 
 
 jobs:
   build:
