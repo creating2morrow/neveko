@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - 'scripts/**'
+      - 'README.md'
+    branches: [ "!main" ]
+  pull_request:
+    branches: [ "!main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=$(echo ${GITHUB_REF#refs/heads/})" >>$GITHUB_OUTPUT
+        id: extract_branch
+      - uses: actions/checkout@v3
+      - run: cd nevmes/ && ./scripts/build_release.sh ${{ steps.extract_branch.outputs.branch }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: release
+          path: nevmes/nevmes-x86_64-linux-gnu-v${{ steps.extract_branch.outputs.branch }}
