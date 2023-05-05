@@ -1,12 +1,12 @@
 #!/bin/bash
 # Build nevmes release
 # Run from the nevmes root
-# usage: ./scripts/build_release x.x.x-ver
+# usage: ./scripts/build_release vX.X.X-ver
 
 # Linux x86_64 output directory
 
 LINUX_X86_64="x86_64-linux-gnu"
-RELEASE_NAME="nevmes-$LINUX_X86_64-v$1"
+RELEASE_NAME="nevmes-$LINUX_X86_64-$1"
 LINUX_OUTPUT_DIR=".build/release/$RELEASE_NAME"
 
 mkdir -p $LINUX_OUTPUT_DIR
