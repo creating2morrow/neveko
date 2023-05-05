@@ -33,6 +33,9 @@ impl Default for TxProof {
     }
 }
 
+/// Provide neccessary information for contacts to
+/// 
+/// provide proof of payment.
 pub async fn create_invoice() -> reqres::Invoice {
     info!("creating invoice");
     let m_address = monero::get_address().await;
@@ -42,6 +45,17 @@ pub async fn create_invoice() -> reqres::Invoice {
     reqres::Invoice { address, conf_threshold, pay_threshold }
 }
 
+/// Technically the same process as creating a JWT
+/// 
+/// except that the claims must contain the information
+/// 
+/// necessary to verify the payment. Confirmations cannot
+/// 
+/// be zero or above some specified threshold. Setting higher
+/// 
+/// payment values and lower confirmations works as a spam
+/// 
+/// disincentivizing mechanism. 
 pub async fn create_jwp(proof: &TxProof) -> String {
     info!("creating jwp");
     // validate the proof
@@ -57,11 +71,14 @@ pub async fn create_jwp(proof: &TxProof) -> String {
     };
     let mut claims = BTreeMap::new();
     let address = &proof.address;
+    let created = chrono::Utc::now().timestamp();
+    let created_str = format!("{}", created);
     let hash = &proof.hash;
     let expire = &format!("{}", utils::get_payment_threshold());
     let message = &proof.message;
     let signature = &proof.signature;
     claims.insert("address", address);
+    claims.insert("created", &created_str);
     claims.insert("hash", hash);
     claims.insert("expire", expire);
     claims.insert("message", message);
@@ -98,13 +115,19 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
 /// 
 /// is a JWP (JSON Web Proof) with the contents:
 /// 
-/// address: this server's xmr address
+/// `address`: this server's xmr address or subaddress
 /// 
-/// hash: hash of the payment
+/// `created`: UTC timestamp the proof was created.
+///           <i>Future use</i> Potential offline payments.
 /// 
-/// message: (optional) default: empty string
+/// `expire`: blocks approved for
+///         <i>Future use</i>. Potential offline payments.
 /// 
-/// signature: validates proof of payment
+/// `hash`: hash of the payment
+/// 
+/// `message`: (optional) default: empty string
+/// 
+/// `signature`: validates proof of payment
 #[derive(Debug)]
 pub struct PaymentProof(String);
 
@@ -155,6 +178,8 @@ impl<'r> FromRequest<'r> for PaymentProof {
                             message: String::from(message),
                             signature: String::from(signature),
                         };
+                        // TODO(c2m): remove this validation since it was done
+                        //           on JWP creation?
                         let c_txp = validate_proof(&txp).await;
                         if c_txp.confirmations == 0 {
                             return Outcome::Failure((
@@ -164,6 +189,7 @@ impl<'r> FromRequest<'r> for PaymentProof {
                         }
                         // verify expiration
                         let expire = utils::get_conf_threshold();
+                        // TODO(c2m): offline verification from created and expire fields
                         if c_txp.confirmations > expire {
                             return Outcome::Failure((
                                 Status::Unauthorized,
@@ -183,6 +209,9 @@ impl<'r> FromRequest<'r> for PaymentProof {
     }
 }
 
+// TODO(c2m): alternative logic for offline payment validations
+//            jwp creation, however, will always require blockchain validation?
+//            future validations not so much
 async fn validate_proof(txp: &TxProof) -> TxProof {
     // verify unlock time isn't something funky (e.g. > 20)
     let tx: reqres::XmrRpcGetTxByIdResponse = monero::get_transfer_by_txid(&txp.hash).await;
