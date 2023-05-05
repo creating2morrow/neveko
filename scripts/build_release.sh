@@ -21,6 +21,5 @@ cd nevmes-contact && cargo build --release && cp target/release/nevmes_contact .
 cd ../
 cd nevmes-message && cargo build --release && cp target/release/nevmes_message ../$LINUX_OUTPUT_DIR
 cd ../
-# make the bzip for linux
-tar -cjf $RELEASE_NAME.tar.bz2 $LINUX_OUTPUT_DIR
-
+make the bzip for linux
+cd .build/release/ && tar -cjf $RELEASE_NAME.tar.bz2 $RELEASE_NAME/ && mv $RELEASE_NAME.tar.bz2 ../../
