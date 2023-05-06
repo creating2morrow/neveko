@@ -1,0 +1,3 @@
+[advisories]
+# Reference: https://github.com/chronotope/chrono/issues/602
+ignore = ["RUSTSEC-2020-0071"]
