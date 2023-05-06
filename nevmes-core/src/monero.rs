@@ -17,7 +17,8 @@ enum RpcFields {
     Balance,
     CheckTxProof,
     Close,
-    Create,
+    CreateAddress,
+    CreateWallet,
     Export,
     Finalize,
     GetTxProof,
@@ -43,7 +44,8 @@ impl RpcFields {
             RpcFields::Balance => String::from("get_balance"),
             RpcFields::CheckTxProof => String::from("check_tx_proof"),
             RpcFields::Close => String::from("close_wallet"),
-            RpcFields::Create => String::from("create_wallet"),
+            RpcFields::CreateAddress => String::from("create_address"),
+            RpcFields::CreateWallet => String::from("create_wallet"),
             RpcFields::Export => String::from("export_multisig_info"),
             RpcFields::Finalize => String::from("finalize_multisig"),
             RpcFields::GetTxProof => String::from("get_tx_proof"),
@@ -278,7 +280,7 @@ pub async fn create_wallet(filename: String) -> bool {
     let req = reqres::XmrRpcCreateRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
         id: RpcFields::Id.value(),
-        method: RpcFields::Create.value(),
+        method: RpcFields::CreateWallet.value(),
         params,
     };
     let login: RpcLogin = get_rpc_creds();
@@ -630,7 +632,7 @@ pub async fn check_tx_proof(txp: &proof::TxProof) -> reqres::XmrRpcCheckTxProofR
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params: reqres::XmrRpcCheckTxProofParams = reqres::XmrRpcCheckTxProofParams { 
-        address: String::from(&txp.address),
+        address: String::from(&txp.subaddress),
         message: String::from(&txp.message),
         signature: String::from(&txp.signature),
         txid: String::from(&txp.hash), 
@@ -662,7 +664,7 @@ pub async fn get_tx_proof(ptxp: proof::TxProof) -> reqres::XmrRpcGetTxProofRespo
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params: reqres::XmrRpcGetTxProofParams = reqres::XmrRpcGetTxProofParams { 
-        address: String::from(&ptxp.address),
+        address: String::from(&ptxp.subaddress),
         message: String::from(&ptxp.message),
         txid: String::from(&ptxp.hash), 
     };
@@ -770,6 +772,33 @@ pub async fn sweep_all(address: String) -> reqres::XmrRpcSweepAllResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcSweepAllResponse>().await;
             debug!("{} response: {:?}", RpcFields::SweepAll.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_) => Default::default()
+    }
+}
+
+/// Performs the xmr rpc 'create_address' method
+pub async fn create_address() -> reqres::XmrRpcCreateAddressResponse {
+    info!("creating new subaddress");
+    let client = reqwest::Client::new();
+    let host = get_rpc_host();
+    let params: reqres::XmrRpcCreateAddressParams = reqres::XmrRpcCreateAddressParams { account_index: 0 };
+    let req = reqres::XmrRpcCreateAddressRequest {
+        jsonrpc: RpcFields::JsonRpcVersion.value(),
+        id: RpcFields::Id.value(),
+        method: RpcFields::CreateAddress.value(),
+        params,
+    };
+    let login: RpcLogin = get_rpc_creds();
+    match client.post(host).json(&req)
+    .send_with_digest_auth(&login.username, &login.credential).await {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrRpcCreateAddressResponse>().await;
+            debug!("{} response: {:?}", RpcFields::CreateAddress.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),

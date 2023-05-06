@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TxProof {
-    pub address: String,
+    pub subaddress: String,
     pub confirmations: u64,
     pub hash: String,
     pub message: String,
@@ -24,7 +24,7 @@ pub struct TxProof {
 impl Default for TxProof {
     fn default() -> Self {
         TxProof {
-            address: utils::empty_string(),
+            subaddress: utils::empty_string(),
             confirmations: 0,
             hash: utils::empty_string(),
             message: utils::empty_string(),
@@ -38,8 +38,9 @@ impl Default for TxProof {
 /// provide proof of payment.
 pub async fn create_invoice() -> reqres::Invoice {
     info!("creating invoice");
-    let m_address = monero::get_address().await;
-    let address = m_address.result.address;
+    // create a new subaddress
+    let c_address = monero::create_address().await;
+    let address = c_address.result.address;
     let pay_threshold = utils::get_payment_threshold();
     let conf_threshold = utils::get_conf_threshold();
     reqres::Invoice { address, conf_threshold, pay_threshold }
@@ -70,14 +71,14 @@ pub async fn create_jwp(proof: &TxProof) -> String {
         ..Default::default()
     };
     let mut claims = BTreeMap::new();
-    let address = &proof.address;
+    let address = &proof.subaddress;
     let created = chrono::Utc::now().timestamp();
     let created_str = format!("{}", created);
     let hash = &proof.hash;
     let expire = &format!("{}", utils::get_payment_threshold());
     let message = &proof.message;
     let signature = &proof.signature;
-    claims.insert("address", address);
+    claims.insert("subaddress", address);
     claims.insert("created", &created_str);
     claims.insert("hash", hash);
     claims.insert("expire", expire);
@@ -115,7 +116,7 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
 /// 
 /// is a JWP (JSON Web Proof) with the contents:
 /// 
-/// `address`: this server's xmr address or subaddress
+/// `subaddress`: a subaddress belonging to this nevmes instance
 /// 
 /// `created`: UTC timestamp the proof was created.
 ///           <i>Future use</i> Potential offline payments.
@@ -146,8 +147,6 @@ impl<'r> FromRequest<'r> for PaymentProof {
 
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let proof = request.headers().get_one("proof");
-        let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
-        let nevmes_address = m_address.result.address;
         match proof {
             Some(proof) => {
                 // check validity of address, payment amount and tx confirmations
@@ -160,8 +159,9 @@ impl<'r> FromRequest<'r> for PaymentProof {
                 return match jwp {
                     Ok(j) => {
                         let claims = j.claims();
-                        let address = &claims["address"];
-                        if address != &nevmes_address {
+                        let subaddress = &claims["subaddress"];
+                        let is_valid_subaddress = validate_subaddress(subaddress).await;
+                        if !is_valid_subaddress {
                             return Outcome::Failure((
                                 Status::PaymentRequired,
                                 PaymentProofError::Invalid,
@@ -172,7 +172,7 @@ impl<'r> FromRequest<'r> for PaymentProof {
                         let signature = &claims["signature"];
                         // verify proof
                         let txp: TxProof = TxProof {
-                            address: String::from(address),
+                            subaddress: String::from(subaddress),
                             hash: String::from(hash),
                             confirmations: 0,
                             message: String::from(message),
@@ -224,7 +224,7 @@ async fn validate_proof(txp: &TxProof) -> TxProof {
         && p.result.confirmations < cth && p.result.received >= pth;
     if lgtm {
         return TxProof {
-            address: String::from(&txp.address),
+            subaddress: String::from(&txp.subaddress),
             hash: String::from(&txp.hash),
             confirmations: p.result.confirmations,
             message: String::from(&txp.message),
@@ -232,4 +232,17 @@ async fn validate_proof(txp: &TxProof) -> TxProof {
         }
     }
     Default::default()
+}
+
+/// Validate that the subaddress in the proof was
+/// 
+/// created by us. TODO(c2m): Store the index for quicker
+/// 
+/// lookups.
+async fn validate_subaddress(subaddress: &String) -> bool {
+    let m_address = monero::get_address().await;
+    let all_address = m_address.result.addresses;
+    let mut address_list: Vec<String> = Vec::new();
+    for s_address in all_address { address_list.push(s_address.address); }
+    return address_list.contains(&subaddress);
 }

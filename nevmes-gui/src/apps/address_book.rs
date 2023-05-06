@@ -654,7 +654,7 @@ fn send_payment_req(
         let ptxp_hash = String::from(&transfer.result.tx_hash);
         let ftxp_hash = String::from(&transfer.result.tx_hash);
         let ptxp: proof::TxProof = proof::TxProof {
-            address: ptxp_address,
+            subaddress: ptxp_address,
             confirmations: 0,
             hash: ptxp_hash,
             message: utils::empty_string(),
@@ -664,7 +664,7 @@ fn send_payment_req(
         let get_txp: reqres::XmrRpcGetTxProofResponse = monero::get_tx_proof(ptxp).await;
         // use the signature to create the FINALIZED transaction proof
         let ftxp: proof::TxProof = proof::TxProof {
-            address: ftxp_address,
+            subaddress: ftxp_address,
             confirmations: 0,
             hash: ftxp_hash,
             message: utils::empty_string(),

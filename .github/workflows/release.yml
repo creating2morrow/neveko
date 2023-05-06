@@ -1,4 +1,4 @@
-name: Release Artifacts
+name: cargo-build-release
 
 on:
   push:

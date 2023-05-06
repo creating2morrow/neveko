@@ -114,6 +114,11 @@ pub struct XmrRpcSweepAllParams {
     pub address: String,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcCreateAddressParams {
+    pub account_index: u8,
+}
+
 // requests
 #[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcValidateAddressRequest {
@@ -242,6 +247,14 @@ pub struct XmrRpcSweepAllRequest {
     pub params: XmrRpcSweepAllParams,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcCreateAddressRequest {
+    pub jsonrpc: String,
+    pub id: String,
+    pub method: String,
+    pub params: XmrRpcCreateAddressParams,
+}
+
 // results
 #[derive(Deserialize, Debug)]
 pub struct XmrRpcValidateAddressResult {
@@ -295,13 +308,13 @@ pub struct XmrRpcSignMultisigResult {
 
 #[derive(Deserialize, Debug)]
 pub struct SubAddressInfo {
-    pub account_index: u8,
-    pub address_index: u8,
+    pub account_index: u64,
+    pub address_index: u64,
     pub address: String,
     pub balance: u128,
     pub unlocked_balance: u128,
     pub label: String,
-    pub num_unspent_outputs: u8,
+    pub num_unspent_outputs: u64,
     pub time_to_unlock: u128,
     pub blocks_to_unlock: u128,
 }
@@ -309,7 +322,7 @@ pub struct SubAddressInfo {
 #[derive(Deserialize, Debug)]
 pub struct Address {
     pub address: String,
-    pub address_index: u8,
+    pub address_index: u64,
     pub label: String,
     pub used: bool,
 }
@@ -410,6 +423,14 @@ pub struct XmrRpcSweepAllResult {
     pub tx_hash_list: Vec<String>,
     pub unsigned_txset: String,
     pub weight_list: Vec<u128>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcCreateAddressResult {
+    pub address: String,
+    pub address_index: u64,
+    pub address_indices: Vec<u64>,
+    pub addresses: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -783,6 +804,24 @@ impl Default for XmrRpcSweepAllResponse {
                 unsigned_txset: utils::empty_string(),
                 weight_list: Vec::new(),
             },
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcCreateAddressResponse {
+    pub result: XmrRpcCreateAddressResult,
+}
+
+impl Default for XmrRpcCreateAddressResponse {
+    fn default() -> Self {
+        XmrRpcCreateAddressResponse {
+            result: XmrRpcCreateAddressResult {
+                address: utils::empty_string(),
+                address_index: 0,
+                address_indices: Vec::new(),
+                addresses: Vec::new(),
+            }
         }
     }
 }
