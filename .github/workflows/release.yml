@@ -6,9 +6,9 @@ on:
       - 'docs/**'
       - 'scripts/**'
       - 'README.md'
-    branches: ["v-0.*", "!main", "!dev"]
+    branches: ["v0.*", "!main", "!dev"]
   pull_request:
-    branches: ["v-0.*.", "!main", "!dev"]
+    branches: ["v0.*", "!main", "!dev"]
 jobs:
   build:
     runs-on: ubuntu-latest
