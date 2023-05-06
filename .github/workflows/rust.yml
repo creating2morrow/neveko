@@ -6,9 +6,9 @@ on:
       - 'docs/**'
       - 'scripts/**'
       - 'README.md'
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
 
 env:
   CARGO_TERM_COLOR: always
