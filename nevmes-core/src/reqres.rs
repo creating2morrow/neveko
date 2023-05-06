@@ -63,7 +63,6 @@ pub struct XmrRpcBalanceParams {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcAddressParams {
     pub account_index: u8,
-    pub address_index: Vec<u8>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

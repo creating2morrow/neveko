@@ -405,7 +405,7 @@ pub async fn get_address() -> reqres::XmrRpcAddressResponse {
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params: reqres::XmrRpcAddressParams = reqres::XmrRpcAddressParams { 
-        account_index: 0, address_index: vec![0], 
+        account_index: 0, 
     };
     let req = reqres::XmrRpcAddressRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
