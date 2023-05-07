@@ -25,6 +25,33 @@ NEVidebla-MESago (invisible message)
 * `cd nevmes && ./scripts/build_all_and_run.sh "-- -h"`
 * gui built with rust [egui](https://docs.rs/egui/latest/egui/)
 
+## Contributing and Releasing
+
+```bash
+| branch |                 |tag and release|
+  dev     -----------------|-------------------------------------------->
+  v0.1.0  -----------tag v0.1.0 (delete branch)
+  v0.2.0                   |-------------------------------------------->
+  main    -------------------------------------------------------------->
+```
+
+* code on dev branch
+* pull request to dev branch
+* merge dev to vX.X.X
+* merge vX.X.X to main
+* tag release v.X.X.X every friday (if stable changes)
+* release binaries from the `cargo-build-release` workflow with notes
+* create next v.X.X+1.X branch and delete old release branch
+* release bug fixes as appropriate to v.X.X.X+1 branch when ready
+
+## Workflows
+
+|name                | branch   | purpose                                     |
+|--                  |--        |--                                           |
+|cargo-build         | main,dev | ensure code compilation and build success   |
+|cargo-audit         | main,dev | run security audit against RustSec database |
+|cargo-build-release | `v0.*`   | publish production ready binaries           |
+
 ## API
 
 * remote/programmatic access
