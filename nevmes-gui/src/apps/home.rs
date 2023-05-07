@@ -218,14 +218,14 @@ impl eframe::App for HomeApp {
             .vscroll(true)
             .show(&ctx, |ui| {
                 // let mut wants_i2p = self.installations.i2p;
-                // let mut wants_i2p_zero = self.installations.i2p_zero;
+                let mut wants_i2p_zero = self.installations.i2p_zero;
                 let mut wants_xmr = self.installations.xmr;
                 // if ui.checkbox(&mut wants_i2p, "i2p").changed() {
                 //     self.installations.i2p = !self.installations.i2p;
                 // }
-                // if ui.checkbox(&mut wants_i2p_zero, "i2p-zero").changed() {
-                //     self.installations.i2p_zero = !self.installations.i2p_zero;
-                // }
+                if ui.checkbox(&mut wants_i2p_zero, "i2p-zero").changed() {
+                    self.installations.i2p_zero = !self.installations.i2p_zero;
+                }
                 if ui.checkbox(&mut wants_xmr, "xmr").changed() {
                     self.installations.xmr = !self.installations.xmr;
                 }
