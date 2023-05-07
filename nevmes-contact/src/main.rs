@@ -16,6 +16,7 @@ async fn rocket() -> _ {
     log::info!("nevmes-contact is online");
     rocket::custom(&config)
         .mount("/trust", routes![controller::trust_contact])
+        .mount("/prove", routes![controller::prove_payment])
         .mount("/contact", routes![controller::add_contact])
         .mount("/contacts", routes![controller::get_contacts])
 }

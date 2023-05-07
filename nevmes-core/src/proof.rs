@@ -1,4 +1,4 @@
-use crate::{monero, reqres, utils};
+use crate::{db, monero, reqres, utils};
 use log::{error, info};
 use std::error::Error;
 use rocket::http::Status;
@@ -100,6 +100,11 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
             log::debug!("prove payment response: {:?}", res);
             match res {
                 Ok(r) => {
+                    // cache the jwp for for fts
+                    let s = db::Interface::open();
+                    let k = format!("{}-{}", "fts-jwp", &contact);
+                    db::Interface::delete(&s.env, &s.handle, &k);
+                    db::Interface::write(&s.env, &s.handle, &k, &r.jwp);
                     Ok(r)
                 },
                 _ => Ok(Default::default()),

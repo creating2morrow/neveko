@@ -257,11 +257,15 @@ pub async fn retry_fts() {
         for m in v {
             let message: Message = find(&m);
             if message.mid != utils::empty_string() {
-                // fetch the jwp which just so happens to be cached by the client
                 let s = db::Interface::open();
-                let k = format!("{}-{}", "gui-jwp", message.to);
+                // get jwp from db
+                let k = format!("{}-{}", "fts-jwp", &message.to);
                 let jwp = db::Interface::read(&s.env, &s.handle, &k);
-                send_message(&message, &jwp).await.unwrap();
+                if jwp != utils::empty_string() {
+                    send_message(&message, &jwp).await.unwrap();
+                } else {
+                    error!("not jwp found for fts id: {}", &message.mid);
+                }
             }
         }
     }
