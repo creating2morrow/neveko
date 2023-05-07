@@ -422,6 +422,25 @@ pub async fn install_software(installations: Installations) {
     }
     if installations.i2p_zero {
         info!("installing i2p-zero");
+        let i2p_version = crate::I2P_ZERO_RELEASE_VERSION;
+        let i2p_zero_zip = format!("i2p-zero-linux.{}.zip", i2p_version);
+        let link = format!("https://github.com/i2p-zero/i2p-zero/releases/download/{}/{}",
+            i2p_version, i2p_zero_zip);
+        let curl = std::process::Command::new("curl")
+            .args(["-LO#", &link])
+            .status();
+        match curl {
+            Ok(curl_output) => {
+                debug!("{:?}", curl_output);
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                let unzip_output = std::process::Command::new("unzip")
+                    .arg(i2p_zero_zip)
+                    .spawn()
+                    .expect("i2p unzip failed");
+                debug!("{:?}", unzip_output.stdout);
+            },
+            _=> error!("i2p-zero download failed")
+        }
     }
     if installations.xmr {
         info!("installing monero");

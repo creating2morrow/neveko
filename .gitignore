@@ -9,4 +9,6 @@ monero-wallet-rpc.log
 notes.txt
 .vscode/settings.json
 *.bz2
+*.zip
 */monero-x86_64-linux-gnu-v0.18.2.2/**
+*/i2p-zero-linux.v1.20/**

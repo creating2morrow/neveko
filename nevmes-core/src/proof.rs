@@ -241,9 +241,9 @@ async fn validate_proof(txp: &TxProof) -> TxProof {
 
 /// Validate that the subaddress in the proof was
 /// 
-/// created by us. TODO(c2m): Store the index for quicker
+/// created by us. TODO(?): Use xmr rpc call `get_address_index`
 /// 
-/// lookups.
+/// for faster lookups (check minor > 0)
 async fn validate_subaddress(subaddress: &String) -> bool {
     let m_address = monero::get_address().await;
     let all_address = m_address.result.addresses;
