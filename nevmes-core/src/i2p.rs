@@ -1,6 +1,5 @@
 use std::{fs, env, process::Command};
 use log::{debug, error, info, warn};
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use crate::{args, utils};
 use clap::Parser;
@@ -88,7 +87,15 @@ pub async fn start() {
         .expect("i2p-zero failed to start");
     debug!("{:?}", output.stdout);
     find_tunnels().await;
-    { tokio::spawn(async { check_connection(true).await }); }
+    { 
+        tokio::spawn(async move { 
+            let tick: std::sync::mpsc::Receiver<()> = schedule_recv::periodic_ms(60000);
+            loop {
+                tick.recv().unwrap();
+                check_connection().await;
+            }
+        }); 
+    }
 }
 
 fn create_tunnel() {
@@ -133,26 +140,9 @@ pub fn get_destination() -> String {
     utils::empty_string()
 }
 
-pub async fn get_proxy_status() -> HttpProxyStatus {
-    check_connection(false).await
-}
-
-/// Ping i2pd tunnels local server for status
-async fn check_connection(bg: bool) -> HttpProxyStatus {
+pub async fn check_connection() -> HttpProxyStatus {
     let client: reqwest::Client = reqwest::Client::new();
     let host: &str = "http://localhost:7657/tunnels";
-    if bg {
-        let tick: std::sync::mpsc::Receiver<()> = schedule_recv::periodic_ms(60000);
-        loop {
-            tick.recv().unwrap();
-            return process_connection_info(client, host).await;
-        }
-    } else {
-        return process_connection_info(client, host).await;
-    }
-}
-
-async fn process_connection_info(client: Client, host: &str) -> HttpProxyStatus {
     match client.get(host).send().await {
         Ok(response) => {
             // do some parsing here to check the status
