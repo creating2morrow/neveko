@@ -161,6 +161,7 @@ impl eframe::App for HomeApp {
             .show(&ctx, |ui| {
                 ui.heading("Installation Failure");
                 if ui.button("Exit").clicked() {
+                    self.has_install_failed = false;
                     self.is_installing = false;
                     self.is_loading = false;
                 }
