@@ -879,3 +879,18 @@ impl Default for Jwp {
         }
     }
 }
+
+/// For handling 402, 404 and 500 error responses
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct ErrorResponse {
+    pub error: String,
+}
+
+impl Default for ErrorResponse {
+    fn default() -> Self {
+        ErrorResponse {
+            error: utils::empty_string(),
+        }
+    }
+}

@@ -89,7 +89,7 @@ pub async fn start() {
     find_tunnels().await;
     { 
         tokio::spawn(async move { 
-            let tick: std::sync::mpsc::Receiver<()> = schedule_recv::periodic_ms(60000);
+            let tick: std::sync::mpsc::Receiver<()> = schedule_recv::periodic_ms(600000);
             loop {
                 tick.recv().unwrap();
                 check_connection().await;
