@@ -367,15 +367,10 @@ pub fn kill_child_processes(cm: bool) {
     //            services to keep running
     if cm {
         let xmrd_output = std::process::Command::new("pkill")
-        .arg("monerod")
-        .spawn()
-        .expect("monerod failed to stop");
-    debug!("{:?}", xmrd_output.stdout);
-    let rpc_output = std::process::Command::new("killall")
-        .arg("monero-wallet-rpc")
-        .spawn()
-        .expect("monero-wallet-rpc failed to stop");
-    debug!("{:?}", rpc_output.stdout);
+            .arg("monerod")
+            .spawn()
+            .expect("monerod failed to stop");
+        debug!("{:?}", xmrd_output.stdout);
     }
     if !cm {
         let nevmes_output = std::process::Command::new("pkill")
@@ -384,6 +379,11 @@ pub fn kill_child_processes(cm: bool) {
             .expect("nevmes failed to stop");
         debug!("{:?}", nevmes_output.stdout);
     }
+    let rpc_output = std::process::Command::new("killall")
+            .arg("monero-wallet-rpc")
+            .spawn()
+            .expect("monero-wallet-rpc failed to stop");
+        debug!("{:?}", rpc_output.stdout);
     let i2pz_output = std::process::Command::new("pkill")
         .arg("i2p-zero")
         .spawn()

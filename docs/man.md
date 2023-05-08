@@ -15,6 +15,8 @@
 * `Hmac<Sha384>` internal, `Hmac<Sha512>` external (jwp)
 * see [proof.rs](../nevmes-core/src/proof.rs)
 `eyJhbGciOiJIUzUxMiJ9.eyJhZGRyZXNzIjoiNThvaUJMQUtBQ3JaeTRqVnRYdUFXMzlCOW1zR3dlbVVkSm9HVlozcGdSY1RoWHZqWjZ0RERqRGpuOE1mTUZ5cEtZMlU1U1B6SkE3NnFHeHhDdjJzd1Y0NjhFYkI2dEsiLCJoYXNoIjoiNzRhOTM5NTU1Y2EyMWJmY2MxYzlhMjhlYjFkN2M5MWZiMjRhYzRiOTY4MDk2Yzg4ODU1ODA3ODcwMDA1NmQ2NiIsIm1lc3NhZ2UiOiIiLCJzaWduYXR1cmUiOiJPdXRQcm9vZlYyWHdYTEJYV0VtbXlWd3YyOHFQRWQ0Mk14bm1FNTU3aUFEVHFGNjZDWG9LQ1ZFeFBqTVU4NFNIeWprZmdLd01WZEI4OUZkTkJ5QUxyeU1ZamVxQlY1U0VtU0V4MUJWWE1ITVJNWHVuMzh5aWVtcWhCcmVSWUdpRGdMN1lmRmVmemJSTnhlIn0.gH4RlLrxu3xqxNvsHv7lX1yYomg07yTlv6VEKpDfXwbDV4O267CXzm30G4YBQOfuDf3xpegUmeVXOScPvIZVRw`
+* contents be decoded by 3rd parties but only the owner of the signing key can finalize the validation
+* should be kept secret
 
 ## Getting started
 
@@ -42,13 +44,11 @@
 
 * the `check status` button will show current jwp for each contact
 * `clear stale jwp` will purge data in case of timeout issues
-* don't keep large amounts in nevmes just enoug for fees and jwps
+* don't keep large amounts in nevmes just enough for fees and jwps
 * once a valid jwp is created (takes a few minutes) the `compose` button will be visible
 * you need to click `check status` on contacts before sending to refresh jwp expiration check
 * draft a plain text message, dont be shy
-* enter recipient (.b32.i2p address) and press `send`
+* verify recipient (.b32.i2p address) and press `send`
 * plain text messages never leave your machine
 * you can click `Refresh` button in the Mailbox to check for new messages
 * messages must be decrypted by clicking `decrypt`
-
-## More to come...
