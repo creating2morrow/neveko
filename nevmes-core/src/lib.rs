@@ -17,7 +17,11 @@ pub const NEVMES_JWT_SECRET_KEY: &str = "NEVMES_JWT_SECRET_KEY";
 
 /// The latest monero release download
 pub const MONERO_RELEASE_VERSION: &str = "monero-linux-x64-v0.18.2.2.tar.bz2";
+pub const MONERO_RELEASE_HASH: &str = "186800de18f67cca8475ce392168aabeb5709a8f8058b0f7919d7c693786d56b";
 /// The latest i2p-zero release version
 pub const I2P_ZERO_RELEASE_VERSION: &str = "v1.20";
-
+pub const I2P_ZERO_RELEASH_HASH: &str = "7e7216b281624ec464b55217284017576d109eaba7b35f7e4994ae2a78634de7";
+/// The latest i2pd release version
+pub const I2P_RELEASE_VERSION: &str = "2.2.1";
+pub const I2P_RELEASE_HASH: &str = "c9879b8f69ea13c758672c2fa083dc2e0abb289e0fc9a55af98f9f1795f82659";
 // DO NOT EDIT BELOW THIS LINE

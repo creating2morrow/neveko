@@ -6,12 +6,11 @@ use nevmes_core::*;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration;
 
-use crate::{BLOCK_TIME_IN_SECS_EST, BYTES_IN_GB, START_CORE_TIMEOUT_SECS};
-
 pub struct HomeApp {
     connections: utils::Connections,
     core_timeout_tx: Sender<bool>,
     core_timeout_rx: Receiver<bool>,
+    has_install_failed: bool,
     installations: utils::Installations,
     installation_tx: Sender<bool>,
     installation_rx: Receiver<bool>,
@@ -50,6 +49,7 @@ pub struct HomeApp {
 impl Default for HomeApp {
     fn default() -> Self {
         let connections = Default::default();
+        let has_install_failed = false;
         let installations = Default::default();
         let is_core_running = false;
         let is_editing_connections = false;
@@ -80,6 +80,7 @@ impl Default for HomeApp {
             connections,
             core_timeout_rx,
             core_timeout_tx,
+            has_install_failed,
             installations,
             installation_rx,
             installation_tx,
@@ -139,6 +140,7 @@ impl eframe::App for HomeApp {
         }
         if let Ok(install) = self.installation_rx.try_recv() {
             self.is_installing = !install;
+            if !install && self.is_loading { self.has_install_failed = true }
             self.is_loading = false;
         }
         if let Ok(timeout) = self.core_timeout_rx.try_recv() {
@@ -149,6 +151,21 @@ impl eframe::App for HomeApp {
                 self.is_installing = false;
             }
         }
+
+        // Installation Error window
+        //-----------------------------------------------------------------------------------
+        let mut has_install_failed = self.has_install_failed;
+        egui::Window::new("Error")
+            .open(&mut has_install_failed)
+            .vscroll(false)
+            .show(&ctx, |ui| {
+                ui.heading("Installation Failure");
+                if ui.button("Exit").clicked() {
+                    self.has_install_failed = false;
+                    self.is_installing = false;
+                    self.is_loading = false;
+                }
+            });
 
         // Connection Manager window
         //-----------------------------------------------------------------------------------
@@ -217,12 +234,12 @@ impl eframe::App for HomeApp {
             .open(&mut is_installing)
             .vscroll(true)
             .show(&ctx, |ui| {
-                // let mut wants_i2p = self.installations.i2p;
+                let mut wants_i2p = self.installations.i2p;
                 let mut wants_i2p_zero = self.installations.i2p_zero;
                 let mut wants_xmr = self.installations.xmr;
-                // if ui.checkbox(&mut wants_i2p, "i2p").changed() {
-                //     self.installations.i2p = !self.installations.i2p;
-                // }
+                if ui.checkbox(&mut wants_i2p, "i2p").changed() {
+                    self.installations.i2p = !self.installations.i2p;
+                }
                 if ui.checkbox(&mut wants_i2p_zero, "i2p-zero").changed() {
                     self.installations.i2p_zero = !self.installations.i2p_zero;
                 }
@@ -231,9 +248,11 @@ impl eframe::App for HomeApp {
                 }
                 let install = &self.installations;
                 if install.i2p || install.i2p_zero || install.xmr {
-                    if ui.button("Install").clicked() {
-                        self.is_loading = true;
-                        install_software_req(self.installation_tx.clone(), ctx.clone(), &self.installations);    
+                    if !self.is_loading {
+                        if ui.button("Install").clicked() {
+                            self.is_loading = true;
+                            install_software_req(self.installation_tx.clone(), ctx.clone(), &self.installations);    
+                        }
                     }
                 }
                 if ui.button("Exit").clicked() {
@@ -280,10 +299,10 @@ impl eframe::App for HomeApp {
                 let address = &self.s_xmr_address.result.address;
                 let unlocked_balance = self.s_xmr_balance.result.unlocked_balance;
                 let locked_balance = self.s_xmr_balance.result.balance - unlocked_balance;
-                let unlock_time = self.s_xmr_balance.result.blocks_to_unlock * BLOCK_TIME_IN_SECS_EST;
+                let unlock_time = self.s_xmr_balance.result.blocks_to_unlock * crate::BLOCK_TIME_IN_SECS_EST;
                 let xmrd_info: &reqres::XmrDaemonGetInfoResult = &self.s_xmrd_get_info.result;
-                let free_space = xmrd_info.free_space / BYTES_IN_GB;
-                let db_size = xmrd_info.database_size / BYTES_IN_GB;
+                let free_space = xmrd_info.free_space / crate::BYTES_IN_GB;
+                let db_size = xmrd_info.database_size / crate::BYTES_IN_GB;
                 ui.label(format!("- rpc version: {}\n- address: {}\n- balance: {} piconero(s)\n- locked balance: {} piconero(s)\n- unlock time (secs): {}\n- daemon info\n\t- net type: {}\n\t- current hash: {}\n\t- height: {}\n\t- synced: {}\n\t- blockchain size : ~{} GB\n\t- free space : ~{} GB\n\t- version: {}\n", 
                     self.s_xmr_rpc_ver.result.version, address, unlocked_balance, locked_balance,
                     unlock_time, xmrd_info.nettype, xmrd_info.top_block_hash, xmrd_info.height, xmrd_info.synchronized,
@@ -352,7 +371,7 @@ fn send_balance_req(tx: Sender<reqres::XmrRpcBalanceResponse>, ctx: egui::Contex
 
 fn send_i2p_status_req(tx: Sender<i2p::HttpProxyStatus>, ctx: egui::Context) {
     tokio::spawn(async move {
-        let status = i2p::get_proxy_status().await;
+        let status = i2p::check_connection().await;
         let _ = tx.send(status);
         ctx.request_repaint();
     });
@@ -373,7 +392,7 @@ fn send_reset_refresh(tx: Sender<bool>, ctx: egui::Context, init: bool) {
 fn start_core_timeout
 (tx: Sender<bool>, ctx: egui::Context) {
     tokio::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(START_CORE_TIMEOUT_SECS)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(crate::START_CORE_TIMEOUT_SECS)).await;
         log::error!("start nevmes-core timeout");
         let _ = tx.send(true);
         ctx.request_repaint();
@@ -388,8 +407,8 @@ fn install_software_req
         xmr: installations.xmr,
     };
     tokio::spawn(async move {
-        utils::install_software(req_install).await;
-        let _ = tx.send(true);
+        let did_install = utils::install_software(req_install).await;
+        let _ = tx.send(did_install);
         ctx.request_repaint();
     });
 }

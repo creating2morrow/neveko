@@ -5,6 +5,10 @@ use crate::{args, db, i2p, message, models, monero, gpg, utils, reqres };
 use log::{info, debug, error, warn};
 use std::time::Duration;
 
+/// Enum for selecting hash validation
+#[derive(PartialEq)]
+enum ExternalSoftware { I2P, I2PZero, XMR }
+
 /// Handles the state for the installation manager popup
 pub struct Installations {
     pub xmr: bool,
@@ -416,9 +420,32 @@ pub fn stage_cleanup(f: String) {
 /// software on their own. Note that software pull is over
 /// 
 /// clearnet. TODO(c2m): trusted download locations over i2p.
-pub async fn install_software(installations: Installations) {
+pub async fn install_software(installations: Installations) -> bool {
+    let mut valid_i2p_hash = true;
+    let mut valid_i2p_zero_hash = true;
+    let mut valid_xmr_hash = true;
     if installations.i2p {
         info!("installing i2p");
+        let i2p_version = crate::I2P_RELEASE_VERSION;
+        let i2p_jar = format!("i2pinstall_{}.jar", i2p_version);
+        let link = format!("https://download.i2p2.no/releases/{}/{}", i2p_version, i2p_jar);
+        let curl = std::process::Command::new("curl")
+            .args(["-O#", &link])
+            .status();
+        match curl {
+            Ok(curl_output) => {
+                debug!("{:?}", curl_output);
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                let jar_output = std::process::Command::new("java")
+                    .args(["-jar", &i2p_jar])
+                    .spawn()
+                    .expect("i2p gui installation failed");
+                debug!("{:?}", jar_output.stdout);
+            },
+            _=> error!("i2p download failed")
+        }
+        valid_i2p_hash = validate_installation_hash(ExternalSoftware::I2P, &i2p_jar);
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
     if installations.i2p_zero {
         info!("installing i2p-zero");
@@ -434,13 +461,15 @@ pub async fn install_software(installations: Installations) {
                 debug!("{:?}", curl_output);
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                 let unzip_output = std::process::Command::new("unzip")
-                    .arg(i2p_zero_zip)
+                    .arg(&i2p_zero_zip)
                     .spawn()
                     .expect("i2p unzip failed");
                 debug!("{:?}", unzip_output.stdout);
             },
             _=> error!("i2p-zero download failed")
         }
+        valid_i2p_zero_hash = validate_installation_hash(ExternalSoftware::I2PZero, &i2p_zero_zip);
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
     if installations.xmr {
         info!("installing monero");
@@ -460,5 +489,29 @@ pub async fn install_software(installations: Installations) {
             },
             _=> error!("monero download failed")
         }
-    }
+        valid_xmr_hash = validate_installation_hash(ExternalSoftware::XMR, &String::from(crate::MONERO_RELEASE_VERSION));
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }    
+    valid_i2p_hash && valid_i2p_zero_hash && valid_xmr_hash
+}
+
+/// Linux specific hash validation using the command `sha256sum`
+fn validate_installation_hash(sw: ExternalSoftware, filename: &String) -> bool {
+    debug!("validating hash");
+    let expected_hash = if sw == ExternalSoftware::I2P {
+            String::from(crate::I2P_RELEASE_HASH)
+        } else if sw == ExternalSoftware::I2PZero {
+            String::from(crate::I2P_ZERO_RELEASH_HASH)
+        } else {
+            String::from(crate::MONERO_RELEASE_HASH)
+        };
+    let sha_output = std::process::Command::new("sha256sum")
+        .arg(filename).output().expect("hash validation failed");
+    let str_sha = String::from_utf8(sha_output.stdout).unwrap();
+    let split1 = str_sha.split(" ");
+    let mut v: Vec<String> = split1.map(|s| String::from(s)).collect();
+    let actual_hash = v.remove(0);
+    debug!("actual hash: {}", actual_hash);
+    debug!("expected hash: {}", expected_hash);
+    actual_hash == expected_hash
 }

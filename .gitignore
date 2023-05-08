@@ -12,3 +12,4 @@ notes.txt
 *.zip
 */monero-x86_64-linux-gnu-v0.18.2.2/**
 */i2p-zero-linux.v1.20/**
+*.jar
