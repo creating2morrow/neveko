@@ -1,5 +1,8 @@
 use crate::utils;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 // All http requests and responses are here
 
@@ -363,10 +366,7 @@ pub struct SubAddressIndex {
 
 impl Default for SubAddressIndex {
     fn default() -> Self {
-        SubAddressIndex {
-            major: 0,
-            minor: 0,
-        }
+        SubAddressIndex { major: 0, minor: 0 }
     }
 }
 
@@ -820,12 +820,11 @@ impl Default for XmrRpcCreateAddressResponse {
                 address_index: 0,
                 address_indices: Vec::new(),
                 addresses: Vec::new(),
-            }
+            },
         }
     }
 }
 // END XMR Structs
-
 
 /// Container for the message decryption
 #[derive(Serialize, Deserialize)]
@@ -864,7 +863,7 @@ impl Default for Invoice {
 }
 
 /// Not to be confused with the PaymentProof guard.
-/// 
+///
 /// This is the response when proving payment
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]

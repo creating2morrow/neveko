@@ -1,7 +1,10 @@
-use nevmes_core::*;
 use image::Luma;
+use nevmes_core::*;
 use qrcode::QrCode;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::{
+    Receiver,
+    Sender,
+};
 
 pub struct WalletApp {
     pub init: bool,
@@ -90,8 +93,8 @@ impl eframe::App for WalletApp {
                     self.init = true;
                     self.is_qr_set = true;
                     let contents = std::fs::read(&file_path).unwrap_or(Vec::new());
-                    self.qr = egui_extras::RetainedImage::from_image_bytes(
-                        "qr.png", &contents,).unwrap();
+                    self.qr =
+                        egui_extras::RetainedImage::from_image_bytes("qr.png", &contents).unwrap();
                     ctx.request_repaint();
                 }
                 self.qr.show(ui);
@@ -102,9 +105,9 @@ impl eframe::App for WalletApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Address");
-                ui.label(
-                    "____________________________________________________________________________\n",
-                );
+            ui.label(
+                "____________________________________________________________________________\n",
+            );
             ui.horizontal(|ui| {
                 if ui.button("Show QR").clicked() {
                     self.is_showing_qr = true;
@@ -120,7 +123,11 @@ impl eframe::App for WalletApp {
                 ui.text_edit_singleline(&mut self.sweep_address)
                     .labelled_by(sweep_label.id);
                 if ui.button("Sweep").clicked() {
-                    send_sweep_all_req(self.xmr_sweep_all_tx.clone(), ctx.clone(), self.sweep_address.clone());
+                    send_sweep_all_req(
+                        self.xmr_sweep_all_tx.clone(),
+                        ctx.clone(),
+                        self.sweep_address.clone(),
+                    );
                     self.sweep_address = utils::empty_string();
                     self.is_showing_sweep_result = true;
                     self.is_loading = true;
@@ -138,7 +145,11 @@ fn send_address_req(tx: Sender<reqres::XmrRpcAddressResponse>, ctx: egui::Contex
     });
 }
 
-fn send_sweep_all_req(tx: Sender<reqres::XmrRpcSweepAllResponse>, ctx: egui::Context, address: String) {
+fn send_sweep_all_req(
+    tx: Sender<reqres::XmrRpcSweepAllResponse>,
+    ctx: egui::Context,
+    address: String,
+) {
     tokio::spawn(async move {
         let result: reqres::XmrRpcSweepAllResponse = monero::sweep_all(address).await;
         let _ = tx.send(result);

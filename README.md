@@ -20,10 +20,21 @@ NEVidebla-MESago (invisible message)
 * install dependencies
     * ubuntu example: `sudo apt update -y && sudo apt upgrade -y`
     * `sudo apt install -y libssl-dev build-essential libgpgme-dev`
-* download and run i2prouter start (optional: setup to run on boot similar tor daemon)
 * `git clone https://github/com/creating2morrow/nevmes`
 * `cd nevmes && ./scripts/build_all_and_run.sh "-- -h"`
 * gui built with rust [egui](https://docs.rs/egui/latest/egui/)
+
+## Installation Mananger
+
+* additional required software can be downloaded from the gui home or `Binaries` links below
+* hashes are in core [lib.rs](./nevmes-core/src/lib.rs)
+* download and run i2p
+  * `/i2p/i2prouter start` 
+  * `/i2p/i2prouter install` (optional: setup to run on boot similar to tor daemon)
+* download i2p-zero, put the path in the connection manager or cli `--i2p-zero-dir` flag
+* download monero, update connection manager or cli
+  * `--monero-blockchain-dir`, where to put lmdb for monero (e.g. path/to/ssd)
+  * `--monero-location`, path to monero download
 
 ## Contributing and Releasing
 
@@ -36,7 +47,10 @@ NEVidebla-MESago (invisible message)
 ```
 
 * code on dev branch
+* run `./scripts/fmtall.sh` before committing
 * pull request to dev branch
+* todo => `TODO(name): detailed work`
+* docs on all `pub fn` and `pub struct`
 * merge dev to vX.X.X
 * merge vX.X.X to main
 * tag release v.X.X.X every friday (if stable changes)
@@ -63,7 +77,6 @@ NEVidebla-MESago (invisible message)
 
 * nevmes-auth - `internal` auth server
 * nevmes-contact - `internal` add contacts server
-* nevmes-core - application core logic
 * nevmes-gui - primary user interface
 * nevmes-message - `internal` message tx/read etc. server
 * nevmes - `external` primary server for contact share, payment, message rx etc.
@@ -74,16 +87,8 @@ NEVidebla-MESago (invisible message)
 * [i2p-zero](https://github.com/i2p-zero/i2p-zero/releases/tag/v1.20) - (not included) tunnel creation
 * [i2p](https://geti2p.net/en/download) - http proxy (not included, *i2p-zero http proxy not working)
 
+most of the complex logic stays in nevmes-core, exported from [lib.rs](./nevmes-core/src/lib.rs)
+
 ## Manual
 
 [the manual](./docs/man.md)
-
-## Known issues
-
-* gui password and screen lock needs fixing up
-* timeout out JWP payment approval screen with infinite loading
-* prove payment edge where payment succeeds but jwp is empty, currently require new payment
-* test framework (in progress)
-* docs on all `fn` and `structs`
-* i2pd installer on home screen?
-* and more daemon info and wallet functionality (multisig)

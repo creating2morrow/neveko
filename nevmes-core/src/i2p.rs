@@ -1,9 +1,24 @@
-use std::{fs, env, process::Command};
-use log::{debug, error, info, warn};
-use serde::{Deserialize, Serialize};
-use crate::{args, utils};
+use crate::{
+    args,
+    utils,
+};
 use clap::Parser;
-use std::time::Duration;
+use log::{
+    debug,
+    error,
+    info,
+    warn,
+};
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use std::{
+    env,
+    fs,
+    process::Command,
+    time::Duration,
+};
 
 // TODO(c2m): debug i2p-zero http proxy
 
@@ -24,13 +39,13 @@ impl I2pStatus {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HttpProxyStatus {
-    pub open: bool
+    pub open: bool,
 }
 
 #[derive(Debug)]
 pub enum ProxyStatus {
     Opening,
-    Open
+    Open,
 }
 
 impl ProxyStatus {
@@ -56,7 +71,9 @@ struct Tunnels {
 
 impl Default for Tunnels {
     fn default() -> Self {
-        Tunnels { tunnels: Vec::new() }
+        Tunnels {
+            tunnels: Vec::new(),
+        }
     }
 }
 
@@ -87,14 +104,14 @@ pub async fn start() {
         .expect("i2p-zero failed to start");
     debug!("{:?}", output.stdout);
     find_tunnels().await;
-    { 
-        tokio::spawn(async move { 
+    {
+        tokio::spawn(async move {
             let tick: std::sync::mpsc::Receiver<()> = schedule_recv::periodic_ms(600000);
             loop {
                 tick.recv().unwrap();
                 check_connection().await;
             }
-        }); 
+        });
     }
 }
 
@@ -103,7 +120,11 @@ fn create_tunnel() {
     let args = args::Args::parse();
     let path = args.i2p_zero_dir;
     let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
-        .args(["server.create", "127.0.0.1", &format!("{}",utils::get_app_port())])
+        .args([
+            "server.create",
+            "127.0.0.1",
+            &format!("{}", utils::get_app_port()),
+        ])
         .spawn()
         .expect("i2p-zero failed to create a tunnel");
     debug!("{:?}", output.stdout);
@@ -125,17 +146,20 @@ pub fn get_destination() -> String {
         env::var("USER").unwrap_or(String::from("user"))
     );
     // Don't panic if i2p-zero isn't installed
-    let contents = match fs::read_to_string(file_path)
-        {
-            Ok(file) => file,
-            _=> utils::empty_string(),
-        };
+    let contents = match fs::read_to_string(file_path) {
+        Ok(file) => file,
+        _ => utils::empty_string(),
+    };
     if contents != utils::empty_string() {
         let input = format!(r#"{contents}"#);
         let mut j: Tunnels = serde_json::from_str(&input).unwrap_or(Default::default());
-        let destination: String = j.tunnels.remove(0).dest.ok_or(utils::empty_string())
+        let destination: String = j
+            .tunnels
+            .remove(0)
+            .dest
+            .ok_or(utils::empty_string())
             .unwrap_or(utils::empty_string());
-        return destination
+        return destination;
     }
     utils::empty_string()
 }
@@ -168,9 +192,9 @@ pub async fn check_connection() -> HttpProxyStatus {
                     }
                 }
                 _ => {
-                        error!("i2p status check failure");
-                        return HttpProxyStatus { open: false };
-                    }
+                    error!("i2p status check failure");
+                    return HttpProxyStatus { open: false };
+                }
             }
         }
         Err(e) => {

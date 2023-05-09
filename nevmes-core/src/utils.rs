@@ -1,13 +1,32 @@
-use rand_core::RngCore;
+use crate::{
+    args,
+    db,
+    gpg,
+    i2p,
+    message,
+    models,
+    monero,
+    reqres,
+    utils,
+};
 use clap::Parser;
+use log::{
+    debug,
+    error,
+    info,
+    warn,
+};
+use rand_core::RngCore;
 use rocket::serde::json::Json;
-use crate::{args, db, i2p, message, models, monero, gpg, utils, reqres };
-use log::{info, debug, error, warn};
 use std::time::Duration;
 
 /// Enum for selecting hash validation
 #[derive(PartialEq)]
-enum ExternalSoftware { I2P, I2PZero, XMR }
+enum ExternalSoftware {
+    I2P,
+    I2PZero,
+    XMR,
+}
 
 /// Handles the state for the installation manager popup
 pub struct Installations {
@@ -87,15 +106,23 @@ impl ReleaseEnvironment {
 pub fn start_core(conn: &Connections) {
     let env = if !conn.mainnet { "dev" } else { "prod" };
     let args = [
-        "--monero-location",        &conn.monero_location,
-        "--monero-blockchain-dir",  &conn.blockchain_dir,
-        "--monero-rpc-host",        &conn.rpc_host,
-        "--monero-rpc-daemon",      &conn.daemon_host,
-        "--monero-rpc-username",    &conn.rpc_username,
-        "--monero-rpc-cred",        &conn.rpc_credential,
-        "--i2p-zero-dir",           &conn.i2p_zero_dir,
-        "-r",                       env,
-        ];
+        "--monero-location",
+        &conn.monero_location,
+        "--monero-blockchain-dir",
+        &conn.blockchain_dir,
+        "--monero-rpc-host",
+        &conn.rpc_host,
+        "--monero-rpc-daemon",
+        &conn.daemon_host,
+        "--monero-rpc-username",
+        &conn.rpc_username,
+        "--monero-rpc-cred",
+        &conn.rpc_credential,
+        "--i2p-zero-dir",
+        &conn.i2p_zero_dir,
+        "-r",
+        env,
+    ];
     let output = std::process::Command::new("./nevmes")
         .args(args)
         .spawn()
@@ -107,7 +134,9 @@ pub fn start_core(conn: &Connections) {
 pub fn is_using_remote_node() -> bool {
     let args = args::Args::parse();
     let r = args.remote_node;
-    if r { warn!("using a remote node may harm privacy"); }
+    if r {
+        warn!("using a remote node may harm privacy");
+    }
     r
 }
 
@@ -172,10 +201,10 @@ pub fn get_payment_threshold() -> u128 {
 }
 
 /// convert contact to json so only core module does the work
-pub fn contact_to_json(c: &models::Contact) -> Json<models::Contact> { 
+pub fn contact_to_json(c: &models::Contact) -> Json<models::Contact> {
     let r_contact: models::Contact = models::Contact {
-        cid: String::from(&c.cid), 
-        i2p_address: String::from(&c.i2p_address), 
+        cid: String::from(&c.cid),
+        i2p_address: String::from(&c.i2p_address),
         xmr_address: String::from(&c.xmr_address),
         gpg_key: c.gpg_key.iter().cloned().collect(),
     };
@@ -183,25 +212,33 @@ pub fn contact_to_json(c: &models::Contact) -> Json<models::Contact> {
 }
 
 /// convert message to json so only core module does the work
-pub fn message_to_json(m: &models::Message) -> Json<models::Message> { 
+pub fn message_to_json(m: &models::Message) -> Json<models::Message> {
     let r_message: models::Message = models::Message {
         body: m.body.iter().cloned().collect(),
         mid: String::from(&m.mid),
         uid: utils::empty_string(),
         created: m.created,
         from: String::from(&m.from),
-        to: String::from(&m.to),   
+        to: String::from(&m.to),
     };
     Json(r_message)
 }
 
 /// Instead of putting `String::from("")`
-pub fn empty_string() -> String { String::from("") }
+pub fn empty_string() -> String {
+    String::from("")
+}
 
 // DoS prevention
-pub const fn string_limit()  -> usize { 512  }
-pub const fn gpg_key_limit() -> usize { 4096 }
-pub const fn message_limit() -> usize { 9999 }
+pub const fn string_limit() -> usize {
+    512
+}
+pub const fn gpg_key_limit() -> usize {
+    4096
+}
+pub const fn message_limit() -> usize {
+    9999
+}
 
 /// Generate application gpg keys at startup if none exist
 async fn gen_app_gpg() {
@@ -219,15 +256,19 @@ async fn gen_app_gpg() {
 
 /// Handles panic! for missing wallet directory
 fn create_wallet_dir() {
-    let file_path = format!("/home/{}/.nevmes",
-        std::env::var("USER").unwrap_or(String::from("user")));
+    let file_path = format!(
+        "/home/{}/.nevmes",
+        std::env::var("USER").unwrap_or(String::from("user"))
+    );
     let s_output = std::process::Command::new("mkdir")
         .args(["-p", &format!("{}/stagenet/wallet", file_path)])
-        .spawn().expect("failed to create dir");
+        .spawn()
+        .expect("failed to create dir");
     debug!("{:?}", s_output);
     let m_output = std::process::Command::new("mkdir")
         .args(["-p", &format!("{}/wallet", file_path)])
-        .spawn().expect("failed to create dir");
+        .spawn()
+        .expect("failed to create dir");
     debug!("{:?}", m_output);
 }
 
@@ -238,13 +279,12 @@ async fn gen_app_wallet() {
     let mut m_wallet = monero::open_wallet(String::from(filename)).await;
     if !m_wallet {
         m_wallet = monero::create_wallet(String::from(filename)).await;
-        if !m_wallet { 
+        if !m_wallet {
             error!("failed to create wallet")
         } else {
             m_wallet = monero::open_wallet(String::from(filename)).await;
             if m_wallet {
-                let m_address: reqres::XmrRpcAddressResponse = 
-                    monero::get_address().await;
+                let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
                 info!("app wallet address: {}", m_address.result.address)
             }
         }
@@ -269,7 +309,7 @@ fn gen_signing_keys() {
 }
 
 /// TODO(c2m): add a button to gui to call this
-/// 
+///
 /// dont' forget to generate new keys as well
 pub fn revoke_signing_keys() {
     let s = db::Interface::open();
@@ -282,7 +322,7 @@ pub fn get_jwt_secret_key() -> String {
     let r = db::Interface::read(&s.env, &s.handle, crate::NEVMES_JWT_SECRET_KEY);
     if r == utils::empty_string() {
         error!("JWT key not found");
-        return Default::default()
+        return Default::default();
     }
     r
 }
@@ -292,7 +332,7 @@ pub fn get_jwp_secret_key() -> String {
     let r = db::Interface::read(&s.env, &s.handle, crate::NEVMES_JWP_SECRET_KEY);
     if r == utils::empty_string() {
         error!("JWP key not found");
-        return Default::default()
+        return Default::default();
     }
     r
 }
@@ -302,21 +342,30 @@ fn start_micro_servers() {
     info!("starting auth server");
     let mut auth_path = "nevmes-auth/target/debug/nevmes_auth";
     let env = get_release_env();
-    if env == ReleaseEnvironment::Production { auth_path = "nevmes_auth"; }
+    if env == ReleaseEnvironment::Production {
+        auth_path = "nevmes_auth";
+    }
     let a_output = std::process::Command::new(auth_path)
-        .spawn().expect("failed to start auth server");
+        .spawn()
+        .expect("failed to start auth server");
     debug!("{:?}", a_output.stdout);
     info!("starting contact server");
     let mut contact_path = "nevmes-contact/target/debug/nevmes_contact";
-    if env == ReleaseEnvironment::Production { contact_path = "nevmes_contact"; }
+    if env == ReleaseEnvironment::Production {
+        contact_path = "nevmes_contact";
+    }
     let c_output = std::process::Command::new(contact_path)
-        .spawn().expect("failed to start contact server");
+        .spawn()
+        .expect("failed to start contact server");
     debug!("{:?}", c_output.stdout);
     info!("starting message server");
     let mut message_path = "nevmes-message/target/debug/nevmes_message";
-    if env == ReleaseEnvironment::Production { message_path = "nevmes_message"; }
+    if env == ReleaseEnvironment::Production {
+        message_path = "nevmes_message";
+    }
     let m_output = std::process::Command::new(message_path)
-        .spawn().expect("failed to start message server");
+        .spawn()
+        .expect("failed to start message server");
     debug!("{:?}", m_output.stdout);
 }
 
@@ -327,9 +376,12 @@ fn start_gui() {
         info!("starting gui");
         let mut gui_path = "nevmes-gui/target/debug/nevmes_gui";
         let env = get_release_env();
-        if env == ReleaseEnvironment::Production { gui_path = "nevmes-gui"; }
+        if env == ReleaseEnvironment::Production {
+            gui_path = "nevmes-gui";
+        }
         let g_output = std::process::Command::new(gui_path)
-            .spawn().expect("failed to start gui");
+            .spawn()
+            .expect("failed to start gui");
         debug!("{:?}", g_output.stdout);
     }
 }
@@ -338,10 +390,16 @@ fn start_gui() {
 pub async fn start_up() {
     info!("nevmes is starting up");
     let args = args::Args::parse();
-    if args.remote_access { start_micro_servers(); }
-    if args.clear_fts { clear_fts(); }
+    if args.remote_access {
+        start_micro_servers();
+    }
+    if args.clear_fts {
+        clear_fts();
+    }
     gen_signing_keys();
-    if !is_using_remote_node() { monero::start_daemon(); }
+    if !is_using_remote_node() {
+        monero::start_daemon();
+    }
     create_wallet_dir();
     // wait for daemon for a bit
     tokio::time::sleep(std::time::Duration::new(5, 0)).await;
@@ -354,12 +412,16 @@ pub async fn start_up() {
     gen_app_gpg().await;
     let env: String = get_release_env().value();
     start_gui();
-    { tokio::spawn(async { message::retry_fts().await; }); }
+    {
+        tokio::spawn(async {
+            message::retry_fts().await;
+        });
+    }
     info!("{} - nevmes is online", env);
 }
 
 /// Called by gui for cleaning up monerod, rpc, etc.
-/// 
+///
 /// pass true from gui connection manager so not to kill nevmes
 pub fn kill_child_processes(cm: bool) {
     info!("stopping child processes");
@@ -380,10 +442,10 @@ pub fn kill_child_processes(cm: bool) {
         debug!("{:?}", nevmes_output.stdout);
     }
     let rpc_output = std::process::Command::new("killall")
-            .arg("monero-wallet-rpc")
-            .spawn()
-            .expect("monero-wallet-rpc failed to stop");
-        debug!("{:?}", rpc_output.stdout);
+        .arg("monero-wallet-rpc")
+        .spawn()
+        .expect("monero-wallet-rpc failed to stop");
+    debug!("{:?}", rpc_output.stdout);
     let i2pz_output = std::process::Command::new("pkill")
         .arg("i2p-zero")
         .spawn()
@@ -393,7 +455,9 @@ pub fn kill_child_processes(cm: bool) {
 
 /// We can restart fts from since it gets terminated when empty
 pub fn restart_retry_fts() {
-    tokio::spawn(async move { message::retry_fts().await; });
+    tokio::spawn(async move {
+        message::retry_fts().await;
+    });
 }
 
 /// Called on app startup if `--clear-fts` flag is passed.
@@ -414,11 +478,11 @@ pub fn stage_cleanup(f: String) {
 }
 
 /// Handle the request from user to additional software
-/// 
+///
 /// from gui startup. Power users will most like install
-/// 
+///
 /// software on their own. Note that software pull is over
-/// 
+///
 /// clearnet. TODO(c2m): trusted download locations over i2p.
 pub async fn install_software(installations: Installations) -> bool {
     let mut valid_i2p_hash = true;
@@ -428,7 +492,10 @@ pub async fn install_software(installations: Installations) -> bool {
         info!("installing i2p");
         let i2p_version = crate::I2P_RELEASE_VERSION;
         let i2p_jar = format!("i2pinstall_{}.jar", i2p_version);
-        let link = format!("https://download.i2p2.no/releases/{}/{}", i2p_version, i2p_jar);
+        let link = format!(
+            "https://download.i2p2.no/releases/{}/{}",
+            i2p_version, i2p_jar
+        );
         let curl = std::process::Command::new("curl")
             .args(["-O#", &link])
             .status();
@@ -441,8 +508,8 @@ pub async fn install_software(installations: Installations) -> bool {
                     .spawn()
                     .expect("i2p gui installation failed");
                 debug!("{:?}", jar_output.stdout);
-            },
-            _=> error!("i2p download failed")
+            }
+            _ => error!("i2p download failed"),
         }
         valid_i2p_hash = validate_installation_hash(ExternalSoftware::I2P, &i2p_jar);
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -451,8 +518,10 @@ pub async fn install_software(installations: Installations) -> bool {
         info!("installing i2p-zero");
         let i2p_version = crate::I2P_ZERO_RELEASE_VERSION;
         let i2p_zero_zip = format!("i2p-zero-linux.{}.zip", i2p_version);
-        let link = format!("https://github.com/i2p-zero/i2p-zero/releases/download/{}/{}",
-            i2p_version, i2p_zero_zip);
+        let link = format!(
+            "https://github.com/i2p-zero/i2p-zero/releases/download/{}/{}",
+            i2p_version, i2p_zero_zip
+        );
         let curl = std::process::Command::new("curl")
             .args(["-LO#", &link])
             .status();
@@ -465,15 +534,18 @@ pub async fn install_software(installations: Installations) -> bool {
                     .spawn()
                     .expect("i2p unzip failed");
                 debug!("{:?}", unzip_output.stdout);
-            },
-            _=> error!("i2p-zero download failed")
+            }
+            _ => error!("i2p-zero download failed"),
         }
         valid_i2p_zero_hash = validate_installation_hash(ExternalSoftware::I2PZero, &i2p_zero_zip);
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
     if installations.xmr {
         info!("installing monero");
-        let link = format!("https://downloads.getmonero.org/cli/{}", crate::MONERO_RELEASE_VERSION);
+        let link = format!(
+            "https://downloads.getmonero.org/cli/{}",
+            crate::MONERO_RELEASE_VERSION
+        );
         let curl = std::process::Command::new("curl")
             .args(["-O#", &link])
             .status();
@@ -486,12 +558,15 @@ pub async fn install_software(installations: Installations) -> bool {
                     .spawn()
                     .expect("monero tar extraction failed");
                 debug!("{:?}", tar_output.stdout);
-            },
-            _=> error!("monero download failed")
+            }
+            _ => error!("monero download failed"),
         }
-        valid_xmr_hash = validate_installation_hash(ExternalSoftware::XMR, &String::from(crate::MONERO_RELEASE_VERSION));
+        valid_xmr_hash = validate_installation_hash(
+            ExternalSoftware::XMR,
+            &String::from(crate::MONERO_RELEASE_VERSION),
+        );
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    }    
+    }
     valid_i2p_hash && valid_i2p_zero_hash && valid_xmr_hash
 }
 
@@ -499,14 +574,16 @@ pub async fn install_software(installations: Installations) -> bool {
 fn validate_installation_hash(sw: ExternalSoftware, filename: &String) -> bool {
     debug!("validating hash");
     let expected_hash = if sw == ExternalSoftware::I2P {
-            String::from(crate::I2P_RELEASE_HASH)
-        } else if sw == ExternalSoftware::I2PZero {
-            String::from(crate::I2P_ZERO_RELEASH_HASH)
-        } else {
-            String::from(crate::MONERO_RELEASE_HASH)
-        };
+        String::from(crate::I2P_RELEASE_HASH)
+    } else if sw == ExternalSoftware::I2PZero {
+        String::from(crate::I2P_ZERO_RELEASH_HASH)
+    } else {
+        String::from(crate::MONERO_RELEASE_HASH)
+    };
     let sha_output = std::process::Command::new("sha256sum")
-        .arg(filename).output().expect("hash validation failed");
+        .arg(filename)
+        .output()
+        .expect("hash validation failed");
     let str_sha = String::from_utf8(sha_output.stdout).unwrap();
     let split1 = str_sha.split(" ");
     let mut v: Vec<String> = split1.map(|s| String::from(s)).collect();

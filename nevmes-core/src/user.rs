@@ -1,7 +1,15 @@
 // User repo/service layer
-use crate::{db, models::*, utils};
+use crate::{
+    db,
+    models::*,
+    utils,
+};
+use log::{
+    debug,
+    error,
+    info,
+};
 use rocket::serde::json::Json;
-use log::{debug, error, info};
 
 // This module is only used for remote access
 
@@ -26,7 +34,7 @@ pub fn find(uid: &String) -> User {
     let r = db::Interface::read(&s.env, &s.handle, &String::from(uid));
     if r == utils::empty_string() {
         error!("user not found");
-        return Default::default()
+        return Default::default();
     }
     User::from_db(String::from(uid), r)
 }

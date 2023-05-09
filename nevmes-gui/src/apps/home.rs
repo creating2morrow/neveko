@@ -3,8 +3,13 @@
 
 use eframe::egui;
 use nevmes_core::*;
-use std::sync::mpsc::{Receiver, Sender};
-use std::time::Duration;
+use std::{
+    sync::mpsc::{
+        Receiver,
+        Sender,
+    },
+    time::Duration,
+};
 
 pub struct HomeApp {
     connections: utils::Connections,
@@ -73,9 +78,11 @@ impl Default for HomeApp {
         let s_i2p_status = false;
         let s_can_refresh = false;
         let c_xmr_logo = std::fs::read("./assets/xmr.png").unwrap_or(Vec::new());
-        let logo_xmr = egui_extras::RetainedImage::from_image_bytes("./assets/xmr.png", &c_xmr_logo).unwrap();
+        let logo_xmr =
+            egui_extras::RetainedImage::from_image_bytes("./assets/xmr.png", &c_xmr_logo).unwrap();
         let c_i2p_logo = std::fs::read("./assets/i2p.png").unwrap_or(Vec::new());
-        let logo_i2p = egui_extras::RetainedImage::from_image_bytes("./assets/i2p.png", &c_i2p_logo).unwrap();
+        let logo_i2p =
+            egui_extras::RetainedImage::from_image_bytes("./assets/i2p.png", &c_i2p_logo).unwrap();
         Self {
             connections,
             core_timeout_rx,
@@ -140,7 +147,9 @@ impl eframe::App for HomeApp {
         }
         if let Ok(install) = self.installation_rx.try_recv() {
             self.is_installing = !install;
-            if !install && self.is_loading { self.has_install_failed = true }
+            if !install && self.is_loading {
+                self.has_install_failed = true
+            }
             self.is_loading = false;
         }
         if let Ok(timeout) = self.core_timeout_rx.try_recv() {
@@ -226,7 +235,7 @@ impl eframe::App for HomeApp {
                     self.is_loading = false;
                 }
             });
-        
+
         // Installation Manager window
         //-----------------------------------------------------------------------------------
         let mut is_installing = self.is_installing;
@@ -251,7 +260,11 @@ impl eframe::App for HomeApp {
                     if !self.is_loading {
                         if ui.button("Install").clicked() {
                             self.is_loading = true;
-                            install_software_req(self.installation_tx.clone(), ctx.clone(), &self.installations);    
+                            install_software_req(
+                                self.installation_tx.clone(),
+                                ctx.clone(),
+                                &self.installations,
+                            );
                         }
                     }
                 }
@@ -389,18 +402,23 @@ fn send_reset_refresh(tx: Sender<bool>, ctx: egui::Context, init: bool) {
     });
 }
 
-fn start_core_timeout
-(tx: Sender<bool>, ctx: egui::Context) {
+fn start_core_timeout(tx: Sender<bool>, ctx: egui::Context) {
     tokio::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(crate::START_CORE_TIMEOUT_SECS)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(
+            crate::START_CORE_TIMEOUT_SECS,
+        ))
+        .await;
         log::error!("start nevmes-core timeout");
         let _ = tx.send(true);
         ctx.request_repaint();
     });
 }
 
-fn install_software_req
-(tx: Sender<bool>, ctx: egui::Context, installations: &utils::Installations) {
+fn install_software_req(
+    tx: Sender<bool>,
+    ctx: egui::Context,
+    installations: &utils::Installations,
+) {
     let req_install: utils::Installations = utils::Installations {
         i2p: installations.i2p,
         i2p_zero: installations.i2p_zero,

@@ -1,9 +1,20 @@
-use rocket::http::Status;
-use rocket::response::status::Custom;
-use rocket::serde::json::Json;
-use rocket::{get, post};
+use rocket::{
+    get,
+    http::Status,
+    post,
+    response::status::Custom,
+    serde::json::Json,
+};
 
-use nevmes_core::{contact, i2p, message, models, monero, proof, reqres};
+use nevmes_core::{
+    contact,
+    i2p,
+    message,
+    models,
+    monero,
+    proof,
+    reqres,
+};
 
 // JSON APIs exposed over i2p
 

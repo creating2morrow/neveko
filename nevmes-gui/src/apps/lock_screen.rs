@@ -1,6 +1,9 @@
 use crate::CREDENTIAL_KEY;
 use nevmes_core::*;
-use sha2::{Digest, Sha512};
+use sha2::{
+    Digest,
+    Sha512,
+};
 
 /// TODO(c2m): Create a more secure locking mechanism
 ///

@@ -1,5 +1,8 @@
 use crate::utils;
-use rocket::serde::{Serialize, Deserialize};
+use rocket::serde::{
+    Deserialize,
+    Serialize,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -161,7 +164,14 @@ impl Message {
         };
         let from = v.remove(0);
         let to = v.remove(0);
-        Message { mid: k, uid, body, created, from, to, }
+        Message {
+            mid: k,
+            uid,
+            body,
+            created,
+            from,
+            to,
+        }
     }
 }
 

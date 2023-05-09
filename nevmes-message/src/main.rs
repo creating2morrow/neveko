@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate rocket;
 
-use nevmes_message::*;
 use nevmes_core::*;
+use nevmes_message::*;
 
 // The only changes in here should be mounting new controller methods
 

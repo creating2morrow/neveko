@@ -1,6 +1,9 @@
-use nevmes_core::*;
-use sha2::{Sha512, Digest};
 use crate::CREDENTIAL_KEY;
+use nevmes_core::*;
+use sha2::{
+    Digest,
+    Sha512,
+};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LoginApp {
@@ -12,7 +15,10 @@ impl Default for LoginApp {
     fn default() -> Self {
         let credential = utils::empty_string();
         let is_cred_generated = false;
-        LoginApp { credential, is_cred_generated }
+        LoginApp {
+            credential,
+            is_cred_generated,
+        }
     }
 }
 
@@ -44,4 +50,3 @@ impl eframe::App for LoginApp {
         });
     }
 }
-

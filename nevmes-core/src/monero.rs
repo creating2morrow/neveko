@@ -1,7 +1,20 @@
-use crate::{args, reqres, utils::{self, get_release_env, ReleaseEnvironment}, proof};
+use crate::{
+    args,
+    proof,
+    reqres,
+    utils::{
+        self,
+        get_release_env,
+        ReleaseEnvironment,
+    },
+};
 use clap::Parser;
 use diqwest::WithDigestAuth;
-use log::{debug, error, info};
+use log::{
+    debug,
+    error,
+    info,
+};
 use std::process::Command;
 
 /// Current xmr ring size updated here.
@@ -88,12 +101,14 @@ pub enum LockTimeLimit {
 
 impl LockTimeLimit {
     pub fn value(&self) -> u64 {
-        match *self { LockTimeLimit::Blocks => 20, }
+        match *self {
+            LockTimeLimit::Blocks => 20,
+        }
     }
 }
 
 /// Start monerod from the -`-monero-location` flag
-/// 
+///
 /// default: /home/$USER/monero-xxx-xxx
 pub fn start_daemon() {
     info!("starting monerod");
@@ -113,7 +128,7 @@ pub fn start_daemon() {
             .args(args)
             .spawn()
             .expect("monerod failed to start");
-     debug!("{:?}", output.stdout);
+        debug!("{:?}", output.stdout);
     }
 }
 
@@ -125,17 +140,22 @@ pub fn start_rpc() {
     let login = get_rpc_creds();
     let daemon_address = get_rpc_daemon();
     let rpc_login = format!("{}:{}", &login.username, &login.credential);
-    let mut wallet_dir = format!("/home/{}/.nevmes/stagenet/wallet/",
+    let mut wallet_dir = format!(
+        "/home/{}/.nevmes/stagenet/wallet/",
         std::env::var("USER").unwrap_or(String::from("user")),
     );
     let release_env = get_release_env();
     if release_env == ReleaseEnvironment::Development {
         let args = [
-            "--rpc-bind-port", &port, 
-            "--wallet-dir", &wallet_dir,
-            "--rpc-login", &rpc_login, 
-            "--daemon-address", &daemon_address, 
-            "--stagenet"
+            "--rpc-bind-port",
+            &port,
+            "--wallet-dir",
+            &wallet_dir,
+            "--rpc-login",
+            &rpc_login,
+            "--daemon-address",
+            &daemon_address,
+            "--stagenet",
         ];
         let output = Command::new(format!("{}/monero-wallet-rpc", bin_dir))
             .args(args)
@@ -143,11 +163,20 @@ pub fn start_rpc() {
             .expect("monero-wallet-rpc failed to start");
         debug!("{:?}", output.stdout);
     } else {
-        wallet_dir = format!("/home/{}/.nevmes/wallet/",
+        wallet_dir = format!(
+            "/home/{}/.nevmes/wallet/",
             std::env::var("USER").unwrap_or(String::from("user")),
         );
-        let args = ["--rpc-bind-port", &port, "--wallet-dir", &wallet_dir,
-        "--rpc-login", &rpc_login, "--daemon-address", &daemon_address];
+        let args = [
+            "--rpc-bind-port",
+            &port,
+            "--wallet-dir",
+            &wallet_dir,
+            "--rpc-login",
+            &rpc_login,
+            "--daemon-address",
+            &daemon_address,
+        ];
         let output = Command::new(format!("{}/monero-wallet-rpc", bin_dir))
             .args(args)
             .spawn()
@@ -161,7 +190,7 @@ fn get_rpc_port() -> String {
     let rpc = String::from(args.monero_rpc_host);
     let values = rpc.split(":");
     let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
-    let  port = v.remove(2);
+    let port = v.remove(2);
     debug!("monero-wallet-rpc port: {}", port);
     port
 }
@@ -190,7 +219,10 @@ fn get_rpc_creds() -> RpcLogin {
     let args = args::Args::parse();
     let username = String::from(args.monero_rpc_username);
     let credential = String::from(args.monero_rpc_cred);
-    RpcLogin { username, credential }
+    RpcLogin {
+        username,
+        credential,
+    }
 }
 
 fn get_rpc_daemon() -> String {
@@ -209,8 +241,12 @@ pub async fn get_version() -> reqres::XmrRpcVersionResponse {
         method: RpcFields::GetVersion.value(),
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcVersionResponse>().await;
             debug!("get version response: {:?}", res);
@@ -248,8 +284,12 @@ pub async fn verify_signature(address: String, data: String, signature: String) 
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcVerifyResponse>().await;
             debug!("verify response: {:?}", res);
@@ -284,8 +324,12 @@ pub async fn create_wallet(filename: String) -> bool {
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             // The result from wallet creation is empty
             let res = response.text().await;
@@ -296,11 +340,11 @@ pub async fn create_wallet(filename: String) -> bool {
                         return false;
                     }
                     true
-                },
+                }
                 _ => false,
             }
         }
-        Err(_) => false
+        Err(_) => false,
     }
 }
 
@@ -309,9 +353,7 @@ pub async fn open_wallet(filename: String) -> bool {
     info!("opening wallet for {}", &filename);
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params = reqres::XmrRpcOpenWalletParams {
-        filename,
-    };
+    let params = reqres::XmrRpcOpenWalletParams { filename };
     let req = reqres::XmrRpcOpenRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
         id: RpcFields::Id.value(),
@@ -320,8 +362,12 @@ pub async fn open_wallet(filename: String) -> bool {
     };
     debug!("open request: {:?}", req);
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             // The result from wallet operation is empty
             let res = response.text().await;
@@ -332,11 +378,11 @@ pub async fn open_wallet(filename: String) -> bool {
                         return false;
                     }
                     return true;
-                },
+                }
                 _ => false,
             }
         }
-        Err(_) => false
+        Err(_) => false,
     }
 }
 
@@ -345,9 +391,7 @@ pub async fn close_wallet(filename: String) -> bool {
     info!("closing wallet for {}", &filename);
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params = reqres::XmrRpcOpenWalletParams {
-        filename,
-    };
+    let params = reqres::XmrRpcOpenWalletParams { filename };
     let req = reqres::XmrRpcOpenRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
         id: RpcFields::Id.value(),
@@ -355,8 +399,12 @@ pub async fn close_wallet(filename: String) -> bool {
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             // The result from wallet operation is empty
             let res = response.text().await;
@@ -366,7 +414,7 @@ pub async fn close_wallet(filename: String) -> bool {
                 _ => false,
             }
         }
-        Err(_) => false
+        Err(_) => false,
     }
 }
 
@@ -375,8 +423,11 @@ pub async fn get_balance() -> reqres::XmrRpcBalanceResponse {
     info!("fetching wallet balance");
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params: reqres::XmrRpcBalanceParams = reqres::XmrRpcBalanceParams { 
-        account_index: 0, address_indices: vec![0], all_accounts: false, strict: false, 
+    let params: reqres::XmrRpcBalanceParams = reqres::XmrRpcBalanceParams {
+        account_index: 0,
+        address_indices: vec![0],
+        all_accounts: false,
+        strict: false,
     };
     let req = reqres::XmrRpcBalanceRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
@@ -385,8 +436,12 @@ pub async fn get_balance() -> reqres::XmrRpcBalanceResponse {
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcBalanceResponse>().await;
             debug!("balance response: {:?}", res);
@@ -395,7 +450,7 @@ pub async fn get_balance() -> reqres::XmrRpcBalanceResponse {
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -404,9 +459,7 @@ pub async fn get_address() -> reqres::XmrRpcAddressResponse {
     info!("fetching wallet address");
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params: reqres::XmrRpcAddressParams = reqres::XmrRpcAddressParams { 
-        account_index: 0, 
-    };
+    let params: reqres::XmrRpcAddressParams = reqres::XmrRpcAddressParams { account_index: 0 };
     let req = reqres::XmrRpcAddressRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
         id: RpcFields::Id.value(),
@@ -414,8 +467,12 @@ pub async fn get_address() -> reqres::XmrRpcAddressResponse {
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcAddressResponse>().await;
             debug!("address response: {:?}", res);
@@ -424,7 +481,7 @@ pub async fn get_address() -> reqres::XmrRpcAddressResponse {
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -433,8 +490,10 @@ pub async fn validate_address(address: &String) -> reqres::XmrRpcValidateAddress
     info!("validating wallet address");
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params: reqres::XmrRpcValidateAddressParams = reqres::XmrRpcValidateAddressParams { 
-        address: String::from(address), any_net_type: false, allow_openalias: true, 
+    let params: reqres::XmrRpcValidateAddressParams = reqres::XmrRpcValidateAddressParams {
+        address: String::from(address),
+        any_net_type: false,
+        allow_openalias: true,
     };
     let req = reqres::XmrRpcValidateAddressRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
@@ -443,17 +502,23 @@ pub async fn validate_address(address: &String) -> reqres::XmrRpcValidateAddress
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
-            let res = response.json::<reqres::XmrRpcValidateAddressResponse>().await;
+            let res = response
+                .json::<reqres::XmrRpcValidateAddressResponse>()
+                .await;
             debug!("validate_address response: {:?}", res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 // START Multisig
@@ -469,8 +534,12 @@ pub async fn prepare_wallet() -> reqres::XmrRpcPrepareResponse {
         method: RpcFields::Prepare.value(),
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcPrepareResponse>().await;
             debug!("prepare response: {:?}", res);
@@ -479,7 +548,7 @@ pub async fn prepare_wallet() -> reqres::XmrRpcPrepareResponse {
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -499,8 +568,12 @@ pub async fn make_wallet(info: Vec<String>) -> reqres::XmrRpcMakeResponse {
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcMakeResponse>().await;
             debug!("make response: {:?}", res);
@@ -509,7 +582,7 @@ pub async fn make_wallet(info: Vec<String>) -> reqres::XmrRpcMakeResponse {
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -528,8 +601,12 @@ pub async fn finalize_wallet(info: Vec<String>) -> reqres::XmrRpcFinalizeRespons
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcFinalizeResponse>().await;
             debug!("finalize response: {:?}", res);
@@ -538,7 +615,7 @@ pub async fn finalize_wallet(info: Vec<String>) -> reqres::XmrRpcFinalizeRespons
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -553,8 +630,12 @@ pub async fn export_multisig_info() -> reqres::XmrRpcExportResponse {
         method: RpcFields::Export.value(),
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcExportResponse>().await;
             debug!("export msig response: {:?}", res);
@@ -563,7 +644,7 @@ pub async fn export_multisig_info() -> reqres::XmrRpcExportResponse {
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -572,9 +653,7 @@ pub async fn import_multisig_info(info: Vec<String>) -> reqres::XmrRpcImportResp
     info!("import msig wallet");
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params = reqres::XmrRpcImportParams {
-        info,
-    };
+    let params = reqres::XmrRpcImportParams { info };
     let req = reqres::XmrRpcImportRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
         id: RpcFields::Id.value(),
@@ -582,8 +661,12 @@ pub async fn import_multisig_info(info: Vec<String>) -> reqres::XmrRpcImportResp
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcImportResponse>().await;
             debug!("import msig info response: {:?}", res);
@@ -592,7 +675,7 @@ pub async fn import_multisig_info(info: Vec<String>) -> reqres::XmrRpcImportResp
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -601,9 +684,7 @@ pub async fn sign_multisig(tx_data_hex: String) -> reqres::XmrRpcSignMultisigRes
     info!("sign msig txset");
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params = reqres::XmrRpcSignMultisigParams {
-        tx_data_hex,
-    };
+    let params = reqres::XmrRpcSignMultisigParams { tx_data_hex };
     let req = reqres::XmrRpcSignMultisigRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
         id: RpcFields::Id.value(),
@@ -611,8 +692,12 @@ pub async fn sign_multisig(tx_data_hex: String) -> reqres::XmrRpcSignMultisigRes
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcSignMultisigResponse>().await;
             debug!("sign msig txset response: {:?}", res);
@@ -621,7 +706,7 @@ pub async fn sign_multisig(tx_data_hex: String) -> reqres::XmrRpcSignMultisigRes
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 // END Multisig
@@ -631,11 +716,11 @@ pub async fn check_tx_proof(txp: &proof::TxProof) -> reqres::XmrRpcCheckTxProofR
     info!("check_tx_proof proof: {:?}", txp);
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params: reqres::XmrRpcCheckTxProofParams = reqres::XmrRpcCheckTxProofParams { 
+    let params: reqres::XmrRpcCheckTxProofParams = reqres::XmrRpcCheckTxProofParams {
         address: String::from(&txp.subaddress),
         message: String::from(&txp.message),
         signature: String::from(&txp.signature),
-        txid: String::from(&txp.hash), 
+        txid: String::from(&txp.hash),
     };
     let req = reqres::XmrRpcCheckTxProofRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
@@ -644,8 +729,12 @@ pub async fn check_tx_proof(txp: &proof::TxProof) -> reqres::XmrRpcCheckTxProofR
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcCheckTxProofResponse>().await;
             debug!("check_tx_proof response: {:?}", res);
@@ -654,7 +743,7 @@ pub async fn check_tx_proof(txp: &proof::TxProof) -> reqres::XmrRpcCheckTxProofR
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -663,10 +752,10 @@ pub async fn get_tx_proof(ptxp: proof::TxProof) -> reqres::XmrRpcGetTxProofRespo
     info!("fetching proof: {:?}", &ptxp.hash);
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params: reqres::XmrRpcGetTxProofParams = reqres::XmrRpcGetTxProofParams { 
+    let params: reqres::XmrRpcGetTxProofParams = reqres::XmrRpcGetTxProofParams {
         address: String::from(&ptxp.subaddress),
         message: String::from(&ptxp.message),
-        txid: String::from(&ptxp.hash), 
+        txid: String::from(&ptxp.hash),
     };
     let req = reqres::XmrRpcGetTxProofRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
@@ -675,8 +764,12 @@ pub async fn get_tx_proof(ptxp: proof::TxProof) -> reqres::XmrRpcGetTxProofRespo
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcGetTxProofResponse>().await;
             debug!("get_tx_proof response: {:?}", res);
@@ -685,7 +778,7 @@ pub async fn get_tx_proof(ptxp: proof::TxProof) -> reqres::XmrRpcGetTxProofRespo
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -694,8 +787,8 @@ pub async fn get_transfer_by_txid(txid: &str) -> reqres::XmrRpcGetTxByIdResponse
     info!("fetching tx: {:?}", txid);
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params: reqres::XmrRpcGetTxByIdParams = reqres::XmrRpcGetTxByIdParams { 
-        txid: String::from(txid)
+    let params: reqres::XmrRpcGetTxByIdParams = reqres::XmrRpcGetTxByIdParams {
+        txid: String::from(txid),
     };
     let req = reqres::XmrRpcGetTxByIdRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
@@ -704,8 +797,12 @@ pub async fn get_transfer_by_txid(txid: &str) -> reqres::XmrRpcGetTxByIdResponse
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcGetTxByIdResponse>().await;
             debug!("get_transfer_by_txid response: {:?}", res);
@@ -714,7 +811,7 @@ pub async fn get_transfer_by_txid(txid: &str) -> reqres::XmrRpcGetTxByIdResponse
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -740,8 +837,12 @@ pub async fn transfer(d: reqres::Destination) -> reqres::XmrRpcTransferResponse 
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcTransferResponse>().await;
             debug!("{} response: {:?}", RpcFields::Transfer.value(), res);
@@ -750,7 +851,7 @@ pub async fn transfer(d: reqres::Destination) -> reqres::XmrRpcTransferResponse 
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -767,8 +868,12 @@ pub async fn sweep_all(address: String) -> reqres::XmrRpcSweepAllResponse {
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcSweepAllResponse>().await;
             debug!("{} response: {:?}", RpcFields::SweepAll.value(), res);
@@ -777,7 +882,7 @@ pub async fn sweep_all(address: String) -> reqres::XmrRpcSweepAllResponse {
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -786,7 +891,8 @@ pub async fn create_address() -> reqres::XmrRpcCreateAddressResponse {
     info!("creating new subaddress");
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params: reqres::XmrRpcCreateAddressParams = reqres::XmrRpcCreateAddressParams { account_index: 0 };
+    let params: reqres::XmrRpcCreateAddressParams =
+        reqres::XmrRpcCreateAddressParams { account_index: 0 };
     let req = reqres::XmrRpcCreateAddressRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
         id: RpcFields::Id.value(),
@@ -794,8 +900,12 @@ pub async fn create_address() -> reqres::XmrRpcCreateAddressResponse {
         params,
     };
     let login: RpcLogin = get_rpc_creds();
-    match client.post(host).json(&req)
-    .send_with_digest_auth(&login.username, &login.credential).await {
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcCreateAddressResponse>().await;
             debug!("{} response: {:?}", RpcFields::CreateAddress.value(), res);
@@ -804,7 +914,7 @@ pub async fn create_address() -> reqres::XmrRpcCreateAddressResponse {
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }
 
@@ -829,6 +939,6 @@ pub async fn get_info() -> reqres::XmrDaemonGetInfoResponse {
                 _ => Default::default(),
             }
         }
-        Err(_) => Default::default()
+        Err(_) => Default::default(),
     }
 }

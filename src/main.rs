@@ -1,28 +1,42 @@
 #[macro_use]
 extern crate rocket;
-use rocket::http::Status;
-use rocket::serde::json::Json;
-use rocket::response::status::Custom;
+use rocket::{
+    http::Status,
+    response::status::Custom,
+    serde::json::Json,
+};
 
 use nevmes::*;
 use nevmes_core::*;
 
 #[catch(402)]
 fn payment_required() -> Custom<Json<reqres::ErrorResponse>> {
-    Custom(Status::PaymentRequired, 
-        Json(reqres::ErrorResponse { error: String::from("Payment required") }))
+    Custom(
+        Status::PaymentRequired,
+        Json(reqres::ErrorResponse {
+            error: String::from("Payment required"),
+        }),
+    )
 }
 
 #[catch(404)]
 fn not_found() -> Custom<Json<reqres::ErrorResponse>> {
-    Custom(Status::NotFound, 
-        Json(reqres::ErrorResponse { error: String::from("Resource does not exist") }))
+    Custom(
+        Status::NotFound,
+        Json(reqres::ErrorResponse {
+            error: String::from("Resource does not exist"),
+        }),
+    )
 }
 
 #[catch(500)]
 fn internal_error() -> Custom<Json<reqres::ErrorResponse>> {
-    Custom(Status::InternalServerError, 
-        Json(reqres::ErrorResponse { error: String::from("Internal server error") }))
+    Custom(
+        Status::InternalServerError,
+        Json(reqres::ErrorResponse {
+            error: String::from("Internal server error"),
+        }),
+    )
 }
 
 // The only changes below here should be mounting new controller methods

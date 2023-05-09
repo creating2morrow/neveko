@@ -14,6 +14,5 @@ async fn rocket() -> _ {
     };
     env_logger::init();
     log::info!("nevmes-auth is online");
-    rocket::custom(&config)
-        .mount("/", routes![controller::login])
+    rocket::custom(&config).mount("/", routes![controller::login])
 }

@@ -1,9 +1,21 @@
 // Message repo/service layer
-use crate::{contact, db, models::*, utils, reqres, i2p, gpg};
-use std::error::Error;
-use log::{debug, error, info};
+use crate::{
+    contact,
+    db,
+    gpg,
+    i2p,
+    models::*,
+    reqres,
+    utils,
+};
+use log::{
+    debug,
+    error,
+    info,
+};
 use reqwest::StatusCode;
 use rocket::serde::json::Json;
+use std::error::Error;
 
 /// Create a new message
 pub async fn create(m: Json<Message>, jwp: String) -> Message {
@@ -12,8 +24,7 @@ pub async fn create(m: Json<Message>, jwp: String) -> Message {
     let created = chrono::offset::Utc::now().timestamp();
     // get contact public gpg key and encrypt the message
     debug!("sending message: {:?}", &m);
-    let e_body = gpg::encrypt(
-        String::from(&m.to), &m.body).unwrap_or(Vec::new());
+    let e_body = gpg::encrypt(String::from(&m.to), &m.body).unwrap_or(Vec::new());
     let new_message = Message {
         mid: String::from(&f_mid),
         uid: String::from(&m.uid),
@@ -45,10 +56,14 @@ pub async fn create(m: Json<Message>, jwp: String) -> Message {
 pub async fn rx(m: Json<Message>) {
     // make sure the message isn't something strange
     let is_valid = validate_message(&m);
-    if !is_valid { return; }
+    if !is_valid {
+        return;
+    }
     // don't allow messages from outside the contact list
     let is_in_contact_list = contact::exists(&m.from);
-    if !is_in_contact_list { return; }
+    if !is_in_contact_list {
+        return;
+    }
     let f_mid: String = format!("m{}", utils::generate_rnd());
     let new_message = Message {
         mid: String::from(&f_mid),
@@ -79,7 +94,7 @@ pub fn find(mid: &String) -> Message {
     let r = db::Interface::read(&s.env, &s.handle, &String::from(mid));
     if r == utils::empty_string() {
         error!("message not found");
-        return Default::default()
+        return Default::default();
     }
     Message::from_db(String::from(mid), r)
 }
@@ -120,32 +135,38 @@ pub fn find_all() -> Vec<Message> {
 
 /// Tx message
 async fn send_message(out: &Message, jwp: &str) -> Result<(), Box<dyn Error>> {
-    
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
 
     // check if the contact is online
-    let is_online: bool = is_contact_online(&out.to, String::from(jwp)).await.unwrap_or(false);
+    let is_online: bool = is_contact_online(&out.to, String::from(jwp))
+        .await
+        .unwrap_or(false);
     if is_online {
-       return match client?.post(format!("http://{}/message/rx", out.to))
-            .header("proof", jwp).json(&out).send().await {
-                Ok(response) => {
-                    let status = response.status();
-                    debug!("send response: {:?}", status.as_str());
-                    if status == StatusCode::OK || status == StatusCode::PAYMENT_REQUIRED {
-                        remove_from_fts(String::from(&out.mid));
-                        return Ok(())
-                    } else {
-                        Ok(())
-                    }
-                }
-                Err(e) => {
-                    error!("failed to send message due to: {:?}", e);
+        return match client?
+            .post(format!("http://{}/message/rx", out.to))
+            .header("proof", jwp)
+            .json(&out)
+            .send()
+            .await
+        {
+            Ok(response) => {
+                let status = response.status();
+                debug!("send response: {:?}", status.as_str());
+                if status == StatusCode::OK || status == StatusCode::PAYMENT_REQUIRED {
+                    remove_from_fts(String::from(&out.mid));
+                    return Ok(());
+                } else {
                     Ok(())
                 }
-            }   
-     } else {
+            }
+            Err(e) => {
+                error!("failed to send message due to: {:?}", e);
+                Ok(())
+            }
+        };
+    } else {
         send_to_retry(String::from(&out.mid)).await;
         Ok(())
     }
@@ -170,23 +191,31 @@ async fn is_contact_online(contact: &String, jwp: String) -> Result<bool, Box<dy
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
-    match client?.get(format!("http://{}/xmr/rpc/version", contact))
-        .header("proof", jwp).send().await {
-            Ok(response) => {
-                let res = response.json::<reqres::XmrRpcVersionResponse>().await;
-                debug!("check is contact online by version response: {:?}", res);
-                match res {
-                    Ok(r) => {
-                        if r.result.version != 0 { Ok(true) } else { Ok(false) }
-                    },
-                    _ => Ok(false),
+    match client?
+        .get(format!("http://{}/xmr/rpc/version", contact))
+        .header("proof", jwp)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrRpcVersionResponse>().await;
+            debug!("check is contact online by version response: {:?}", res);
+            match res {
+                Ok(r) => {
+                    if r.result.version != 0 {
+                        Ok(true)
+                    } else {
+                        Ok(false)
+                    }
                 }
-            }
-            Err(e) => {
-                error!("failed to send message due to: {:?}", e);
-                Ok(false)
+                _ => Ok(false),
             }
         }
+        Err(e) => {
+            error!("failed to send message due to: {:?}", e);
+            Ok(false)
+        }
+    }
 }
 
 /// stage message for async retry
@@ -204,7 +233,10 @@ async fn send_to_retry(mid: String) {
     if String::from(&r).contains(&String::from(&mid)) {
         msg_list = r;
     }
-    debug!("writing fts message index {} for id: {}", msg_list, list_key);
+    debug!(
+        "writing fts message index {} for id: {}",
+        msg_list, list_key
+    );
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
     // restart fts if not empty
     let list_key = format!("fts");
@@ -230,16 +262,27 @@ fn remove_from_fts(mid: String) {
         debug!("fts is empty");
     }
     let pre_v_fts = r.split(",");
-    let v: Vec<String> = pre_v_fts.map(|s| if s != &mid { String::from(s)} else { utils::empty_string()} ).collect();
+    let v: Vec<String> = pre_v_fts
+        .map(|s| {
+            if s != &mid {
+                String::from(s)
+            } else {
+                utils::empty_string()
+            }
+        })
+        .collect();
     let msg_list = v.join(",");
-    debug!("writing fts message index {} for id: {}", msg_list, list_key);
+    debug!(
+        "writing fts message index {} for id: {}",
+        msg_list, list_key
+    );
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
 }
 
 /// Triggered on app startup, retries to send fts every minute
-/// 
+///
 /// FTS thread terminates when empty and gets restarted on the next
-/// 
+///
 /// failed-to-send message.
 pub async fn retry_fts() {
     let tick: std::sync::mpsc::Receiver<()> = schedule_recv::periodic_ms(60000);
@@ -284,15 +327,14 @@ pub async fn retry_fts() {
 fn validate_message(j: &Json<Message>) -> bool {
     info!("validating message: {}", &j.mid);
     j.mid.len() < utils::string_limit()
-    && j.body.len() < utils::message_limit()
-    && j.to == i2p::get_destination()
-    && j.uid .len() < utils::string_limit()
+        && j.body.len() < utils::message_limit()
+        && j.to == i2p::get_destination()
+        && j.uid.len() < utils::string_limit()
 }
 
 fn is_fts_clear(r: String) -> bool {
     let v_mid = r.split(",");
     let v: Vec<String> = v_mid.map(|s| String::from(s)).collect();
     debug!("fts contents: {:#?}", v);
-    v.len() >= 2 && v[v.len()-1] == utils::empty_string()
-        && v[0] == utils::empty_string()
+    v.len() >= 2 && v[v.len() - 1] == utils::empty_string() && v[0] == utils::empty_string()
 }

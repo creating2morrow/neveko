@@ -1,7 +1,13 @@
 use nevmes_core::*;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::{
+    Receiver,
+    Sender,
+};
 
-use crate::{ADD_CONTACT_TIMEOUT_SECS, BLOCK_TIME_IN_SECS_EST};
+use crate::{
+    ADD_CONTACT_TIMEOUT_SECS,
+    BLOCK_TIME_IN_SECS_EST,
+};
 
 // TODO(c2m): better error handling with and error_tx/error_rx channel
 //       hook into the error thread and show toast messages as required
@@ -454,7 +460,10 @@ impl eframe::App for AddressBookApp {
                     .labelled_by(find_contact_label.id);
             });
             ui.label("\n");
-            use egui_extras::{Column, TableBuilder};
+            use egui_extras::{
+                Column,
+                TableBuilder,
+            };
             let table = TableBuilder::new(ui)
                 .striped(true)
                 .resizable(true)
@@ -679,7 +688,10 @@ fn send_payment_req(
             if check_txp.result.good && check_txp.result.confirmations > 0 {
                 break;
             }
-            tokio::time::sleep(std::time::Duration::from_secs(BLOCK_TIME_IN_SECS_EST as u64)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(
+                BLOCK_TIME_IN_SECS_EST as u64,
+            ))
+            .await;
             retry_count += 1;
         }
         write_gui_db(

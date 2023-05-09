@@ -1,14 +1,31 @@
-use crate::{db, monero, reqres, utils};
-use log::{error, info};
+use crate::{
+    db,
+    monero,
+    reqres,
+    utils,
+};
+use log::{
+    error,
+    info,
+};
+use rocket::{
+    http::Status,
+    outcome::Outcome,
+    request,
+    request::FromRequest,
+    Request,
+};
 use std::error::Error;
-use rocket::http::Status;
-use rocket::outcome::Outcome;
-use rocket::request::FromRequest;
-use rocket::{request, Request};
 
-use hmac::{Hmac, Mac};
+use hmac::{
+    Hmac,
+    Mac,
+};
 use jwt::*;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use sha2::Sha512;
 use std::collections::BTreeMap;
 
@@ -34,7 +51,7 @@ impl Default for TxProof {
 }
 
 /// Provide neccessary information for contacts to
-/// 
+///
 /// provide proof of payment.
 pub async fn create_invoice() -> reqres::Invoice {
     info!("creating invoice");
@@ -43,20 +60,24 @@ pub async fn create_invoice() -> reqres::Invoice {
     let address = c_address.result.address;
     let pay_threshold = utils::get_payment_threshold();
     let conf_threshold = utils::get_conf_threshold();
-    reqres::Invoice { address, conf_threshold, pay_threshold }
+    reqres::Invoice {
+        address,
+        conf_threshold,
+        pay_threshold,
+    }
 }
 
 /// Technically the same process as creating a JWT
-/// 
+///
 /// except that the claims must contain the information
-/// 
+///
 /// necessary to verify the payment. Confirmations cannot
-/// 
+///
 /// be zero or above some specified threshold. Setting higher
-/// 
+///
 /// payment values and lower confirmations works as a spam
-/// 
-/// disincentivizing mechanism. 
+///
+/// disincentivizing mechanism.
 pub async fn create_jwp(proof: &TxProof) -> String {
     info!("creating jwp");
     // validate the proof
@@ -94,7 +115,12 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
-    match client?.post(format!("http://{}/prove", contact)).json(txp).send().await {
+    match client?
+        .post(format!("http://{}/prove", contact))
+        .json(txp)
+        .send()
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::Jwp>().await;
             log::debug!("prove payment response: {:?}", res);
@@ -106,7 +132,7 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
                     db::Interface::delete(&s.env, &s.handle, &k);
                     db::Interface::write(&s.env, &s.handle, &k, &r.jwp);
                     Ok(r)
-                },
+                }
                 _ => Ok(Default::default()),
             }
         }
@@ -117,27 +143,31 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
     }
 }
 
-/// # PaymentProof 
-/// 
+/// # PaymentProof
+///
 /// is a JWP (JSON Web Proof) with the contents:
-/// 
+///
 /// `subaddress`: a subaddress belonging to this nevmes instance
-/// 
+///
 /// `created`: UTC timestamp the proof was created.
 ///           <i>Future use</i> Potential offline payments.
-/// 
+///
 /// `expire`: blocks approved for
 ///         <i>Future use</i>. Potential offline payments.
-/// 
+///
 /// `hash`: hash of the payment
-/// 
+///
 /// `message`: (optional) default: empty string
-/// 
+///
 /// `signature`: validates proof of payment
 #[derive(Debug)]
 pub struct PaymentProof(String);
 
-impl PaymentProof { pub fn get_jwp(self) -> String { self.0 } }
+impl PaymentProof {
+    pub fn get_jwp(self) -> String {
+        self.0
+    }
+}
 
 #[derive(Debug)]
 pub enum PaymentProofError {
@@ -205,7 +235,10 @@ impl<'r> FromRequest<'r> for PaymentProof {
                     }
                     Err(e) => {
                         error!("jwp error: {:?}", e);
-                        return Outcome::Failure((Status::PaymentRequired, PaymentProofError::Invalid));
+                        return Outcome::Failure((
+                            Status::PaymentRequired,
+                            PaymentProofError::Invalid,
+                        ));
                     }
                 };
             }
@@ -224,30 +257,34 @@ async fn validate_proof(txp: &TxProof) -> TxProof {
     let p = monero::check_tx_proof(txp).await;
     let cth = utils::get_conf_threshold();
     let pth = utils::get_payment_threshold();
-    let lgtm = p.result.good && !p.result.in_pool 
+    let lgtm = p.result.good
+        && !p.result.in_pool
         && unlock_time < monero::LockTimeLimit::Blocks.value()
-        && p.result.confirmations < cth && p.result.received >= pth;
+        && p.result.confirmations < cth
+        && p.result.received >= pth;
     if lgtm {
         return TxProof {
             subaddress: String::from(&txp.subaddress),
             hash: String::from(&txp.hash),
             confirmations: p.result.confirmations,
             message: String::from(&txp.message),
-            signature: String::from(&txp.signature)
-        }
+            signature: String::from(&txp.signature),
+        };
     }
     Default::default()
 }
 
 /// Validate that the subaddress in the proof was
-/// 
+///
 /// created by us. TODO(?): Use xmr rpc call `get_address_index`
-/// 
+///
 /// for faster lookups (check minor > 0)
 async fn validate_subaddress(subaddress: &String) -> bool {
     let m_address = monero::get_address().await;
     let all_address = m_address.result.addresses;
     let mut address_list: Vec<String> = Vec::new();
-    for s_address in all_address { address_list.push(s_address.address); }
+    for s_address in all_address {
+        address_list.push(s_address.address);
+    }
     return address_list.contains(&subaddress);
 }

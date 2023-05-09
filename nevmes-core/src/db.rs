@@ -1,8 +1,16 @@
 // db created and exported from here
 extern crate lmdb_rs as lmdb;
 
-use log::{debug, error};
-use lmdb::{EnvBuilder, DbFlags, Environment, DbHandle};
+use lmdb::{
+    DbFlags,
+    DbHandle,
+    EnvBuilder,
+    Environment,
+};
+use log::{
+    debug,
+    error,
+};
 
 use crate::utils;
 
@@ -14,10 +22,17 @@ pub struct Interface {
 impl Interface {
     pub fn open() -> Self {
         let release_env = utils::get_release_env();
-        let file_path = format!("/home/{}/.nevmes/", std::env::var("USER").unwrap_or(String::from("user")));
+        let file_path = format!(
+            "/home/{}/.nevmes/",
+            std::env::var("USER").unwrap_or(String::from("user"))
+        );
         let mut env_str: &str = "test-lmdb";
-        if release_env != utils::ReleaseEnvironment::Development { env_str = "lmdb"; };
-        let env = EnvBuilder::new().open(format!("{}/{}", file_path, env_str), 0o777).unwrap();
+        if release_env != utils::ReleaseEnvironment::Development {
+            env_str = "lmdb";
+        };
+        let env = EnvBuilder::new()
+            .open(format!("{}/{}", file_path, env_str), 0o777)
+            .unwrap();
         let handle = env.get_default_db(DbFlags::empty()).unwrap();
         Interface { env, handle }
     }
@@ -25,13 +40,15 @@ impl Interface {
         let txn = e.new_transaction().unwrap();
         {
             // get a database bound to this transaction
-            let db = txn.bind(&h); 
-            let pair = vec![(k,v)];
-            for &(key, value) in pair.iter() { db.set(&key, &value).unwrap(); }
+            let db = txn.bind(&h);
+            let pair = vec![(k, v)];
+            for &(key, value) in pair.iter() {
+                db.set(&key, &value).unwrap();
+            }
         }
         match txn.commit() {
             Err(_) => error!("failed to commit!"),
-            Ok(_) => ()
+            Ok(_) => (),
         }
     }
     pub fn read(e: &Environment, h: &DbHandle, k: &str) -> String {
@@ -50,12 +67,12 @@ impl Interface {
         let txn = e.new_transaction().unwrap();
         {
             // get a database bound to this transaction
-            let db = txn.bind(&h); 
-            db.del::<>(&k).unwrap_or_else(|_| error!("failed to delete"));
+            let db = txn.bind(&h);
+            db.del(&k).unwrap_or_else(|_| error!("failed to delete"));
         }
         match txn.commit() {
             Err(_) => error!("failed to commit!"),
-            Ok(_) => ()
+            Ok(_) => (),
         }
     }
 }

@@ -1,13 +1,31 @@
-use crate::{args, models::*, db, monero, reqres, user, utils};
+use crate::{
+    args,
+    db,
+    models::*,
+    monero,
+    reqres,
+    user,
+    utils,
+};
 use clap::Parser;
-use log::{debug, error, info};
+use log::{
+    debug,
+    error,
+    info,
+};
 
-use rocket::http::Status;
-use rocket::outcome::Outcome;
-use rocket::request::FromRequest;
-use rocket::{request, Request};
+use rocket::{
+    http::Status,
+    outcome::Outcome,
+    request,
+    request::FromRequest,
+    Request,
+};
 
-use hmac::{Hmac, Mac};
+use hmac::{
+    Hmac,
+    Mac,
+};
 use jwt::*;
 use sha2::Sha384;
 use std::collections::BTreeMap;
@@ -70,8 +88,7 @@ fn update_expiration(f_auth: Authorization, address: &String) -> Authorization {
 }
 
 /// Performs the signature verfication against stored auth
-pub async fn verify_login
-(aid: String, uid: String, signature: String) -> Authorization {
+pub async fn verify_login(aid: String, uid: String, signature: String) -> Authorization {
     let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
     let address = m_address.result.address;
     let f_auth: Authorization = find(&aid);
@@ -94,16 +111,23 @@ pub async fn verify_login
         let u_auth = Authorization::update_uid(f_auth, String::from(&u.uid));
         let s = db::Interface::open();
         db::Interface::delete(&s.env, &s.handle, &u_auth.aid);
-        db::Interface::write(&s.env, &s.handle, &u_auth.aid, &Authorization::to_db(&u_auth));
-        return u_auth
+        db::Interface::write(
+            &s.env,
+            &s.handle,
+            &u_auth.aid,
+            &Authorization::to_db(&u_auth),
+        );
+        return u_auth;
     } else if f_user.xmr_address != utils::empty_string() {
         info!("returning user");
         let m_access = verify_access(&address, &signature).await;
-        if !m_access { return Default::default() }
+        if !m_access {
+            return Default::default();
+        }
         return f_auth;
     } else {
         error!("error creating user");
-        return Default::default()
+        return Default::default();
     }
 }
 
@@ -172,7 +196,7 @@ impl<'r> FromRequest<'r> for BearerToken {
         let env = utils::get_release_env();
         let dev = utils::ReleaseEnvironment::Development;
         if env == dev {
-            return Outcome::Success(BearerToken(utils::empty_string()))
+            return Outcome::Success(BearerToken(utils::empty_string()));
         }
         let token = request.headers().get_one("token");
         let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;

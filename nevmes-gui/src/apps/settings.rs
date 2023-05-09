@@ -1,5 +1,8 @@
 use nevmes_core::*;
-use sha2::{Digest, Sha512};
+use sha2::{
+    Digest,
+    Sha512,
+};
 
 use crate::CREDENTIAL_KEY;
 
@@ -21,10 +24,10 @@ impl eframe::App for SettingsApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ctx.settings_ui(ui);
             ui.label("\n\n");
-                ui.heading("Reset Credential");
-                ui.label(
-                    "____________________________________________________________________________\n",
-                );
+            ui.heading("Reset Credential");
+            ui.label(
+                "____________________________________________________________________________\n",
+            );
             ui.horizontal(|ui| {
                 let sweep_label = ui.label("new credential: \t");
                 ui.text_edit_singleline(&mut self.credential)

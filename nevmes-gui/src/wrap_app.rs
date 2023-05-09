@@ -2,9 +2,10 @@
 use eframe::glow;
 use nevmes_core::*;
 
-use std::sync::mpsc::{Receiver, Sender};
-
-
+use std::sync::mpsc::{
+    Receiver,
+    Sender,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -65,7 +66,6 @@ pub struct State {
     lock_timer_tx: Sender<bool>,
     lock_timer_rx: Receiver<bool>,
     // end async notifications
-
 }
 
 impl Default for State {
@@ -160,7 +160,7 @@ impl eframe::App for WrapApp {
         }
         if let Ok(lock) = self.state.is_screen_locked_rx.try_recv() {
             self.state.is_screen_locked = lock;
-            if lock { 
+            if lock {
                 let lock_screen = &mut self.state.lock_screen;
                 if self.state.lock_timer >= crate::LOCK_SCREEN_TIMEOUT_SECS {
                     lock_screen.set_lock();
@@ -169,7 +169,9 @@ impl eframe::App for WrapApp {
             }
         }
         if let Ok(lock_timer) = self.state.lock_timer_rx.try_recv() {
-            if lock_timer { self.state.lock_timer += 1 }
+            if lock_timer {
+                self.state.lock_timer += 1
+            }
         }
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -195,7 +197,11 @@ impl eframe::App for WrapApp {
             send_inc_lock_timer_req(self.state.lock_timer_tx.clone(), ctx.clone());
         }
         if (!self.state.is_screen_locking && self.state.is_cred_set) || app_initializing {
-            self.send_lock_refresh(self.state.is_screen_locked_tx.clone(), ctx.clone(), app_initializing);
+            self.send_lock_refresh(
+                self.state.is_screen_locked_tx.clone(),
+                ctx.clone(),
+                app_initializing,
+            );
             self.state.is_screen_locking = true;
         }
         self.show_selected_app(ctx, frame);
@@ -210,7 +216,6 @@ impl eframe::App for WrapApp {
     fn on_exit(&mut self, _gl: Option<&glow::Context>) {
         utils::kill_child_processes(false);
     }
-
 }
 
 impl WrapApp {
@@ -274,24 +279,27 @@ impl WrapApp {
     fn send_lock_refresh(&mut self, tx: Sender<bool>, ctx: egui::Context, init: bool) {
         tokio::spawn(async move {
             log::debug!("locking screen");
-            if !init { 
-                tokio::time::sleep(std::time::Duration::from_secs(crate::LOCK_SCREEN_TIMEOUT_SECS)).await;
+            if !init {
+                tokio::time::sleep(std::time::Duration::from_secs(
+                    crate::LOCK_SCREEN_TIMEOUT_SECS,
+                ))
+                .await;
             }
-            let _= tx.send(true);
+            let _ = tx.send(true);
             ctx.request_repaint();
         });
     }
 
     /*
-        TODO(c2m): SECURITY!:
-        Ok, so this here is by far the greatest security loophole.
-        An attacker could reset the credential in the db to any value,
-        besides setting the wallet password on initial load, better change
-        the key for storing the random 32 byte credential to be some strong
-        user entry and then reset wallet password with that. But anyways if
-        someone has access to the machine it sucks because nevmes gpg key
-        doesn't have a passphrase.
-     */
+       TODO(c2m): SECURITY!:
+       Ok, so this here is by far the greatest security loophole.
+       An attacker could reset the credential in the db to any value,
+       besides setting the wallet password on initial load, better change
+       the key for storing the random 32 byte credential to be some strong
+       user entry and then reset wallet password with that. But anyways if
+       someone has access to the machine it sucks because nevmes gpg key
+       doesn't have a passphrase.
+    */
 
     /// Validate that a credential was set by the user;
     fn check_credential_key(&mut self, tx: Sender<bool>, ctx: egui::Context) {
@@ -303,10 +311,10 @@ impl WrapApp {
                 let r = db::Interface::read(&s.env, &s.handle, crate::CREDENTIAL_KEY);
                 if r == utils::empty_string() {
                     log::debug!("credential not found");
-                    let _= tx.send(false);
+                    let _ = tx.send(false);
                     ctx.request_repaint();
                 } else {
-                    let _= tx.send(true);
+                    let _ = tx.send(true);
                     ctx.request_repaint();
                     break;
                 }
@@ -316,19 +324,19 @@ impl WrapApp {
 }
 
 /// When the pointer goes 'active' (i.e. pushing a button, dragging
-/// 
+///
 /// a slider, etc) reset it. Otherwise this function runs forever
-/// 
+///
 /// incrementing by one every second. Once this timer matches the
-/// 
+///
 /// `LOCK_SCREEN_TIMEOUT_SECS` constant the lock screen will trigger.
 fn send_inc_lock_timer_req(tx: Sender<bool>, ctx: egui::Context) {
     tokio::spawn(async move {
         log::debug!("starting the lock screen timer");
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-            let _= tx.send(true);
+            let _ = tx.send(true);
             ctx.request_repaint();
         }
-    });   
+    });
 }

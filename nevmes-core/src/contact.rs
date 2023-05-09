@@ -1,7 +1,19 @@
 // Contact repo/service layer
-use crate::{db, gpg, models::*, utils, reqres, monero, i2p};
+use crate::{
+    db,
+    gpg,
+    i2p,
+    models::*,
+    monero,
+    reqres,
+    utils,
+};
+use log::{
+    debug,
+    error,
+    info,
+};
 use rocket::serde::json::Json;
-use log::{debug, error, info};
 use std::error::Error;
 
 /// Create a new contact
@@ -42,7 +54,7 @@ pub fn find(cid: &String) -> Contact {
     let r = db::Interface::read(&s.env, &s.handle, &String::from(cid));
     if r == utils::empty_string() {
         error!("contact not found");
-        return Default::default()
+        return Default::default();
     }
     Contact::from_db(String::from(cid), r)
 }
@@ -54,7 +66,7 @@ pub fn find_all() -> Vec<Contact> {
     let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
     if r == utils::empty_string() {
         error!("contact index not found");
-        return Default::default()
+        return Default::default();
     }
     let v_cid = r.split(",");
     let v: Vec<String> = v_cid.map(|s| String::from(s)).collect();
@@ -72,10 +84,10 @@ async fn validate_contact(j: &Json<Contact>) -> bool {
     info!("validating contact: {}", &j.cid);
     let validate_address = monero::validate_address(&j.xmr_address).await;
     j.cid.len() < utils::string_limit()
-    && j.i2p_address.len() < utils::string_limit()
-    && j.i2p_address.contains(".b32.i2p")
-    && j.gpg_key.len() < utils::gpg_key_limit()
-    && validate_address.result.valid
+        && j.i2p_address.len() < utils::string_limit()
+        && j.i2p_address.contains(".b32.i2p")
+        && j.gpg_key.len() < utils::gpg_key_limit()
+        && validate_address.result.valid
 }
 
 /// Send our information
@@ -84,26 +96,35 @@ pub async fn share() -> Contact {
     let gpg_key = gpg::export_key().unwrap_or(Vec::new());
     let i2p_address = i2p::get_destination();
     let xmr_address = m_address.result.address;
-    Contact { cid: utils::empty_string(),gpg_key,i2p_address,xmr_address }
+    Contact {
+        cid: utils::empty_string(),
+        gpg_key,
+        i2p_address,
+        xmr_address,
+    }
 }
 
 pub fn exists(from: &String) -> bool {
     let all = find_all();
     let mut addresses: Vec<String> = Vec::new();
-    for c in all { addresses.push(c.i2p_address); }
+    for c in all {
+        addresses.push(c.i2p_address);
+    }
     return addresses.contains(from);
 }
 
 /// Sign for trusted nevmes contacts
-/// 
+///
 /// UI/UX should have some prompt about the implication of trusting keys
-/// 
+///
 /// however that is beyond the scope of this app. nevmes assumes contacts
-/// 
+///
 /// using the app already have some level of knowledge about each other.
-/// 
+///
 /// Without signing the key message encryption and sending is not possible.
-pub fn trust_gpg(key: String) { gpg::sign_key(&key).unwrap(); }
+pub fn trust_gpg(key: String) {
+    gpg::sign_key(&key).unwrap();
+}
 
 /// Get invoice for jwp creation
 pub async fn request_invoice(contact: String) -> Result<reqres::Invoice, Box<dyn Error>> {
@@ -111,14 +132,16 @@ pub async fn request_invoice(contact: String) -> Result<reqres::Invoice, Box<dyn
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
-    match client?.get(format!("http://{}/invoice", contact)).send().await {
+    match client?
+        .get(format!("http://{}/invoice", contact))
+        .send()
+        .await
+    {
         Ok(response) => {
             let res = response.json::<reqres::Invoice>().await;
             debug!("invoice request response: {:?}", res);
             match res {
-                Ok(r) => {
-                    Ok(r)
-                },
+                Ok(r) => Ok(r),
                 _ => Ok(Default::default()),
             }
         }
@@ -135,14 +158,16 @@ pub async fn add_contact_request(contact: String) -> Result<Contact, Box<dyn Err
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
-    match client?.get(format!("http://{}/share", contact)).send().await {
+    match client?
+        .get(format!("http://{}/share", contact))
+        .send()
+        .await
+    {
         Ok(response) => {
             let res = response.json::<Contact>().await;
             debug!("share response: {:?}", res);
             match res {
-                Ok(r) => {
-                    Ok(r)
-                },
+                Ok(r) => Ok(r),
                 _ => Ok(Default::default()),
             }
         }
