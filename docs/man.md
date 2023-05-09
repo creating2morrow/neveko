@@ -52,3 +52,11 @@
 * plain text messages never leave your machine
 * you can click `Refresh` button in the Mailbox to check for new messages
 * messages must be decrypted by clicking `decrypt`
+
+### fts (failed-to-send)
+
+* messages are automatically rebroadcasted every minute until either the contact
+  comes back online or the JWP expires.
+* If contacts don't come back online before JWP expiration the message must be drafted again
+* It is primarily meant for handling connectivity issues or the edge case where a contact is
+  is online during the `check status` but goes offline while the message is being drafted
