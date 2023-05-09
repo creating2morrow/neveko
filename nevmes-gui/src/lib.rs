@@ -8,8 +8,6 @@ mod wrap_app;
 /// key for fetching the login credential hash
 pub const CREDENTIAL_KEY: &str = "NEVMES_GUI_KEY";
 /// TODO(c2m): configurable lock screen timeout
-/// , also the screen shouldn't lock if your actively
-/// using it.
 pub const LOCK_SCREEN_TIMEOUT_SECS: u64 = 60*5;
 /// interval to search for credential on initial gui load
 pub const CRED_CHECK_INTERVAL: u64 = 5;

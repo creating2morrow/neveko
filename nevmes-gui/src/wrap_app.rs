@@ -4,7 +4,6 @@ use nevmes_core::*;
 
 use std::sync::mpsc::{Receiver, Sender};
 
-use crate::{CREDENTIAL_KEY, LOCK_SCREEN_TIMEOUT_SECS};
 
 
 // ----------------------------------------------------------------------------
@@ -52,6 +51,7 @@ pub struct State {
     home: crate::apps::HomeApp,
     address_book: crate::apps::AddressBookApp,
     lock_screen: crate::apps::LockScreenApp,
+    lock_timer: u64,
     login: crate::login::LoginApp,
     mailbox: crate::apps::MailBoxApp,
     selected_anchor: Anchor,
@@ -62,6 +62,8 @@ pub struct State {
     is_screen_locked_rx: Receiver<bool>,
     is_cred_set_tx: Sender<bool>,
     is_cred_set_rx: Receiver<bool>,
+    lock_timer_tx: Sender<bool>,
+    lock_timer_rx: Receiver<bool>,
     // end async notifications
 
 }
@@ -69,6 +71,7 @@ pub struct State {
 impl Default for State {
     fn default() -> Self {
         let (is_screen_locked_tx, is_screen_locked_rx) = std::sync::mpsc::channel();
+        let (lock_timer_tx, lock_timer_rx) = std::sync::mpsc::channel();
         let (is_cred_set_tx, is_cred_set_rx) = std::sync::mpsc::channel();
         Self {
             home: Default::default(),
@@ -79,6 +82,9 @@ impl Default for State {
             is_checking_cred: true,
             is_screen_locked: false,
             is_screen_locking: false,
+            lock_timer: 0,
+            lock_timer_rx,
+            lock_timer_tx,
             login: Default::default(),
             mailbox: Default::default(),
             selected_anchor: Default::default(),
@@ -96,7 +102,6 @@ impl Default for State {
 /// Wraps many apps into one.
 pub struct WrapApp {
     state: State,
-    is_active: bool,
 }
 
 impl WrapApp {
@@ -104,7 +109,6 @@ impl WrapApp {
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
-            is_active: false,
         };
         slf
     }
@@ -147,6 +151,10 @@ impl eframe::App for WrapApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // NOTE: just moving the mouse wont reset the lock screen timer
+        if ctx.is_using_pointer() {
+            self.state.lock_timer = 0;
+        }
         if let Ok(cred_set) = self.state.is_cred_set_rx.try_recv() {
             self.state.is_cred_set = cred_set;
         }
@@ -154,9 +162,14 @@ impl eframe::App for WrapApp {
             self.state.is_screen_locked = lock;
             if lock { 
                 let lock_screen = &mut self.state.lock_screen;
-                lock_screen.set_lock();
+                if self.state.lock_timer >= crate::LOCK_SCREEN_TIMEOUT_SECS {
+                    lock_screen.set_lock();
+                }
                 self.state.is_screen_locking = false;
             }
+        }
+        if let Ok(lock_timer) = self.state.lock_timer_rx.try_recv() {
+            if lock_timer { self.state.lock_timer += 1 }
         }
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -178,11 +191,11 @@ impl eframe::App for WrapApp {
         }
         // screen lock logic
         let app_initializing = self.state.app_init_lock;
+        if app_initializing {
+            send_inc_lock_timer_req(self.state.lock_timer_tx.clone(), ctx.clone());
+        }
         if (!self.state.is_screen_locking && self.state.is_cred_set) || app_initializing {
-            // don't lock while using the application
-            if !self.is_active {
-                self.send_lock_refresh(self.state.is_screen_locked_tx.clone(), ctx.clone(), app_initializing);
-            }
+            self.send_lock_refresh(self.state.is_screen_locked_tx.clone(), ctx.clone(), app_initializing);
             self.state.is_screen_locking = true;
         }
         self.show_selected_app(ctx, frame);
@@ -202,12 +215,11 @@ impl eframe::App for WrapApp {
 
 impl WrapApp {
     fn show_selected_app(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        self.is_active = ctx.is_using_pointer();
         ctx.set_pixels_per_point(1.5);
         // initial cred check, is there a better way to do this?
         if !self.state.is_cred_set {
             let s = db::Interface::open();
-            let r = db::Interface::read(&s.env, &s.handle, CREDENTIAL_KEY);
+            let r = db::Interface::read(&s.env, &s.handle, crate::CREDENTIAL_KEY);
             if r != utils::empty_string() {
                 self.state.is_cred_set = true;
                 self.state.is_checking_cred = false;
@@ -262,7 +274,9 @@ impl WrapApp {
     fn send_lock_refresh(&mut self, tx: Sender<bool>, ctx: egui::Context, init: bool) {
         tokio::spawn(async move {
             log::debug!("locking screen");
-            if !init { tokio::time::sleep(std::time::Duration::from_secs(LOCK_SCREEN_TIMEOUT_SECS)).await; }
+            if !init { 
+                tokio::time::sleep(std::time::Duration::from_secs(crate::LOCK_SCREEN_TIMEOUT_SECS)).await;
+            }
             let _= tx.send(true);
             ctx.request_repaint();
         });
@@ -286,7 +300,7 @@ impl WrapApp {
                 log::debug!("check for cred");
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 let s = db::Interface::open();
-                let r = db::Interface::read(&s.env, &s.handle, CREDENTIAL_KEY);
+                let r = db::Interface::read(&s.env, &s.handle, crate::CREDENTIAL_KEY);
                 if r == utils::empty_string() {
                     log::debug!("credential not found");
                     let _= tx.send(false);
@@ -299,4 +313,22 @@ impl WrapApp {
             }
         });
     }
+}
+
+/// When the pointer goes 'active' (i.e. pushing a button, dragging
+/// 
+/// a slider, etc) reset it. Otherwise this function runs forever
+/// 
+/// incrementing by one every second. Once this timer matches the
+/// 
+/// `LOCK_SCREEN_TIMEOUT_SECS` constant the lock screen will trigger.
+fn send_inc_lock_timer_req(tx: Sender<bool>, ctx: egui::Context) {
+    tokio::spawn(async move {
+        log::debug!("starting the lock screen timer");
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            let _= tx.send(true);
+            ctx.request_repaint();
+        }
+    });   
 }
