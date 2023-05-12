@@ -2,11 +2,7 @@ use crate::{
     args,
     proof,
     reqres,
-    utils::{
-        self,
-        get_release_env,
-        ReleaseEnvironment,
-    },
+    utils,
 };
 use clap::Parser;
 use diqwest::WithDigestAuth;
@@ -80,7 +76,10 @@ impl RpcFields {
 }
 
 enum DaemonFields {
+    GetBlock,
+    GetHeight,
     GetInfo,
+    GetTransactions,
     Id,
     Version,
 }
@@ -88,7 +87,10 @@ enum DaemonFields {
 impl DaemonFields {
     pub fn value(&self) -> String {
         match *self {
+            DaemonFields::GetBlock => String::from("get_block"),
+            DaemonFields::GetHeight => String::from("get_height"),
             DaemonFields::GetInfo => String::from("get_info"),
+            DaemonFields::GetTransactions => String::from("get_transactions"),
             DaemonFields::Id => String::from("0"),
             DaemonFields::Version => String::from("2.0"),
         }
@@ -114,8 +116,8 @@ pub fn start_daemon() {
     info!("starting monerod");
     let blockchain_dir = get_blockchain_dir();
     let bin_dir = get_monero_location();
-    let release_env = get_release_env();
-    if release_env == ReleaseEnvironment::Development {
+    let release_env = utils::get_release_env();
+    if release_env == utils::ReleaseEnvironment::Development {
         let args = ["--data-dir", &blockchain_dir, "--stagenet", "--detach"];
         let output = Command::new(format!("{}/monerod", bin_dir))
             .args(args)
@@ -144,8 +146,8 @@ pub fn start_rpc() {
         "/home/{}/.nevmes/stagenet/wallet/",
         std::env::var("USER").unwrap_or(String::from("user")),
     );
-    let release_env = get_release_env();
-    if release_env == ReleaseEnvironment::Development {
+    let release_env = utils::get_release_env();
+    if release_env == utils::ReleaseEnvironment::Development {
         let args = [
             "--rpc-bind-port",
             &port,
@@ -934,6 +936,76 @@ pub async fn get_info() -> reqres::XmrDaemonGetInfoResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrDaemonGetInfoResponse>().await;
             debug!("{} response: {:?}", DaemonFields::GetInfo.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_) => Default::default(),
+    }
+}
+
+/// Performs the xmr daemon 'get_height' method
+pub async fn get_height() -> reqres::XmrDaemonGetHeightResponse {
+    info!("fetching daemon height");
+    let client = reqwest::Client::new();
+    let host = get_rpc_daemon();
+    let req = reqres::XmrRpcRequest {
+        jsonrpc: DaemonFields::Version.value(),
+        id: DaemonFields::Id.value(),
+        method: DaemonFields::GetHeight.value(),
+    };
+    match client.post(host).json(&req).send().await {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrDaemonGetHeightResponse>().await;
+            debug!("{} response: {:?}", DaemonFields::GetHeight.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_) => Default::default(),
+    }
+}
+
+/// Performs the xmr daemon 'get_block' method
+pub async fn get_block(height: u64) -> reqres::XmrDaemonGetBlockResponse {
+    info!("fetching block at height: {}", height);
+    let client = reqwest::Client::new();
+    let host = get_rpc_daemon();
+    let params: reqres::XmrDaemonGetBlockParams = reqres::XmrDaemonGetBlockParams { height };
+    let req = reqres::XmrDaemonGetBlockRequest {
+        jsonrpc: DaemonFields::Version.value(),
+        id: DaemonFields::Id.value(),
+        method: DaemonFields::GetBlock.value(),
+        params,
+    };
+    match client.post(host).json(&req).send().await {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrDaemonGetBlockResponse>().await;
+            debug!("{} response: {:?}", DaemonFields::GetBlock.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_) => Default::default(),
+    }
+}
+
+/// Performs the xmr daemon 'get_transactions' method
+pub async fn get_transactions(txs_hashes: Vec<String>) -> reqres::XmrDaemonGetTransactionsResponse {
+    info!("fetching {} transactions", txs_hashes.len());
+    let client = reqwest::Client::new();
+    let host = get_rpc_daemon();
+    let req = reqres::XmrDaemonGetTransactionsRequest {
+        txs_hashes,
+        decode_as_json: true,
+    };
+    match client.post(host).json(&req).send().await {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrDaemonGetTransactionsResponse>().await;
+            debug!("{} response: {:?}", DaemonFields::GetTransactions.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),

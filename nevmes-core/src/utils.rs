@@ -592,3 +592,32 @@ fn validate_installation_hash(sw: ExternalSoftware, filename: &String) -> bool {
     debug!("expected hash: {}", expected_hash);
     actual_hash == expected_hash
 }
+
+/// The highly ineffecient fee estimator.
+/// 
+/// Get the current height. Start fetching blocks
+/// 
+/// and checking the number of transactions. If
+/// 
+/// there were non-coinbase transactions in the block
+/// 
+/// extract the `txnFee` from the `as_json` field.
+/// 
+/// Once we have accumulated n=30 fees paid return the
+/// 
+/// average fee paid from the most recent 30 transactions.
+/// 
+/// Note, it may take more than one block to do this,
+/// 
+/// especially on stagenet.
+pub fn estimate_fee() -> u128 {
+
+    0
+}
+
+/// Combine the results `estimate_fee()` and `get_balance()` to
+/// 
+/// determine whether or not a transfer is possible.
+pub fn can_transfer() -> bool {
+    false
+}

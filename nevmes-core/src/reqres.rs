@@ -7,6 +7,8 @@ use serde::{
 // All http requests and responses are here
 
 // START XMR Structs
+// Reference: https://www.getmonero.org/resources/developer-guides/wallet-rpc.html
+//            https://www.getmonero.org/resources/developer-guides/daemon-rpc.html
 
 // params
 #[derive(Deserialize, Serialize, Debug)]
@@ -121,6 +123,11 @@ pub struct XmrRpcCreateAddressParams {
     pub account_index: u8,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrDaemonGetBlockParams {
+    pub height: u64,
+}
+
 // requests
 #[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcValidateAddressRequest {
@@ -151,6 +158,20 @@ pub struct XmrRpcRequest {
     pub jsonrpc: String,
     pub id: String,
     pub method: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrDaemonGetBlockRequest {
+    pub jsonrpc: String,
+    pub id: String,
+    pub method: String,
+    pub params: XmrDaemonGetBlockParams, 
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrDaemonGetTransactionsRequest {
+    pub txs_hashes: Vec<String>,
+    pub decode_as_json: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -478,7 +499,94 @@ pub struct XmrDaemonGetInfoResult {
     pub wide_difficulty: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BlockHeader {
+    pub block_size: u32,
+    pub block_weight: u32,
+    pub cumulative_difficulty: u128,
+    pub cumulative_difficulty_top64: u128,
+    pub depth: u32,
+    pub difficulty: u128,
+    pub difficulty_top64: u128,
+    pub hash: String,
+    pub height: u64,
+    pub long_term_weight: u64,
+    pub major_version: u32,
+    pub miner_tx_hash: String,
+    pub minor_version: u32,
+    pub nonce: u32,
+    pub num_txes: u64,
+    pub orphan_status: bool,
+    pub pow_hash: String,
+    pub prev_hash: String,
+    pub reward: u64,
+    pub timestamp: u64,
+    pub wide_cumulative_difficulty: String,
+    pub wide_difficulty: String,
+}
+
+impl Default for BlockHeader {
+    fn default() -> Self {
+        BlockHeader {
+            block_size: 0,
+            block_weight: 0,
+            cumulative_difficulty: 0,
+            cumulative_difficulty_top64: 0,
+            depth: 0,
+            difficulty: 0,
+            difficulty_top64: 0,
+            hash: utils::empty_string(),
+            height: 0,
+            long_term_weight: 0,
+            major_version: 0,
+            miner_tx_hash: utils::empty_string(),
+            minor_version: 0,
+            nonce: 0,
+            num_txes: 0,
+            orphan_status: false,
+            pow_hash: utils::empty_string(),
+            prev_hash: utils::empty_string(),
+            reward: 0,
+            timestamp: 0,
+            wide_cumulative_difficulty: utils::empty_string(),
+            wide_difficulty: utils::empty_string(),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrDaemonGetBlockResult {
+    pub blob: String,
+    pub block_header: BlockHeader,
+    pub credits: u64,
+    pub json: String, 
+    pub miner_tx_hash: String,
+    pub status: String,
+    pub top_hash: String,
+    pub tx_hashes: Vec<String>,
+    pub untrusted: bool, 
+}
 // responses
+
+#[derive(Deserialize, Debug)]
+pub struct XmrDaemonGetHeightResponse {
+    pub hash: String,
+    pub height: u64,
+    pub status: String,
+    pub untrusted: bool,
+}
+
+impl Default for XmrDaemonGetHeightResponse {
+    fn default() -> Self {
+        XmrDaemonGetHeightResponse {
+            hash: utils::empty_string(),
+            height: 0,
+            status: utils::empty_string(),
+            untrusted: false,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct XmrDaemonGetInfoResponse {
     pub result: XmrDaemonGetInfoResult,
@@ -531,6 +639,42 @@ impl Default for XmrDaemonGetInfoResponse {
                 wide_cumulative_difficulty: utils::empty_string(),
                 wide_difficulty: utils::empty_string(),
             },
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrDaemonGetBlockResponse {
+    pub result: XmrDaemonGetBlockResult,
+}
+
+impl Default for XmrDaemonGetBlockResponse {
+    fn default() -> Self {
+        XmrDaemonGetBlockResponse {
+            result: XmrDaemonGetBlockResult {
+                blob: utils::empty_string(),
+                block_header: Default::default(),
+                credits: 0,
+                json: utils::empty_string(), 
+                miner_tx_hash: utils::empty_string(),
+                status: utils::empty_string(),
+                top_hash: utils::empty_string(),
+                tx_hashes: Vec::new(),
+                untrusted: false, 
+            }
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct XmrDaemonGetTransactionsResponse {
+    pub txs_as_json: Vec<String>,
+}
+
+impl Default for XmrDaemonGetTransactionsResponse {
+    fn default() -> Self {
+        XmrDaemonGetTransactionsResponse {
+            txs_as_json: Vec::new(),
         }
     }
 }
