@@ -74,6 +74,9 @@ pub struct AddressBookApp {
     approve_contact: bool,
     approve_payment: bool,
     added: bool,
+    can_transfer: bool,
+    can_transfer_tx: Sender<bool>,
+    can_transfer_rx: Receiver<bool>,
     compose: Compose,
     contact: String,
     find_contact: String,
@@ -89,6 +92,7 @@ pub struct AddressBookApp {
     invoice_rx: Receiver<reqres::Invoice>,
     is_adding: bool,
     is_composing: bool,
+    is_estimating_fee: bool,
     is_pinging: bool,
     is_loading: bool,
     is_message_sent: bool,
@@ -107,6 +111,7 @@ pub struct AddressBookApp {
 
 impl Default for AddressBookApp {
     fn default() -> Self {
+        let (can_transfer_tx, can_transfer_rx) = std::sync::mpsc::channel();
         let (contact_add_tx, contact_add_rx) = std::sync::mpsc::channel();
         let (contact_info_tx, contact_info_rx) = std::sync::mpsc::channel();
         let (contact_timeout_tx, contact_timeout_rx) = std::sync::mpsc::channel();
@@ -118,6 +123,9 @@ impl Default for AddressBookApp {
             approve_contact: false,
             approve_payment: false,
             added: false,
+            can_transfer: false,
+            can_transfer_rx,
+            can_transfer_tx,
             compose: Default::default(),
             contact: utils::empty_string(),
             contacts: Vec::new(),
@@ -133,6 +141,7 @@ impl Default for AddressBookApp {
             invoice_rx,
             is_adding: false,
             is_composing: false,
+            is_estimating_fee: false,
             is_loading: false,
             is_message_sent: false,
             is_pinging: false,
@@ -164,6 +173,7 @@ impl eframe::App for AddressBookApp {
                 self.is_pinging = false;
             }
         }
+        
         if let Ok(added_contact) = self.contact_add_rx.try_recv() {
             self.s_added_contact = added_contact;
             if self.s_added_contact.cid != utils::empty_string() {
@@ -171,6 +181,7 @@ impl eframe::App for AddressBookApp {
                 self.is_loading = false;
             }
         }
+        
         if let Ok(timeout) = self.contact_timeout_rx.try_recv() {
             self.is_timeout = true;
             if timeout {
@@ -180,9 +191,18 @@ impl eframe::App for AddressBookApp {
                 self.contact = utils::empty_string();
             }
         }
+        
         if let Ok(invoice) = self.invoice_rx.try_recv() {
             self.s_invoice = invoice;
+            if self.s_invoice.pay_threshold > 0 {
+                send_can_transfer_req(
+                    self.can_transfer_tx.clone(),
+                    ctx.clone(), self.s_invoice.pay_threshold
+                );
+                self.is_estimating_fee = true;
+            }
         }
+        
         if let Ok(payment) = self.payment_rx.try_recv() {
             self.is_payment_processed = payment;
             if self.is_payment_processed {
@@ -191,6 +211,7 @@ impl eframe::App for AddressBookApp {
                 self.showing_status = false;
             }
         }
+        
         if let Ok(message) = self.send_message_rx.try_recv() {
             self.is_message_sent = message;
             if self.is_message_sent {
@@ -198,6 +219,11 @@ impl eframe::App for AddressBookApp {
                 self.is_composing = false;
                 self.compose.message = utils::empty_string();
             }
+        }
+        
+        if let Ok(can_transfer) = self.can_transfer_rx.try_recv() {
+            self.can_transfer = can_transfer;
+            self.is_estimating_fee = false;
         }
 
         // initial contact load
@@ -258,14 +284,19 @@ impl eframe::App for AddressBookApp {
                     ui.add(egui::Spinner::new());
                     ui.label("creating jwp may take a few minutes...");
                 }
+                if self.is_estimating_fee {
+                    ui.add(egui::Spinner::new());
+                    ui.label("running nevmes jwp fee estimator...");
+                }
                 ui.heading(self.status.i2p.clone());
                 ui.label(format!("pay to: {}", address));
                 ui.label(format!("amount: {} piconero(s)", amount));
                 ui.label(format!("expiration: {} blocks", expire));
                 if !self.is_loading {
-                    if self.s_invoice.address != utils::empty_string() {
+                    if self.s_invoice.address != utils::empty_string() && self.can_transfer {
                         if ui.button("Approve").clicked() {
                             // activate xmr "transfer", check the hash, update db and refresh
+                            // Note it is simply disabled on insufficient funds as calcd by fee estimator
                             let d: reqres::Destination = reqres::Destination { address, amount };
                             send_payment_req(
                                 self.payment_tx.clone(),
@@ -763,4 +794,14 @@ fn change_nick_req(contact: String, nick: String) {
     log::debug!("change nick");
     clear_gui_db(String::from("gui-nick"), String::from(&contact));
     write_gui_db(String::from("gui-nick"), String::from(&contact), nick);
+}
+
+fn send_can_transfer_req(tx: Sender<bool>, ctx: egui::Context, invoice: u128) {
+    log::debug!("async send_can_transfer_req");
+    tokio::spawn(async move {
+        let can_transfer = utils::can_transfer(invoice).await;
+        log::debug!("can transfer: {}", can_transfer);
+        let _ = tx.send(can_transfer);
+        ctx.request_repaint();
+    });
 }

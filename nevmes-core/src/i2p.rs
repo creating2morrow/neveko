@@ -91,8 +91,8 @@ async fn find_tunnels() {
         tokio::time::sleep(Duration::new(120, 0)).await;
         create_tunnel();
     }
-    // TODO(c2m): why is i2p-zero http proxy always giving "destination not found" error?
-    // if  !has_http_tunnel { create_http_proxy(); }
+    // TODO(c2m): why is i2p-zero http proxy always giving "destination not
+    // found" error? if  !has_http_tunnel { create_http_proxy(); }
 }
 
 pub async fn start() {
@@ -133,7 +133,8 @@ fn create_tunnel() {
 // TODO(c2m): use i2p-zero http proxy
 // fn create_http_proxy() {
 //     info!("creating http proxy");
-//     let output = Command::new("./i2p-zero-linux.v1.20/router/bin/tunnel-control.sh")
+//     let output =
+// Command::new("./i2p-zero-linux.v1.20/router/bin/tunnel-control.sh")
 //         .args(["http.create", "4444"])
 //         .spawn()
 //         .expect("i2p-zero failed to create a http proxy");

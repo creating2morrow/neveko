@@ -165,7 +165,7 @@ pub struct XmrDaemonGetBlockRequest {
     pub jsonrpc: String,
     pub id: String,
     pub method: String,
-    pub params: XmrDaemonGetBlockParams, 
+    pub params: XmrDaemonGetBlockParams,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -559,12 +559,15 @@ pub struct XmrDaemonGetBlockResult {
     pub blob: String,
     pub block_header: BlockHeader,
     pub credits: u64,
-    pub json: String, 
+    pub json: String,
     pub miner_tx_hash: String,
     pub status: String,
     pub top_hash: String,
-    pub tx_hashes: Vec<String>,
-    pub untrusted: bool, 
+    /// For some reason this field just disappears on non-
+    /// 
+    /// coinbase transactions instead of being an empty list.
+    pub tx_hashes: Option<Vec<String>>,
+    pub untrusted: bool,
 }
 // responses
 
@@ -655,17 +658,18 @@ impl Default for XmrDaemonGetBlockResponse {
                 blob: utils::empty_string(),
                 block_header: Default::default(),
                 credits: 0,
-                json: utils::empty_string(), 
+                json: utils::empty_string(),
                 miner_tx_hash: utils::empty_string(),
                 status: utils::empty_string(),
                 top_hash: utils::empty_string(),
-                tx_hashes: Vec::new(),
-                untrusted: false, 
-            }
+                tx_hashes: Some(Vec::new()),
+                untrusted: false,
+            },
         }
     }
 }
 
+/// Only extract the json string. TODO(c2m): map to a struct
 #[derive(Serialize, Deserialize, Debug)]
 pub struct XmrDaemonGetTransactionsResponse {
     pub txs_as_json: Vec<String>,

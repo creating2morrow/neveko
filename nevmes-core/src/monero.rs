@@ -935,7 +935,7 @@ pub async fn get_info() -> reqres::XmrDaemonGetInfoResponse {
     match client.post(host).json(&req).send().await {
         Ok(response) => {
             let res = response.json::<reqres::XmrDaemonGetInfoResponse>().await;
-            debug!("{} response: {:?}", DaemonFields::GetInfo.value(), res);
+            // add debug log here if needed for adding more info to home screen in gui
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -949,16 +949,13 @@ pub async fn get_info() -> reqres::XmrDaemonGetInfoResponse {
 pub async fn get_height() -> reqres::XmrDaemonGetHeightResponse {
     info!("fetching daemon height");
     let client = reqwest::Client::new();
-    let host = get_rpc_daemon();
-    let req = reqres::XmrRpcRequest {
-        jsonrpc: DaemonFields::Version.value(),
-        id: DaemonFields::Id.value(),
-        method: DaemonFields::GetHeight.value(),
-    };
-    match client.post(host).json(&req).send().await {
+    let args = args::Args::parse();
+    let daemon = String::from(args.monero_rpc_daemon);
+    let req = format!("{}/{}", daemon, DaemonFields::GetHeight.value());
+    match client.post(req).send().await {
         Ok(response) => {
             let res = response.json::<reqres::XmrDaemonGetHeightResponse>().await;
-            debug!("{} response: {:?}", DaemonFields::GetHeight.value(), res);
+            // don't log this one. The fee estimator blows up logs (T_T)
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -983,7 +980,7 @@ pub async fn get_block(height: u64) -> reqres::XmrDaemonGetBlockResponse {
     match client.post(host).json(&req).send().await {
         Ok(response) => {
             let res = response.json::<reqres::XmrDaemonGetBlockResponse>().await;
-            debug!("{} response: {:?}", DaemonFields::GetBlock.value(), res);
+            // don't log this one. The fee estimator blows up logs (T_T)
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -997,15 +994,19 @@ pub async fn get_block(height: u64) -> reqres::XmrDaemonGetBlockResponse {
 pub async fn get_transactions(txs_hashes: Vec<String>) -> reqres::XmrDaemonGetTransactionsResponse {
     info!("fetching {} transactions", txs_hashes.len());
     let client = reqwest::Client::new();
-    let host = get_rpc_daemon();
+    let args = args::Args::parse();
+    let daemon = String::from(args.monero_rpc_daemon);
+    let url = format!("{}/{}", daemon, DaemonFields::GetTransactions.value());
     let req = reqres::XmrDaemonGetTransactionsRequest {
         txs_hashes,
         decode_as_json: true,
     };
-    match client.post(host).json(&req).send().await {
+    match client.post(url).json(&req).send().await {
         Ok(response) => {
-            let res = response.json::<reqres::XmrDaemonGetTransactionsResponse>().await;
-            debug!("{} response: {:?}", DaemonFields::GetTransactions.value(), res);
+            let res = response
+                .json::<reqres::XmrDaemonGetTransactionsResponse>()
+                .await;
+            // don't log this one. The fee estimator blows up logs (T_T)
             match res {
                 Ok(res) => res,
                 _ => Default::default(),

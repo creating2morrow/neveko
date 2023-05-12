@@ -593,31 +593,63 @@ fn validate_installation_hash(sw: ExternalSoftware, filename: &String) -> bool {
     actual_hash == expected_hash
 }
 
-/// The highly ineffecient fee estimator.
-/// 
+/// ### The highly ineffecient fee estimator.
+///
 /// Get the current height. Start fetching blocks
-/// 
+///
 /// and checking the number of transactions. If
-/// 
+///
 /// there were non-coinbase transactions in the block
-/// 
+///
 /// extract the `txnFee` from the `as_json` field.
-/// 
-/// Once we have accumulated n=30 fees paid return the
-/// 
+///
+/// Once we have accumulated n>=30 fees paid return the
+///
 /// average fee paid from the most recent 30 transactions.
-/// 
+///
 /// Note, it may take more than one block to do this,
-/// 
+///
 /// especially on stagenet.
-pub fn estimate_fee() -> u128 {
-
-    0
+pub async fn estimate_fee() -> u128 {
+    let mut height: u64 = 0;
+    let mut count: u64 = 1;
+    let mut v_fee: Vec<u128> = Vec::new();
+    loop {
+        debug!("current height: {}", height);
+        if v_fee.len() >= 30 { break; }
+        let r_height = monero::get_height().await;
+        height = r_height.height - count;
+        let block = monero::get_block(height).await;
+        if block.result.block_header.num_txes > 0 {
+            debug!("fetching {} txs", block.result.block_header.num_txes);
+            let tx_hashes: Option<Vec<String>> = block.result.tx_hashes;
+            let transactions = monero::get_transactions(tx_hashes.unwrap()).await;
+            for tx in transactions.txs_as_json {
+                let pre_fee_split = tx.split("txnFee\":");
+                let mut v1: Vec<String> = pre_fee_split.map(|s| String::from(s)).collect();
+                let fee_split = v1.remove(1);
+                let post_fee_split = fee_split.split(",");
+                let mut v2: Vec<String> = post_fee_split.map(|s| String::from(s)).collect();
+                let fee: u128 = match v2.remove(0).trim().parse::<u128>() {
+                    Ok(n) => n,
+                    Err(_e) => 0,
+                };
+                v_fee.push(fee);
+            }
+        }
+        count += 1;
+    }
+    &v_fee.iter().sum() / v_fee.len() as u128 
 }
 
 /// Combine the results `estimate_fee()` and `get_balance()` to
-/// 
-/// determine whether or not a transfer is possible.
-pub fn can_transfer() -> bool {
-    false
+///
+/// determine whether or not a transfer for a given invoice is possible.
+pub async fn can_transfer(invoice: u128) -> bool {
+    let balance = monero::get_balance().await;
+    let fee = estimate_fee().await;
+    debug!("fee estimated to: {}", fee);
+    debug!("balance: {}", balance.result.unlocked_balance);
+    debug!("fee + invoice = {}", invoice + fee);
+    balance.result.unlocked_balance > (fee + invoice)
 }
