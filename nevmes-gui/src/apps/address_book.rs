@@ -173,7 +173,7 @@ impl eframe::App for AddressBookApp {
                 self.is_pinging = false;
             }
         }
-        
+
         if let Ok(added_contact) = self.contact_add_rx.try_recv() {
             self.s_added_contact = added_contact;
             if self.s_added_contact.cid != utils::empty_string() {
@@ -181,7 +181,7 @@ impl eframe::App for AddressBookApp {
                 self.is_loading = false;
             }
         }
-        
+
         if let Ok(timeout) = self.contact_timeout_rx.try_recv() {
             self.is_timeout = true;
             if timeout {
@@ -191,18 +191,19 @@ impl eframe::App for AddressBookApp {
                 self.contact = utils::empty_string();
             }
         }
-        
+
         if let Ok(invoice) = self.invoice_rx.try_recv() {
             self.s_invoice = invoice;
             if self.s_invoice.pay_threshold > 0 {
                 send_can_transfer_req(
                     self.can_transfer_tx.clone(),
-                    ctx.clone(), self.s_invoice.pay_threshold
+                    ctx.clone(),
+                    self.s_invoice.pay_threshold,
                 );
                 self.is_estimating_fee = true;
             }
         }
-        
+
         if let Ok(payment) = self.payment_rx.try_recv() {
             self.is_payment_processed = payment;
             if self.is_payment_processed {
@@ -211,7 +212,7 @@ impl eframe::App for AddressBookApp {
                 self.showing_status = false;
             }
         }
-        
+
         if let Ok(message) = self.send_message_rx.try_recv() {
             self.is_message_sent = message;
             if self.is_message_sent {
@@ -220,7 +221,7 @@ impl eframe::App for AddressBookApp {
                 self.compose.message = utils::empty_string();
             }
         }
-        
+
         if let Ok(can_transfer) = self.can_transfer_rx.try_recv() {
             self.can_transfer = can_transfer;
             self.is_estimating_fee = false;
@@ -296,7 +297,8 @@ impl eframe::App for AddressBookApp {
                     if self.s_invoice.address != utils::empty_string() && self.can_transfer {
                         if ui.button("Approve").clicked() {
                             // activate xmr "transfer", check the hash, update db and refresh
-                            // Note it is simply disabled on insufficient funds as calcd by fee estimator
+                            // Note it is simply disabled on insufficient funds as calcd by fee
+                            // estimator
                             let d: reqres::Destination = reqres::Destination { address, amount };
                             send_payment_req(
                                 self.payment_tx.clone(),

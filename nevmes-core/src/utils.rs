@@ -616,7 +616,9 @@ pub async fn estimate_fee() -> u128 {
     let mut v_fee: Vec<u128> = Vec::new();
     loop {
         debug!("current height: {}", height);
-        if v_fee.len() >= 30 { break; }
+        if v_fee.len() >= 30 {
+            break;
+        }
         let r_height = monero::get_height().await;
         height = r_height.height - count;
         let block = monero::get_block(height).await;
@@ -639,7 +641,7 @@ pub async fn estimate_fee() -> u128 {
         }
         count += 1;
     }
-    &v_fee.iter().sum() / v_fee.len() as u128 
+    &v_fee.iter().sum() / v_fee.len() as u128
 }
 
 /// Combine the results `estimate_fee()` and `get_balance()` to

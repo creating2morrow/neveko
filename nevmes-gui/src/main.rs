@@ -39,7 +39,7 @@ fn main() -> Result<(), eframe::Error> {
         })
     });
     eframe::run_native(
-        "nevmes-gui-v0.3.0-alpha",
+        "nevmes-gui-v0.4.0-alpha",
         options,
         Box::new(|cc| Box::new(nevmes_gui::WrapApp::new(cc))),
     )

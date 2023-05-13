@@ -564,7 +564,7 @@ pub struct XmrDaemonGetBlockResult {
     pub status: String,
     pub top_hash: String,
     /// For some reason this field just disappears on non-
-    /// 
+    ///
     /// coinbase transactions instead of being an empty list.
     pub tx_hashes: Option<Vec<String>>,
     pub untrusted: bool,
