@@ -100,9 +100,14 @@ pub async fn start() {
     let args = args::Args::parse();
     let path = args.i2p_zero_dir;
     let output = Command::new(format!("{}/router/bin/i2p-zero", path))
-        .spawn()
-        .expect("i2p-zero failed to start");
-    debug!("{:?}", output.stdout);
+        .spawn();
+    match output {
+        Ok(child) => debug!("{:?}", child.stdout),
+        _=> {
+            warn!("i2p-zero not installed, manual tunnel creation required");
+            ()
+        },
+    }
     find_tunnels().await;
     {
         tokio::spawn(async move {
@@ -153,13 +158,14 @@ pub fn get_destination() -> String {
     };
     if contents != utils::empty_string() {
         let input = format!(r#"{contents}"#);
-        let mut j: Tunnels = serde_json::from_str(&input).unwrap_or(Default::default());
-        let destination: String = j
-            .tunnels
-            .remove(0)
-            .dest
-            .ok_or(utils::empty_string())
-            .unwrap_or(utils::empty_string());
+        let j: Tunnels = serde_json::from_str(&input).unwrap_or(Default::default());
+        let mut destination: String = utils::empty_string();
+        let tunnels: Vec<Tunnel> = j.tunnels;
+        for tunnel in tunnels {
+            if tunnel.port == format!("{}", utils::get_app_port()) {
+                destination = tunnel.dest.unwrap_or(utils::empty_string());
+            }
+        }
         return destination;
     }
     utils::empty_string()
