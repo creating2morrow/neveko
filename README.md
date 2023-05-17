@@ -28,9 +28,6 @@ NEVidebla-MESago (invisible message)
 
 * additional required software can be downloaded from the gui home or `Binaries` links below
 * hashes are in core [lib.rs](./nevmes-core/src/lib.rs)
-* download and run i2p
-  * `/i2p/i2prouter start` 
-  * `/i2p/i2prouter install` (optional: setup to run on boot similar to tor daemon)
 * download i2p-zero, put the path in the connection manager or cli `--i2p-zero-dir` flag
 * download monero, update connection manager or cli
   * `--monero-blockchain-dir`, where to put lmdb for monero (e.g. path/to/ssd)
@@ -84,8 +81,7 @@ NEVidebla-MESago (invisible message)
     * can be overriden with remote node
     * use the `--remote-node` flag
 * [monero-wallet-rpc](https://www.getmonero.org/downloads/#cli) - (not included) interface for xmr wallet ops
-* [i2p-zero](https://github.com/i2p-zero/i2p-zero/releases/tag/v1.20) - (not included) tunnel creation
-* [i2p](https://geti2p.net/en/download) - http proxy (not included, *i2p-zero http proxy not working)
+* [i2p-zero](https://github.com/creating2morrow/i2p-zero/releases/tag/v1.21-nevmes) - (not included) tunnel creation and http proxy
 
 most of the complex logic stays in nevmes-core, exported from [lib.rs](./nevmes-core/src/lib.rs)
 
