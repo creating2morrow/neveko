@@ -489,7 +489,7 @@ pub async fn install_software(installations: Installations) -> bool {
         let i2p_version = crate::I2P_ZERO_RELEASE_VERSION;
         let i2p_zero_zip = format!("i2p-zero-linux.{}.zip", i2p_version);
         let link = format!(
-            "https://github.com/creating2morrow/i2p-zero/releases/download/{}/{}",
+            "https://github.com/creating2morrow/i2p-zero/releases/download/{}-nevmes/{}",
             i2p_version, i2p_zero_zip
         );
         let curl = std::process::Command::new("curl")

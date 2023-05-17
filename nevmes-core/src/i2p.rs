@@ -59,6 +59,9 @@ impl Default for Tunnels {
     }
 }
 
+/// Looks for the `tunnels-config.json` at /home/$USER/.i2p-zero/config/
+///
+/// and attempts to extract the app and http proxy tunnel information.
 async fn find_tunnels() {
     let app_port = utils::get_app_port();
     let file_path = format!(
@@ -83,6 +86,9 @@ async fn find_tunnels() {
     }
 }
 
+/// Called on application startup for i2p tunnel creation,
+///
+/// proxy tunnel, etc. Logs proxy status every minute.
 pub async fn start() {
     info!("starting i2p-zero");
     let args = args::Args::parse();
@@ -107,6 +113,7 @@ pub async fn start() {
     }
 }
 
+/// Create an i2p tunnel for the NEVMES application
 fn create_tunnel() {
     info!("creating tunnel");
     let args = args::Args::parse();
@@ -143,6 +150,9 @@ fn create_http_proxy() {
     debug!("{:?}", output.stdout);
 }
 
+/// This is the `dest` value of the app i2p tunnel
+///
+/// in `tunnels-config.json`.
 pub fn get_destination() -> String {
     let file_path = format!(
         "/home/{}/.i2p-zero/config/tunnels.json",
@@ -168,6 +178,7 @@ pub fn get_destination() -> String {
     utils::empty_string()
 }
 
+/// Ping the i2p-zero http proxy `tunnel-control http.state <port>`
 pub async fn check_connection() -> ProxyStatus {
     let args = args::Args::parse();
     let path = args.i2p_zero_dir;
@@ -177,6 +188,7 @@ pub async fn check_connection() -> ProxyStatus {
         .output()
         .expect("check i2p connection failed");
     let str_status = String::from_utf8(output.stdout).unwrap();
+    debug!("http proxy is {}", &str_status);
     if str_status == ProxyStatus::Open.value() {
         ProxyStatus::Open
     } else {
