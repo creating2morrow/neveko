@@ -620,6 +620,10 @@ pub async fn estimate_fee() -> u128 {
             break;
         }
         let r_height = monero::get_height().await;
+        if r_height.height == 0 {
+            error!("error fetching height");
+            return 0;
+        }
         height = r_height.height - count;
         let block = monero::get_block(height).await;
         if block.result.block_header.num_txes > 0 {
@@ -654,4 +658,117 @@ pub async fn can_transfer(invoice: u128) -> bool {
     debug!("balance: {}", balance.result.unlocked_balance);
     debug!("fee + invoice = {}", invoice + fee);
     balance.result.unlocked_balance > (fee + invoice)
+}
+
+// Tests
+//-------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_using_remote_node_test() {
+        let expected = false;
+        let actual = is_using_remote_node();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn generate_rnd_test() {
+        let rnd = generate_rnd();
+        let actual = rnd.len();
+        let expected = 64;
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn release_env_test() {
+        let actual = get_release_env();
+        let expected = ReleaseEnvironment::Development;
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn app_port_test() {
+        let actual: u16 = get_app_port();
+        let expected: u16 = 9000;
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn auth_port_test() {
+        let actual: u16 = get_app_auth_port();
+        let expected: u16 = 9043;
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn contact_port_test() {
+        let actual: u16 = get_app_contact_port();
+        let expected: u16 = 9044;
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn payment_threshold_test() {
+        let actual: u128 = get_payment_threshold();
+        let expected: u128 = 1;
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn confirmation_threshold_test() {
+        let actual: u64 = get_conf_threshold();
+        let expected: u64 = 720;
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn message_port_test() {
+        let actual: u16 = get_app_message_port();
+        let expected: u16 = 9045;
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn contact_to_json_test() {
+        let contact = models::Contact {
+            cid: String::from("testid"),
+            ..Default::default()
+        };
+        let actual = contact_to_json(&contact);
+        let expected = &contact;
+        assert_eq!(expected.cid, actual.cid)
+    }
+
+    #[test]
+    fn message_to_json_test() {
+        let message = models::Message {
+            mid: String::from("testid"),
+            ..Default::default()
+        };
+        let actual = message_to_json(&message);
+        let expected = &message;
+        assert_eq!(expected.mid, actual.mid)
+    }
+
+    #[test]
+    fn can_transfer_test() {
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        std::thread::spawn(move || {
+            rt.block_on(async {
+                loop {
+                    tokio::time::sleep(Duration::from_secs(3600)).await;
+                }
+            })
+        });
+        tokio::spawn(async move {
+            let actual = can_transfer(1).await;
+            let expected = false;
+            assert_eq!(expected, actual)
+        });
+    }
 }
