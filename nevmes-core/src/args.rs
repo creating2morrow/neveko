@@ -37,7 +37,7 @@ pub struct Args {
     #[arg(
         long,
         help = "Absolute path to i2p-zero directroy",
-        default_value = "/home/user/i2p-zero-linux.v1.20"
+        default_value = "/home/user/i2p-zero-linux.v1.21"
     )]
     pub i2p_zero_dir: String,
     /// Monero RPC daemon host

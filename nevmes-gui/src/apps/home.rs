@@ -27,8 +27,8 @@ pub struct HomeApp {
     is_timeout: bool,
     is_updated: bool,
     // Sender/Receiver for async notifications.
-    i2p_status_tx: Sender<i2p::HttpProxyStatus>,
-    i2p_status_rx: Receiver<i2p::HttpProxyStatus>,
+    i2p_status_tx: Sender<i2p::ProxyStatus>,
+    i2p_status_rx: Receiver<i2p::ProxyStatus>,
     xmrd_get_info_tx: Sender<reqres::XmrDaemonGetInfoResponse>,
     xmrd_get_info_rx: Receiver<reqres::XmrDaemonGetInfoResponse>,
     xmr_address_tx: Sender<reqres::XmrRpcAddressResponse>,
@@ -44,7 +44,7 @@ pub struct HomeApp {
     s_xmr_balance: reqres::XmrRpcBalanceResponse,
     s_xmr_rpc_ver: reqres::XmrRpcVersionResponse,
     s_xmrd_get_info: reqres::XmrDaemonGetInfoResponse,
-    s_i2p_status: bool,
+    s_i2p_status: i2p::ProxyStatus,
     s_can_refresh: bool,
     // logos
     logo_i2p: egui_extras::RetainedImage,
@@ -75,7 +75,7 @@ impl Default for HomeApp {
         let s_xmr_address = Default::default();
         let s_xmr_balance = Default::default();
         let s_xmrd_get_info = Default::default();
-        let s_i2p_status = false;
+        let s_i2p_status = i2p::ProxyStatus::Opening;
         let s_can_refresh = false;
         let c_xmr_logo = std::fs::read("./assets/xmr.png").unwrap_or(Vec::new());
         let logo_xmr =
@@ -140,7 +140,7 @@ impl eframe::App for HomeApp {
             self.s_can_refresh = can_refresh;
         }
         if let Ok(i2p_status) = self.i2p_status_rx.try_recv() {
-            self.s_i2p_status = i2p_status.open;
+            self.s_i2p_status = i2p_status;
         }
         if let Ok(info) = self.xmrd_get_info_rx.try_recv() {
             self.s_xmrd_get_info = info;
@@ -243,12 +243,8 @@ impl eframe::App for HomeApp {
             .open(&mut is_installing)
             .vscroll(true)
             .show(&ctx, |ui| {
-                let mut wants_i2p = self.installations.i2p;
                 let mut wants_i2p_zero = self.installations.i2p_zero;
                 let mut wants_xmr = self.installations.xmr;
-                if ui.checkbox(&mut wants_i2p, "i2p").changed() {
-                    self.installations.i2p = !self.installations.i2p;
-                }
                 if ui.checkbox(&mut wants_i2p_zero, "i2p-zero").changed() {
                     self.installations.i2p_zero = !self.installations.i2p_zero;
                 }
@@ -256,7 +252,7 @@ impl eframe::App for HomeApp {
                     self.installations.xmr = !self.installations.xmr;
                 }
                 let install = &self.installations;
-                if install.i2p || install.i2p_zero || install.xmr {
+                if install.i2p_zero || install.xmr {
                     if !self.is_loading {
                         if ui.button("Install").clicked() {
                             self.is_loading = true;
@@ -295,7 +291,7 @@ impl eframe::App for HomeApp {
                 }
             }
             let mut str_i2p_status = String::from("offline");
-            if self.s_i2p_status {
+            if self.s_i2p_status == i2p::ProxyStatus::Open {
                 str_i2p_status = String::from("online");
             }
             ui.horizontal(|ui| {
@@ -337,7 +333,7 @@ impl eframe::App for HomeApp {
                 }
             }
             if !self.is_core_running && !self.is_installing
-            && (self.s_xmr_rpc_ver.result.version == 0 || self.s_i2p_status) {
+            && (self.s_xmr_rpc_ver.result.version == 0 || self.s_i2p_status == i2p::ProxyStatus::Opening) {
                 if !self.is_loading {
                     if ui.button("Install Software").clicked() {
                         self.is_installing = true;
@@ -382,7 +378,7 @@ fn send_balance_req(tx: Sender<reqres::XmrRpcBalanceResponse>, ctx: egui::Contex
     });
 }
 
-fn send_i2p_status_req(tx: Sender<i2p::HttpProxyStatus>, ctx: egui::Context) {
+fn send_i2p_status_req(tx: Sender<i2p::ProxyStatus>, ctx: egui::Context) {
     tokio::spawn(async move {
         let status = i2p::check_connection().await;
         let _ = tx.send(status);
@@ -420,7 +416,6 @@ fn install_software_req(
     installations: &utils::Installations,
 ) {
     let req_install: utils::Installations = utils::Installations {
-        i2p: installations.i2p,
         i2p_zero: installations.i2p_zero,
         xmr: installations.xmr,
     };

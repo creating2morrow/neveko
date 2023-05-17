@@ -5,7 +5,6 @@ use crate::{
 use clap::Parser;
 use log::{
     debug,
-    error,
     info,
     warn,
 };
@@ -20,29 +19,12 @@ use std::{
     time::Duration,
 };
 
-// TODO(c2m): debug i2p-zero http proxy
-
-#[derive(Debug)]
-pub enum I2pStatus {
-    Accept,
-    Reject,
-}
-
-impl I2pStatus {
-    pub fn value(&self) -> String {
-        match *self {
-            I2pStatus::Accept => String::from("Accepting tunnels"),
-            I2pStatus::Reject => String::from("Rejecting tunnels: Starting up"),
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HttpProxyStatus {
     pub open: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, PartialEq)]
 pub enum ProxyStatus {
     Opening,
     Open,
@@ -86,27 +68,32 @@ async fn find_tunnels() {
     let contents = fs::read_to_string(file_path).unwrap_or(utils::empty_string());
     debug!("i2p tunnels: {}", contents);
     let has_app_tunnel = contents.contains(&format!("{}", app_port));
-    // let has_http_tunnel = contents.contains("4444");
-    if !has_app_tunnel {
+    let proxy_port = get_i2p_proxy_port();
+    let has_http_tunnel = contents.contains(&proxy_port);
+    if !has_app_tunnel || !has_http_tunnel {
         tokio::time::sleep(Duration::new(120, 0)).await;
+    }
+    if !has_app_tunnel {
+        debug!("creating app tunnel");
         create_tunnel();
     }
-    // TODO(c2m): why is i2p-zero http proxy always giving "destination not
-    // found" error? if  !has_http_tunnel { create_http_proxy(); }
+    if !has_http_tunnel {
+        debug!("creating http tunnel");
+        create_http_proxy();
+    }
 }
 
 pub async fn start() {
     info!("starting i2p-zero");
     let args = args::Args::parse();
     let path = args.i2p_zero_dir;
-    let output = Command::new(format!("{}/router/bin/i2p-zero", path))
-        .spawn();
+    let output = Command::new(format!("{}/router/bin/i2p-zero", path)).spawn();
     match output {
         Ok(child) => debug!("{:?}", child.stdout),
-        _=> {
+        _ => {
             warn!("i2p-zero not installed, manual tunnel creation required");
             ()
-        },
+        }
     }
     find_tunnels().await;
     {
@@ -135,16 +122,26 @@ fn create_tunnel() {
     debug!("{:?}", output.stdout);
 }
 
-// TODO(c2m): use i2p-zero http proxy
-// fn create_http_proxy() {
-//     info!("creating http proxy");
-//     let output =
-// Command::new("./i2p-zero-linux.v1.20/router/bin/tunnel-control.sh")
-//         .args(["http.create", "4444"])
-//         .spawn()
-//         .expect("i2p-zero failed to create a http proxy");
-//     debug!("{:?}", output.stdout);
-// }
+/// Extract i2p port from command line arg
+fn get_i2p_proxy_port() -> String {
+    let proxy_host = utils::get_i2p_http_proxy();
+    let values = proxy_host.split(":");
+    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    let port = v.remove(2);
+    port
+}
+/// Create the http proxy if it doesn't exist
+fn create_http_proxy() {
+    let args = args::Args::parse();
+    let path = args.i2p_zero_dir;
+    info!("creating http proxy");
+    let port = get_i2p_proxy_port();
+    let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
+        .args(["http.create", &port])
+        .spawn()
+        .expect("i2p-zero failed to create a http proxy");
+    debug!("{:?}", output.stdout);
+}
 
 pub fn get_destination() -> String {
     let file_path = format!(
@@ -171,45 +168,18 @@ pub fn get_destination() -> String {
     utils::empty_string()
 }
 
-pub async fn check_connection() -> HttpProxyStatus {
-    let client: reqwest::Client = reqwest::Client::new();
-    let host: &str = "http://localhost:7657/tunnels";
-    match client.get(host).send().await {
-        Ok(response) => {
-            // do some parsing here to check the status
-            let res = response.text().await;
-            match res {
-                Ok(res) => {
-                    // split the html from the local i2p tunnels page
-                    let split1 = res.split("<h4><span class=\"tunnelBuildStatus\">");
-                    let mut v1: Vec<String> = split1.map(|s| String::from(s)).collect();
-                    let s1 = v1.remove(1);
-                    let v2 = s1.split("</span></h4>");
-                    let mut split2: Vec<String> = v2.map(|s| String::from(s)).collect();
-                    let status: String = split2.remove(0);
-                    if status == I2pStatus::Accept.value() {
-                        info!("i2p is currently accepting tunnels");
-                        return HttpProxyStatus { open: true };
-                    } else if status == I2pStatus::Reject.value() {
-                        info!("i2p is currently rejecting tunnels");
-                        return HttpProxyStatus { open: false };
-                    } else {
-                        info!("i2p is unstable");
-                        return HttpProxyStatus { open: true };
-                    }
-                }
-                _ => {
-                    error!("i2p status check failure");
-                    return HttpProxyStatus { open: false };
-                }
-            }
-        }
-        Err(e) => {
-            warn!("i2p-zero http proxy is degraded");
-            warn!("please install i2pd from geti2p.org");
-            warn!("start i2p with /path-to-i2p/i2prouter start");
-            error!("{}", e.to_string());
-            return HttpProxyStatus { open: false };
-        }
+pub async fn check_connection() -> ProxyStatus {
+    let args = args::Args::parse();
+    let path = args.i2p_zero_dir;
+    let port = get_i2p_proxy_port();
+    let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
+        .args(["http.state", &port])
+        .output()
+        .expect("check i2p connection failed");
+    let str_status = String::from_utf8(output.stdout).unwrap();
+    if str_status == ProxyStatus::Open.value() {
+        ProxyStatus::Open
+    } else {
+        ProxyStatus::Opening
     }
 }

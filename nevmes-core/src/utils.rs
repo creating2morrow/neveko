@@ -23,7 +23,6 @@ use std::time::Duration;
 /// Enum for selecting hash validation
 #[derive(PartialEq)]
 enum ExternalSoftware {
-    I2P,
     I2PZero,
     XMR,
 }
@@ -31,7 +30,6 @@ enum ExternalSoftware {
 /// Handles the state for the installation manager popup
 pub struct Installations {
     pub xmr: bool,
-    pub i2p: bool,
     pub i2p_zero: bool,
 }
 
@@ -39,7 +37,6 @@ impl Default for Installations {
     fn default() -> Self {
         Installations {
             xmr: false,
-            i2p: false,
             i2p_zero: false,
         }
     }
@@ -485,41 +482,14 @@ pub fn stage_cleanup(f: String) {
 ///
 /// clearnet. TODO(c2m): trusted download locations over i2p.
 pub async fn install_software(installations: Installations) -> bool {
-    let mut valid_i2p_hash = true;
     let mut valid_i2p_zero_hash = true;
     let mut valid_xmr_hash = true;
-    if installations.i2p {
-        info!("installing i2p");
-        let i2p_version = crate::I2P_RELEASE_VERSION;
-        let i2p_jar = format!("i2pinstall_{}.jar", i2p_version);
-        let link = format!(
-            "https://download.i2p2.no/releases/{}/{}",
-            i2p_version, i2p_jar
-        );
-        let curl = std::process::Command::new("curl")
-            .args(["-O#", &link])
-            .status();
-        match curl {
-            Ok(curl_output) => {
-                debug!("{:?}", curl_output);
-                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                let jar_output = std::process::Command::new("java")
-                    .args(["-jar", &i2p_jar])
-                    .spawn()
-                    .expect("i2p gui installation failed");
-                debug!("{:?}", jar_output.stdout);
-            }
-            _ => error!("i2p download failed"),
-        }
-        valid_i2p_hash = validate_installation_hash(ExternalSoftware::I2P, &i2p_jar);
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    }
     if installations.i2p_zero {
         info!("installing i2p-zero");
         let i2p_version = crate::I2P_ZERO_RELEASE_VERSION;
         let i2p_zero_zip = format!("i2p-zero-linux.{}.zip", i2p_version);
         let link = format!(
-            "https://github.com/i2p-zero/i2p-zero/releases/download/{}/{}",
+            "https://github.com/creating2morrow/i2p-zero/releases/download/{}/{}",
             i2p_version, i2p_zero_zip
         );
         let curl = std::process::Command::new("curl")
@@ -567,15 +537,13 @@ pub async fn install_software(installations: Installations) -> bool {
         );
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
-    valid_i2p_hash && valid_i2p_zero_hash && valid_xmr_hash
+    valid_i2p_zero_hash && valid_xmr_hash
 }
 
 /// Linux specific hash validation using the command `sha256sum`
 fn validate_installation_hash(sw: ExternalSoftware, filename: &String) -> bool {
     debug!("validating hash");
-    let expected_hash = if sw == ExternalSoftware::I2P {
-        String::from(crate::I2P_RELEASE_HASH)
-    } else if sw == ExternalSoftware::I2PZero {
+    let expected_hash = if sw == ExternalSoftware::I2PZero {
         String::from(crate::I2P_ZERO_RELEASH_HASH)
     } else {
         String::from(crate::MONERO_RELEASE_HASH)
