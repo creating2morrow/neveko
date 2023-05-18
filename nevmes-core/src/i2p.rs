@@ -137,6 +137,7 @@ fn get_i2p_proxy_port() -> String {
     let port = v.remove(2);
     port
 }
+
 /// Create the http proxy if it doesn't exist
 fn create_http_proxy() {
     let args = args::Args::parse();

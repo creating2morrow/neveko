@@ -34,8 +34,13 @@ pub async fn get_version(_jwp: proof::PaymentProof) -> Custom<Json<reqres::XmrRp
 ///
 /// This also functions as a health check
 #[get("/status")]
-pub async fn get_i2p_status() -> Custom<Json<i2p::ProxyStatus>> {
-    Custom(Status::Ok, Json(i2p::check_connection().await))
+pub async fn get_i2p_status() -> Custom<Json<i2p::HttpProxyStatus>> {
+    let status: i2p::ProxyStatus = i2p::check_connection().await;
+    if status == i2p::ProxyStatus::Open {
+        Custom(Status::Ok, Json(i2p::HttpProxyStatus { open: true }))
+    } else {
+        Custom(Status::Ok, Json(i2p::HttpProxyStatus { open: false }))
+    }
 }
 
 /// Share your contact information
