@@ -20,11 +20,20 @@
 
 ## Getting started
 
+### Adding a contact
+
+* go to `AddressBook` in the gui
+* enter .b32.i2p address of contact and click add
+* if all goes well you will have imported their public nevmes gpg app key
+* dont reuse the app gpg keys anywhere else!
+* don't forget to trust the contact with `sign key` in the `check status` window
+
+### Create JWP
+
 * getting started the app will automatically generate an account and associated monero PRIMARY address. Only use it here to maintain privacy
-* so first off, you need to someone to love, dont you want somebody to love...
-* get your contact's i2p .b32.i2p address (top of gui screen)
 * deposit some stagenet monero in your xmr account (address at top of gui screen)
 * once unlocked nevmes xmr balance will display
+* click `check status` and `Create JWP`
 * when authorizing to send to contact an invoice will be generated
 * authorize payment and tx proof generation in the prompt
 * this tx proof will be used to create an encrypted json web proof of payment with each contact
@@ -32,13 +41,6 @@
 * the invoice shows payment per blocks (time)
 * default is 1 piconero per day
 * the jwp is cached by the client until block time expiration at which time you will be required to authorize another payment
-
-## Adding a contact
-* now that the bills are paid insert the .b32.i2p address on the contact line
-* click add
-* if all goes well you will have imported their public nevmes gpg app key
-* dont reuse the app gpg keys anywhere else!
-* don't forget to trust the contact with `sign key` in the `check status` window
 
 ## Sending a message
 
