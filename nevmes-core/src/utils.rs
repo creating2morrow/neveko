@@ -464,11 +464,11 @@ fn clear_fts() {
     db::Interface::delete(&s.env, &s.handle, "fts");
 }
 
-/// Move temp files to /tmp
+/// Destroy temp files
 pub fn stage_cleanup(f: String) {
     info!("staging {} for cleanup", &f);
-    let output = std::process::Command::new("mv")
-        .args([&f, "/tmp"])
+    let output = std::process::Command::new("bash")
+        .args(["-c", &format!("rm {}", &f)])
         .spawn()
         .expect("cleanup staging failed");
     debug!("{:?}", output.stdout);
