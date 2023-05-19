@@ -189,10 +189,11 @@ pub async fn check_connection() -> ProxyStatus {
         .output()
         .expect("check i2p connection failed");
     let str_status = String::from_utf8(output.stdout).unwrap();
-    debug!("http proxy is {}", &str_status);
     if str_status == ProxyStatus::Open.value() {
+        debug!("http proxy is open");
         ProxyStatus::Open
     } else {
+        debug!("http proxy is open");
         ProxyStatus::Opening
     }
 }
