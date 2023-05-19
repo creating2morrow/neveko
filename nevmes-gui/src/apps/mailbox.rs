@@ -122,7 +122,7 @@ impl eframe::App for MailBoxApp {
                             row.col(|ui| {
                                 ui.style_mut().wrap = Some(false);
                                 ui.horizontal(|ui| {
-                                    if m.from != i2p::get_destination() {
+                                    if m.uid == String::from("rx") {
                                         if ui.button("Decrypt").clicked() {
                                             let mut d = message::decrypt_body(m.mid.clone());
                                             let mut bytes = hex::decode(d.body.into_bytes())
