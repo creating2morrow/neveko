@@ -67,18 +67,18 @@ impl Authorization {
         }
     }
     pub fn update_expiration(
-        a: Authorization,
+        a: &Authorization,
         created: i64,
         rnd: String,
         token: String,
     ) -> Authorization {
         Authorization {
-            aid: a.aid,
+            aid: String::from(&a.aid),
             created,
-            uid: a.uid,
+            uid: String::from(&a.uid),
             rnd,
             token,
-            xmr_address: a.xmr_address,
+            xmr_address: String::from(&a.xmr_address),
         }
     }
 }

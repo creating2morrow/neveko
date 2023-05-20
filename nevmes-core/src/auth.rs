@@ -13,7 +13,6 @@ use log::{
     error,
     info,
 };
-
 use rocket::{
     http::Status,
     outcome::Outcome,
@@ -65,7 +64,7 @@ pub fn find(aid: &String) -> Authorization {
 }
 
 /// Update new authorization creation time
-fn update_expiration(f_auth: Authorization, address: &String) -> Authorization {
+fn update_expiration(f_auth: &Authorization, address: &String) -> Authorization {
     info!("modify auth expiration");
     let data = utils::generate_rnd();
     let time: i64 = chrono::offset::Utc::now().timestamp();
@@ -132,7 +131,7 @@ pub async fn verify_login(aid: String, uid: String, signature: String) -> Author
 }
 
 /// Called during auth flow to update data to sign and expiration
-pub async fn verify_access(address: &String, signature: &String) -> bool {
+async fn verify_access(address: &String, signature: &String) -> bool {
     // look up auth for address
     let f_auth: Authorization = find(address);
     if f_auth.xmr_address != utils::empty_string() {
@@ -140,7 +139,7 @@ pub async fn verify_access(address: &String, signature: &String) -> bool {
         let now: i64 = chrono::offset::Utc::now().timestamp();
         let expiration = get_auth_expiration();
         if now > f_auth.created + expiration {
-            update_expiration(f_auth, address);
+            update_expiration(&f_auth, address);
             return false;
         }
     }
@@ -240,6 +239,104 @@ impl<'r> FromRequest<'r> for BearerToken {
                 };
             }
             None => Outcome::Failure((Status::Unauthorized, BearerTokenError::Missing)),
+        }
+    }
+}
+
+// Tests
+//-------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn find_test_auth(k: &String) -> Authorization {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        let s: db::Interface = db::Interface::async_open().await;
+        let v = db::Interface::async_read(&s.env, &s.handle, k).await;
+        Authorization::from_db(String::from(k), v)
+    }
+
+    async fn cleanup(k: &String) {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        let s = db::Interface::async_open().await;
+        db::Interface::async_delete(&s.env, &s.handle, k).await;
+    }
+
+    #[test]
+    fn create_test() {
+        // run and async cleanup so the test doesn't fail when deleting test data
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        let address: String = String::from(
+            "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
+        );
+        let test_auth = create(&address);
+        assert_eq!(test_auth.xmr_address, address);
+        tokio::spawn(async move {
+            cleanup(&test_auth.aid).await;
+        });
+        Runtime::shutdown_background(rt);
+    }
+
+    #[test]
+    fn find_test() {
+        // run and async cleanup so the test doesn't fail when deleting test data
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        let address: String = String::from(
+            "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
+        );
+        let test_auth = create(&address);
+        let aid = String::from(&test_auth.aid);
+        tokio::spawn(async move {
+            let f_auth: Authorization = find_test_auth(&aid).await;
+            assert_ne!(f_auth.xmr_address, address);
+            cleanup(&test_auth.aid).await;
+        });
+        Runtime::shutdown_background(rt);
+    }
+
+    #[test]
+    fn update_expiration_test() {
+        // run and async cleanup so the test doesn't fail when deleting test data
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        let address: String = String::from(
+            "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
+        );
+        let test_auth = create(&address);
+        let aid = String::from(&test_auth.aid);
+        tokio::spawn(async move {
+            let f_auth = find_test_auth(&aid).await;
+            let u_auth = update_expiration(&f_auth, &address);
+            assert!(f_auth.created < u_auth.created);
+            cleanup(&test_auth.aid).await;
+        });
+        Runtime::shutdown_background(rt);
+    }
+
+    #[test]
+    fn create_token_test() {
+        let test_value = "test";
+        let test_jwt = create_token(String::from(test_value), 0);
+        let jwt_secret_key = utils::get_jwt_secret_key();
+        let key: Hmac<Sha384> = Hmac::new_from_slice(&jwt_secret_key.as_bytes()).expect("");
+        let jwt: Result<
+            Token<jwt::Header, BTreeMap<std::string::String, std::string::String>, _>,
+            jwt::Error,
+        > = test_jwt.verify_with_key(&key);
+        match jwt {
+            Ok(j) => {
+                let claims = j.claims();
+                let expected = String::from(test_value);
+                let actual = String::from(&claims["address"]);
+                assert_eq!(expected, actual);
+            }
+            Err(_) => error!("create_token_test error"),
         }
     }
 }

@@ -64,7 +64,7 @@ impl Interface {
             Ok(_) => (),
         }
     }
-    pub async fn async_write(e: &Environment, h: &DbHandle, k: &str, v: &str) { 
+    pub async fn async_write(e: &Environment, h: &DbHandle, k: &str, v: &str) {
         tokio::time::sleep(std::time::Duration::from_micros(1)).await;
         self::Interface::write(e, h, k, v)
     }
@@ -85,7 +85,7 @@ impl Interface {
         }
         r
     }
-    pub async fn async_read(e: &Environment, h: &DbHandle, k: &str) -> String { 
+    pub async fn async_read(e: &Environment, h: &DbHandle, k: &str) -> String {
         tokio::time::sleep(std::time::Duration::from_micros(1)).await;
         self::Interface::read(e, h, k)
     }
