@@ -23,8 +23,4 @@ pub const MONERO_RELEASE_HASH: &str =
 pub const I2P_ZERO_RELEASE_VERSION: &str = "v1.21";
 pub const I2P_ZERO_RELEASH_HASH: &str =
     "14f34052ad6abb0c24b048816b0ea86b696ae350dd139dd1e90a67ca88e1d07a";
-/// The latest i2pd release version
-pub const I2P_RELEASE_VERSION: &str = "2.2.1";
-pub const I2P_RELEASE_HASH: &str =
-    "c9879b8f69ea13c758672c2fa083dc2e0abb289e0fc9a55af98f9f1795f82659";
 // DO NOT EDIT BELOW THIS LINE
