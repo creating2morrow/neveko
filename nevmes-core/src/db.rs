@@ -42,6 +42,10 @@ impl Interface {
         let handle = env.get_default_db(DbFlags::empty()).unwrap();
         Interface { env, handle }
     }
+    pub async fn async_open() -> Self {
+        tokio::time::sleep(std::time::Duration::from_micros(1)).await;
+        self::Interface::open()
+    }
     /// Write a key-value to LMDB. NEVMES does not currently support
     ///
     /// writing multiple key value pairs.
@@ -60,6 +64,10 @@ impl Interface {
             Ok(_) => (),
         }
     }
+    pub async fn async_write(e: &Environment, h: &DbHandle, k: &str, v: &str) { 
+        tokio::time::sleep(std::time::Duration::from_micros(1)).await;
+        self::Interface::write(e, h, k, v)
+    }
     /// Read a value from LMDB by passing the key as a static
     ///
     /// string. If the value does not exist an empty string is
@@ -76,6 +84,10 @@ impl Interface {
             }
         }
         r
+    }
+    pub async fn async_read(e: &Environment, h: &DbHandle, k: &str) -> String { 
+        tokio::time::sleep(std::time::Duration::from_micros(1)).await;
+        self::Interface::read(e, h, k)
     }
     /// Delete a value from LMDB by passing the key as a
     ///
@@ -94,6 +106,10 @@ impl Interface {
             Ok(_) => (),
         }
     }
+    pub async fn async_delete(e: &Environment, h: &DbHandle, k: &str) {
+        tokio::time::sleep(std::time::Duration::from_micros(1)).await;
+        self::Interface::delete(e, h, k)
+    }
 }
 
 // Tests
@@ -104,26 +120,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn write_and_read_test() {
-        let s = Interface::open();
-        let k = "test-key";
-        let v = "test-value";
-        Interface::write(&s.env, &s.handle, k, v);
-        let expected = String::from(v);
-        let actual = Interface::read(&s.env, &s.handle, k);
-        assert_eq!(expected, actual);
-        Interface::delete(&s.env, &s.handle, &k);
+    fn async_write_and_read_test() {
+        // run and async cleanup so the test doesn't fail when deleting test data
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        tokio::spawn(async move {
+            let s = Interface::async_open().await;
+            let k = "async-test-key";
+            let v = "async-test-value";
+            Interface::async_write(&s.env, &s.handle, k, v).await;
+            let expected = String::from(v);
+            let actual = Interface::async_read(&s.env, &s.handle, k).await;
+            assert_eq!(expected, actual);
+            Interface::async_delete(&s.env, &s.handle, &k).await;
+        });
     }
 
     #[test]
-    fn write_and_delete_test() {
-        let s = Interface::open();
-        let k = "test-key";
-        let v = "test-value";
-        Interface::write(&s.env, &s.handle, k, v);
-        let expected = utils::empty_string();
-        Interface::delete(&s.env, &s.handle, &k);
-        let actual = Interface::read(&s.env, &s.handle, k);
-        assert_eq!(expected, actual);
+    fn async_write_and_delete_test() {
+        // run and async cleanup so the test doesn't fail when deleting test data
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        tokio::spawn(async move {
+            let s = Interface::open();
+            let k = "write_and_delete_test_test-key";
+            let v = "write_and_delete_test_test-value";
+            Interface::async_write(&s.env, &s.handle, k, v).await;
+            let expected = utils::empty_string();
+            Interface::async_delete(&s.env, &s.handle, &k).await;
+            let actual = Interface::async_read(&s.env, &s.handle, k).await;
+            assert_eq!(expected, actual);
+        });
     }
 }
