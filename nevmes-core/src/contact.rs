@@ -212,7 +212,6 @@ mod tests {
         tokio::spawn(async move {
             let test_contact = create(&j_contact).await;
             let expected: Contact = Default::default();
-            // validation should fail
             assert_eq!(test_contact.xmr_address, expected.xmr_address);
         });
         Runtime::shutdown_background(rt);
@@ -228,17 +227,16 @@ mod tests {
             "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
         );
         let k = "c123";
-        let contact = Contact {
+        let expected_contact = Contact {
             xmr_address: address,
             ..Default::default()
         };
         tokio::spawn(async move {
             let s = db::Interface::async_open().await;
-            db::Interface::async_write(&s.env, &s.handle, k, &Contact::to_db(&contact)).await;
-            let r = db::Interface::async_read(&s.env, &s.handle, k).await;
-            let actual_contact: Contact = Contact::from_db(String::from(k), r);
-            // validation should fail
-            assert_eq!(contact.xmr_address, actual_contact.xmr_address);
+            db::Interface::async_write(&s.env, &s.handle, k, &Contact::to_db(&expected_contact))
+                .await;
+            let actual_contact: Contact = find(&String::from(k));
+            assert_eq!(expected_contact.xmr_address, actual_contact.xmr_address);
             cleanup(&String::from(k)).await;
         });
         Runtime::shutdown_background(rt);

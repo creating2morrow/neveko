@@ -338,3 +338,82 @@ fn is_fts_clear(r: String) -> bool {
     debug!("fts contents: {:#?}", v);
     v.len() >= 2 && v[v.len() - 1] == utils::empty_string() && v[0] == utils::empty_string()
 }
+
+// Tests
+//-------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn cleanup(k: &String) {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        let s = db::Interface::async_open().await;
+        db::Interface::async_delete(&s.env, &s.handle, k).await;
+    }
+
+    #[test]
+    fn create_test() {
+        // run and async cleanup so the test doesn't fail when deleting test data
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        let body: String = String::from("test body");
+        let message = Message {
+            body: body.into_bytes(),
+            ..Default::default()
+        };
+        let j_message = utils::message_to_json(&message);
+        let jwp = String::from("test-jwp");
+        tokio::spawn(async move {
+            let test_message = create(j_message, jwp).await;
+            let expected: Message = Default::default();
+            assert_eq!(test_message.body, expected.body);
+            cleanup(&test_message.mid).await;
+        });
+        Runtime::shutdown_background(rt);
+    }
+
+    #[test]
+    fn find_test() {
+        // run and async cleanup so the test doesn't fail when deleting test data
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        let body: String = String::from("test body");
+        let expected_message = Message {
+            body: body.into_bytes(),
+            ..Default::default()
+        };
+        let k = "test-key";
+        tokio::spawn(async move {
+            let s = db::Interface::async_open().await;
+            db::Interface::async_write(&s.env, &s.handle, k, &Message::to_db(&expected_message))
+                .await;
+            let actual_message: Message = find(&String::from(k));
+            assert_eq!(expected_message.body, actual_message.body);
+            cleanup(&String::from(k)).await;
+        });
+        Runtime::shutdown_background(rt);
+    }
+
+    #[test]
+    fn validate_test() {
+        // run and async cleanup so the test doesn't fail when deleting test data
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        let body: String = String::from("test body");
+        let message = Message {
+            body: body.into_bytes(),
+            ..Default::default()
+        };
+        let j_message = utils::message_to_json(&message);
+        tokio::spawn(async move {
+            // validation should fail
+            let is_valid = validate_message(&j_message);
+            assert_eq!(is_valid, false);
+        });
+        Runtime::shutdown_background(rt);
+    }
+}
