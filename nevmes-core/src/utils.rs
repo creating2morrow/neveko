@@ -59,7 +59,7 @@ impl Default for Connections {
         Connections {
             blockchain_dir: String::from("/home/user/.bitmonero"),
             daemon_host: String::from("http://localhost:38081"),
-            i2p_zero_dir: String::from("/home/user/i2p-zero-linux.v1.20"),
+            i2p_zero_dir: String::from("/home/user/i2p-zero-linux.v1.21"),
             mainnet: false,
             monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.2.2"),
             rpc_credential: String::from("pass"),

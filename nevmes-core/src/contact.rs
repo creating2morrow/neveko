@@ -42,9 +42,12 @@ pub async fn create(c: &Json<Contact>) -> Contact {
     if r == utils::empty_string() {
         debug!("creating contact index");
     }
-    let msg_list = [r, String::from(&f_cid)].join(",");
-    debug!("writing contact index {} for key {}", msg_list, list_key);
-    db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
+    let contact_list = [r, String::from(&f_cid)].join(",");
+    debug!(
+        "writing contact index {} for key {}",
+        contact_list, list_key
+    );
+    db::Interface::write(&s.env, &s.handle, &String::from(list_key), &contact_list);
     new_contact
 }
 
@@ -175,5 +178,91 @@ pub async fn add_contact_request(contact: String) -> Result<Contact, Box<dyn Err
             error!("failed to fetch contact info due to: {:?}", e);
             Ok(Default::default())
         }
+    }
+}
+
+// Tests
+//-------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn cleanup(k: &String) {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        let s = db::Interface::async_open().await;
+        db::Interface::async_delete(&s.env, &s.handle, k).await;
+    }
+
+    #[test]
+    fn create_test() {
+        // run and async cleanup so the test doesn't fail when deleting test data
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        let address: String = String::from(
+            "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
+        );
+        let contact = Contact {
+            xmr_address: address,
+            ..Default::default()
+        };
+        let j_contact = utils::contact_to_json(&contact);
+
+        tokio::spawn(async move {
+            let test_contact = create(&j_contact).await;
+            let expected: Contact = Default::default();
+            // validation should fail
+            assert_eq!(test_contact.xmr_address, expected.xmr_address);
+        });
+        Runtime::shutdown_background(rt);
+    }
+
+    #[test]
+    fn find_test() {
+        // run and async cleanup so the test doesn't fail when deleting test data
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        let address: String = String::from(
+            "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
+        );
+        let k = "c123";
+        let contact = Contact {
+            xmr_address: address,
+            ..Default::default()
+        };
+        tokio::spawn(async move {
+            let s = db::Interface::async_open().await;
+            db::Interface::async_write(&s.env, &s.handle, k, &Contact::to_db(&contact)).await;
+            let r = db::Interface::async_read(&s.env, &s.handle, k).await;
+            let actual_contact: Contact = Contact::from_db(String::from(k), r);
+            // validation should fail
+            assert_eq!(contact.xmr_address, actual_contact.xmr_address);
+            cleanup(&String::from(k)).await;
+        });
+        Runtime::shutdown_background(rt);
+    }
+
+    #[test]
+    fn validate_test() {
+        // run and async cleanup so the test doesn't fail when deleting test data
+        use tokio::runtime::Runtime;
+        let rt = Runtime::new().expect("Unable to create Runtime for test");
+        let _enter = rt.enter();
+        let address: String = String::from(
+            "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
+        );
+        let contact = Contact {
+            xmr_address: address,
+            ..Default::default()
+        };
+        let j_contact = utils::contact_to_json(&contact);
+        tokio::spawn(async move {
+            // validation should fail
+            let is_valid = validate_contact(&j_contact).await;
+            assert_eq!(is_valid, false);
+        });
+        Runtime::shutdown_background(rt);
     }
 }
