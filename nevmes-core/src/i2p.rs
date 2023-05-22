@@ -193,7 +193,7 @@ pub async fn check_connection() -> ProxyStatus {
         debug!("http proxy is open");
         ProxyStatus::Open
     } else {
-        debug!("http proxy is open");
+        debug!("http proxy is opening");
         ProxyStatus::Opening
     }
 }
