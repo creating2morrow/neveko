@@ -97,7 +97,7 @@ pub async fn verify_login(aid: String, uid: String, signature: String) -> Author
     }
     let data: String = String::from(&f_auth.rnd);
     let sig_address: String =
-        monero::verify_signature(String::from(&address), data, String::from(&signature)).await;
+        monero::verify(String::from(&address), data, String::from(&signature)).await;
     if sig_address == utils::ApplicationErrors::LoginError.value() {
         error!("signature validation failed");
         return f_auth;
@@ -146,7 +146,7 @@ async fn verify_access(address: &String, signature: &String) -> bool {
     // verify signature on the data if not expired
     let data = f_auth.rnd;
     let sig_address: String =
-        monero::verify_signature(String::from(address), data, String::from(signature)).await;
+        monero::verify(String::from(address), data, String::from(signature)).await;
     if sig_address == utils::ApplicationErrors::LoginError.value() {
         debug!("signing failed");
         return false;

@@ -28,6 +28,7 @@ enum RpcFields {
     Close,
     CreateAddress,
     CreateWallet,
+    ExchangeMultisigKeys,
     Export,
     Finalize,
     GetTxProof,
@@ -55,6 +56,7 @@ impl RpcFields {
             RpcFields::Close => String::from("close_wallet"),
             RpcFields::CreateAddress => String::from("create_address"),
             RpcFields::CreateWallet => String::from("create_wallet"),
+            RpcFields::ExchangeMultisigKeys => String::from("exchange_multisig_keys"),
             RpcFields::Export => String::from("export_multisig_info"),
             RpcFields::Finalize => String::from("finalize_multisig"),
             RpcFields::GetTxProof => String::from("get_tx_proof"),
@@ -235,6 +237,7 @@ fn get_rpc_daemon() -> String {
 
 /// Performs rpc 'get_version' method
 pub async fn get_version() -> reqres::XmrRpcVersionResponse {
+    info!("executing {}", RpcFields::GetVersion.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let req = reqres::XmrRpcRequest {
@@ -251,7 +254,7 @@ pub async fn get_version() -> reqres::XmrRpcVersionResponse {
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcVersionResponse>().await;
-            debug!("get version response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::GetVersion.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -270,8 +273,8 @@ pub async fn check_rpc_connection() -> () {
 }
 
 /// Performs the xmr rpc 'verify' method
-pub async fn verify_signature(address: String, data: String, signature: String) -> String {
-    info!("signature verification in progress");
+pub async fn verify(address: String, data: String, signature: String) -> String {
+    info!("executing {}", RpcFields::Verify.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcVerifyParams {
@@ -294,7 +297,7 @@ pub async fn verify_signature(address: String, data: String, signature: String) 
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcVerifyResponse>().await;
-            debug!("verify response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::Verify.value(), res);
             match res {
                 Ok(res) => {
                     if res.result.good {
@@ -312,7 +315,7 @@ pub async fn verify_signature(address: String, data: String, signature: String) 
 
 /// Performs the xmr rpc 'create_wallet' method
 pub async fn create_wallet(filename: String) -> bool {
-    info!("creating wallet: {}", &filename);
+    info!("executing {}", RpcFields::CreateWallet.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcCreateWalletParams {
@@ -335,7 +338,7 @@ pub async fn create_wallet(filename: String) -> bool {
         Ok(response) => {
             // The result from wallet creation is empty
             let res = response.text().await;
-            debug!("create response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::CreateWallet.value(), res);
             match res {
                 Ok(r) => {
                     if r.contains("-1") {
@@ -352,7 +355,7 @@ pub async fn create_wallet(filename: String) -> bool {
 
 /// Performs the xmr rpc 'open_wallet' method
 pub async fn open_wallet(filename: String) -> bool {
-    info!("opening wallet for {}", &filename);
+    info!("executing {}", RpcFields::Open.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcOpenWalletParams { filename };
@@ -373,7 +376,7 @@ pub async fn open_wallet(filename: String) -> bool {
         Ok(response) => {
             // The result from wallet operation is empty
             let res = response.text().await;
-            debug!("open response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::Open.value(), res);
             match res {
                 Ok(r) => {
                     if r.contains("-1") {
@@ -390,7 +393,7 @@ pub async fn open_wallet(filename: String) -> bool {
 
 /// Performs the xmr rpc 'close_wallet' method
 pub async fn close_wallet(filename: String) -> bool {
-    info!("closing wallet for {}", &filename);
+    info!("executing {}", RpcFields::Close.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcOpenWalletParams { filename };
@@ -410,7 +413,7 @@ pub async fn close_wallet(filename: String) -> bool {
         Ok(response) => {
             // The result from wallet operation is empty
             let res = response.text().await;
-            debug!("close response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::Close.value(), res);
             match res {
                 Ok(_) => true,
                 _ => false,
@@ -422,7 +425,7 @@ pub async fn close_wallet(filename: String) -> bool {
 
 /// Performs the xmr rpc 'get_balance' method
 pub async fn get_balance() -> reqres::XmrRpcBalanceResponse {
-    info!("fetching wallet balance");
+    info!("executing {}", RpcFields::Balance.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params: reqres::XmrRpcBalanceParams = reqres::XmrRpcBalanceParams {
@@ -446,7 +449,7 @@ pub async fn get_balance() -> reqres::XmrRpcBalanceResponse {
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcBalanceResponse>().await;
-            debug!("balance response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::Balance.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -458,7 +461,7 @@ pub async fn get_balance() -> reqres::XmrRpcBalanceResponse {
 
 /// Performs the xmr rpc 'get_address' method
 pub async fn get_address() -> reqres::XmrRpcAddressResponse {
-    info!("fetching wallet address");
+    info!("executing {}", RpcFields::Address.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params: reqres::XmrRpcAddressParams = reqres::XmrRpcAddressParams { account_index: 0 };
@@ -477,7 +480,7 @@ pub async fn get_address() -> reqres::XmrRpcAddressResponse {
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcAddressResponse>().await;
-            debug!("address response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::Address.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -489,7 +492,7 @@ pub async fn get_address() -> reqres::XmrRpcAddressResponse {
 
 /// Performs the xmr rpc 'get_address' method
 pub async fn validate_address(address: &String) -> reqres::XmrRpcValidateAddressResponse {
-    info!("validating wallet address");
+    info!("executing {}", RpcFields::ValidateAddress.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params: reqres::XmrRpcValidateAddressParams = reqres::XmrRpcValidateAddressParams {
@@ -514,7 +517,7 @@ pub async fn validate_address(address: &String) -> reqres::XmrRpcValidateAddress
             let res = response
                 .json::<reqres::XmrRpcValidateAddressResponse>()
                 .await;
-            debug!("validate_address response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::ValidateAddress.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -527,7 +530,7 @@ pub async fn validate_address(address: &String) -> reqres::XmrRpcValidateAddress
 
 /// Performs the xmr rpc 'prepare_multisig' method
 pub async fn prepare_wallet() -> reqres::XmrRpcPrepareResponse {
-    info!("prepare msig wallet");
+    info!("executing {}", RpcFields::Prepare.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let req = reqres::XmrRpcRequest {
@@ -544,7 +547,7 @@ pub async fn prepare_wallet() -> reqres::XmrRpcPrepareResponse {
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcPrepareResponse>().await;
-            debug!("prepare response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::Prepare.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -556,7 +559,7 @@ pub async fn prepare_wallet() -> reqres::XmrRpcPrepareResponse {
 
 /// Performs the xmr rpc 'make_multisig' method
 pub async fn make_wallet(info: Vec<String>) -> reqres::XmrRpcMakeResponse {
-    info!("make msig wallet");
+    info!("executing {}", RpcFields::Make.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcMakeParams {
@@ -578,7 +581,7 @@ pub async fn make_wallet(info: Vec<String>) -> reqres::XmrRpcMakeResponse {
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcMakeResponse>().await;
-            debug!("make response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::Make.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -590,7 +593,7 @@ pub async fn make_wallet(info: Vec<String>) -> reqres::XmrRpcMakeResponse {
 
 /// Performs the xmr rpc 'finalize_multisig' method
 pub async fn finalize_wallet(info: Vec<String>) -> reqres::XmrRpcFinalizeResponse {
-    info!("finalize msig wallet");
+    info!("executing {}", RpcFields::Finalize.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcFinalizeParams {
@@ -611,7 +614,7 @@ pub async fn finalize_wallet(info: Vec<String>) -> reqres::XmrRpcFinalizeRespons
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcFinalizeResponse>().await;
-            debug!("finalize response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::Finalize.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -623,7 +626,7 @@ pub async fn finalize_wallet(info: Vec<String>) -> reqres::XmrRpcFinalizeRespons
 
 /// Performs the xmr rpc 'export_multisig_info' method
 pub async fn export_multisig_info() -> reqres::XmrRpcExportResponse {
-    info!("export msig info");
+    info!("executing {}", RpcFields::Export.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let req = reqres::XmrRpcRequest {
@@ -640,7 +643,7 @@ pub async fn export_multisig_info() -> reqres::XmrRpcExportResponse {
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcExportResponse>().await;
-            debug!("export msig response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::Export.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -652,7 +655,7 @@ pub async fn export_multisig_info() -> reqres::XmrRpcExportResponse {
 
 /// Performs the xmr rpc 'import_multisig_info' method
 pub async fn import_multisig_info(info: Vec<String>) -> reqres::XmrRpcImportResponse {
-    info!("import msig wallet");
+    info!("executing {}", RpcFields::Import.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcImportParams { info };
@@ -671,7 +674,7 @@ pub async fn import_multisig_info(info: Vec<String>) -> reqres::XmrRpcImportResp
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcImportResponse>().await;
-            debug!("import msig info response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::Import.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -683,7 +686,7 @@ pub async fn import_multisig_info(info: Vec<String>) -> reqres::XmrRpcImportResp
 
 /// Performs the xmr rpc 'sign_multisig' method
 pub async fn sign_multisig(tx_data_hex: String) -> reqres::XmrRpcSignMultisigResponse {
-    info!("sign msig txset");
+    info!("executing {}", RpcFields::SignMultisig.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcSignMultisigParams { tx_data_hex };
@@ -702,7 +705,52 @@ pub async fn sign_multisig(tx_data_hex: String) -> reqres::XmrRpcSignMultisigRes
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcSignMultisigResponse>().await;
-            debug!("sign msig txset response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::SignMultisig.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_) => Default::default(),
+    }
+}
+
+/// Performs the xmr rpc 'sign_multisig' method
+pub async fn exchange_multisig_keys(
+    force_update_use_with_caution: bool,
+    multisig_info: String,
+    password: String,
+) -> reqres::XmrRpcExchangeMultisigKeysResponse {
+    info!("executing: {}", RpcFields::ExchangeMultisigKeys.value());
+    let client = reqwest::Client::new();
+    let host = get_rpc_host();
+    let params = reqres::XmrRpcExchangeMultisigKeysParams {
+        force_update_use_with_caution,
+        password,
+        multisig_info,
+    };
+    let req = reqres::XmrRpcExchangeMultisigKeysRequest {
+        jsonrpc: RpcFields::JsonRpcVersion.value(),
+        id: RpcFields::Id.value(),
+        method: RpcFields::ExchangeMultisigKeys.value(),
+        params,
+    };
+    let login: RpcLogin = get_rpc_creds();
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
+        Ok(response) => {
+            let res = response
+                .json::<reqres::XmrRpcExchangeMultisigKeysResponse>()
+                .await;
+            debug!(
+                "{} response: {:?}",
+                RpcFields::ExchangeMultisigKeys.value(),
+                res
+            );
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -715,7 +763,7 @@ pub async fn sign_multisig(tx_data_hex: String) -> reqres::XmrRpcSignMultisigRes
 
 /// Performs the xmr rpc 'check_tx_proof' method
 pub async fn check_tx_proof(txp: &proof::TxProof) -> reqres::XmrRpcCheckTxProofResponse {
-    info!("check_tx_proof proof: {:?}", txp);
+    info!("executing {}", RpcFields::CheckTxProof.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params: reqres::XmrRpcCheckTxProofParams = reqres::XmrRpcCheckTxProofParams {
@@ -739,7 +787,7 @@ pub async fn check_tx_proof(txp: &proof::TxProof) -> reqres::XmrRpcCheckTxProofR
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcCheckTxProofResponse>().await;
-            debug!("check_tx_proof response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::CheckTxProof.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -751,7 +799,7 @@ pub async fn check_tx_proof(txp: &proof::TxProof) -> reqres::XmrRpcCheckTxProofR
 
 /// Performs the xmr rpc 'get_tx_proof' method
 pub async fn get_tx_proof(ptxp: proof::TxProof) -> reqres::XmrRpcGetTxProofResponse {
-    info!("fetching proof: {:?}", &ptxp.hash);
+    info!("executing {}", RpcFields::GetTxProof.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params: reqres::XmrRpcGetTxProofParams = reqres::XmrRpcGetTxProofParams {
@@ -774,7 +822,7 @@ pub async fn get_tx_proof(ptxp: proof::TxProof) -> reqres::XmrRpcGetTxProofRespo
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcGetTxProofResponse>().await;
-            debug!("get_tx_proof response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::GetTxProof.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -786,7 +834,7 @@ pub async fn get_tx_proof(ptxp: proof::TxProof) -> reqres::XmrRpcGetTxProofRespo
 
 /// Performs the xmr rpc 'get_transfer_by_txid' method
 pub async fn get_transfer_by_txid(txid: &str) -> reqres::XmrRpcGetTxByIdResponse {
-    info!("fetching tx: {:?}", txid);
+    info!("executing: {}", RpcFields::GetTxById.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params: reqres::XmrRpcGetTxByIdParams = reqres::XmrRpcGetTxByIdParams {
@@ -807,7 +855,7 @@ pub async fn get_transfer_by_txid(txid: &str) -> reqres::XmrRpcGetTxByIdResponse
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcGetTxByIdResponse>().await;
-            debug!("get_transfer_by_txid response: {:?}", res);
+            debug!("{} response: {:?}", RpcFields::GetTxById.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
@@ -819,7 +867,7 @@ pub async fn get_transfer_by_txid(txid: &str) -> reqres::XmrRpcGetTxByIdResponse
 
 /// Performs the xmr rpc 'transfer' method
 pub async fn transfer(d: reqres::Destination) -> reqres::XmrRpcTransferResponse {
-    info!("transfer");
+    info!("executing {}", RpcFields::Transfer.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let mut destinations: Vec<reqres::Destination> = Vec::new();
@@ -859,7 +907,7 @@ pub async fn transfer(d: reqres::Destination) -> reqres::XmrRpcTransferResponse 
 
 /// Performs the xmr rpc 'sweep_all' method
 pub async fn sweep_all(address: String) -> reqres::XmrRpcSweepAllResponse {
-    info!("sweep_all");
+    info!("executing {}", RpcFields::SweepAll.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params: reqres::XmrRpcSweepAllParams = reqres::XmrRpcSweepAllParams { address };
@@ -890,7 +938,7 @@ pub async fn sweep_all(address: String) -> reqres::XmrRpcSweepAllResponse {
 
 /// Performs the xmr rpc 'create_address' method
 pub async fn create_address() -> reqres::XmrRpcCreateAddressResponse {
-    info!("creating new subaddress");
+    info!("executing {}", RpcFields::CreateAddress.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params: reqres::XmrRpcCreateAddressParams =

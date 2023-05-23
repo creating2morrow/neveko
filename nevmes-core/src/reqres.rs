@@ -58,6 +58,13 @@ pub struct XmrRpcSignMultisigParams {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcExchangeMultisigKeysParams {
+    pub force_update_use_with_caution: bool,
+    pub multisig_info: String,
+    pub password: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcBalanceParams {
     pub account_index: u8,
     pub address_indices: Vec<u8>,
@@ -223,6 +230,14 @@ pub struct XmrRpcSignMultisigRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcExchangeMultisigKeysRequest {
+    pub jsonrpc: String,
+    pub id: String,
+    pub method: String,
+    pub params: XmrRpcExchangeMultisigKeysParams,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcVerifyRequest {
     pub jsonrpc: String,
     pub id: String,
@@ -327,6 +342,12 @@ pub struct XmrRpcImportResult {
 #[derive(Deserialize, Debug)]
 pub struct XmrRpcSignMultisigResult {
     pub tx_hash_list: Vec<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcExchangeMultisigKeysResult {
+    pub address: String,
+    pub multisig_info: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -840,6 +861,22 @@ impl Default for XmrRpcSignMultisigResponse {
         XmrRpcSignMultisigResponse {
             result: XmrRpcSignMultisigResult {
                 tx_hash_list: Vec::new(),
+            },
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcExchangeMultisigKeysResponse {
+    pub result: XmrRpcExchangeMultisigKeysResult,
+}
+
+impl Default for XmrRpcExchangeMultisigKeysResponse {
+    fn default() -> Self {
+        XmrRpcExchangeMultisigKeysResponse {
+            result: XmrRpcExchangeMultisigKeysResult {
+                address: Default::default(),
+                multisig_info: Default::default(),
             },
         }
     }
