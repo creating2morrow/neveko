@@ -270,16 +270,16 @@ fn create_wallet_dir() {
 }
 
 /// Generate application wallet at startup if none exist
-async fn gen_app_wallet() {
+async fn gen_app_wallet(password: &String) {
     info!("fetching application wallet");
     let filename = "nevmes";
-    let mut m_wallet = monero::open_wallet(String::from(filename)).await;
+    let mut m_wallet = monero::open_wallet(String::from(filename), password).await;
     if !m_wallet {
-        m_wallet = monero::create_wallet(String::from(filename)).await;
+        m_wallet = monero::create_wallet(String::from(filename), password).await;
         if !m_wallet {
             error!("failed to create wallet")
         } else {
-            m_wallet = monero::open_wallet(String::from(filename)).await;
+            m_wallet = monero::open_wallet(String::from(filename), password).await;
             if m_wallet {
                 let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
                 info!("app wallet address: {}", m_address.result.address)
@@ -404,7 +404,9 @@ pub async fn start_up() {
     // wait for rpc server for a bit
     tokio::time::sleep(std::time::Duration::new(5, 0)).await;
     monero::check_rpc_connection().await;
-    gen_app_wallet().await;
+    let wallet_password = std::env::var(crate::MONERO_WALLET_PASSWORD)
+        .unwrap_or(String::from("password"));
+    gen_app_wallet(&wallet_password).await;
     i2p::start().await;
     gen_app_gpg().await;
     let env: String = get_release_env().value();

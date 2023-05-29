@@ -15,6 +15,10 @@ pub mod utils;      // user rep/service layer
 pub const NEVMES_JWP_SECRET_KEY: &str = "NEVMES_JWP_SECRET_KEY";
 pub const NEVMES_JWT_SECRET_KEY: &str = "NEVMES_JWT_SECRET_KEY";
 
+// TODO(c2m): better handling of setting initial wallet password
+/// Environment variable for injecting wallet password
+pub const MONERO_WALLET_PASSWORD: &str = "MONERO_WALLET_PASSWORD";
+
 /// The latest monero release download
 pub const MONERO_RELEASE_VERSION: &str = "monero-linux-x64-v0.18.2.2.tar.bz2";
 pub const MONERO_RELEASE_HASH: &str =
