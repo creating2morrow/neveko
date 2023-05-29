@@ -175,7 +175,7 @@ impl Message {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct User {
     pub uid: String,
@@ -217,13 +217,13 @@ impl User {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Product {
     pub pid: String,
-    pub vid: String,
-    pub in_stock: bool,
     pub description: String,
+    pub image: Vec<u8>,
+    pub in_stock: bool,
     pub name: String,
     pub price: i64,
     pub qty: i64,
@@ -233,8 +233,8 @@ impl Default for Product {
     fn default() -> Self {
         Product {
             pid: utils::empty_string(),
-            vid: utils::empty_string(),
             description: utils::empty_string(),
+            image: Vec::new(),
             in_stock: false,
             name: utils::empty_string(),
             price: 0,
@@ -245,16 +245,17 @@ impl Default for Product {
 
 impl Product {
     pub fn to_db(p: &Product) -> String {
+        let image: String = hex::encode(&p.image);
         format!(
             "{}:{}:{}:{}:{}:{}",
-            p.vid, p.description, p.in_stock, p.name, p.price, p.qty
+            p.description, image, p.in_stock, p.name, p.price, p.qty
         )
     }
     pub fn from_db(k: String, v: String) -> Product {
         let values = v.split(":");
         let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
-        let vid = v.remove(0);
         let description = v.remove(0);
+        let image = hex::decode(v.remove(0)).unwrap_or(Vec::new());
         let in_stock = match v.remove(0).parse::<bool>() {
             Ok(b) => b,
             Err(_) => false,
@@ -270,8 +271,8 @@ impl Product {
         };
         Product {
             pid: k,
-            vid,
             description,
+            image,
             in_stock,
             name,
             price,
@@ -281,6 +282,7 @@ impl Product {
     pub fn update(
         p: Product,
         description: String,
+        image: Vec<u8>,
         in_stock: bool,
         name: String,
         price: i64,
@@ -288,8 +290,8 @@ impl Product {
     ) -> Product {
         Product {
             pid: p.pid,
-            vid: p.vid,
             description,
+            image,
             in_stock,
             name,
             price,
@@ -298,74 +300,200 @@ impl Product {
     }
 }
 
-// TODO: add mediator fields
-
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
 pub struct Order {
     pub orid: String,
-    pub c_id: String,
-    pub p_id: String,
-    pub v_id: String,
-    pub xmr_address: String,
-    pub cust_msig_info: String,
-    pub cust_msig_txset: String,
+    /// Order customer id is their .b32.i2p address
+    pub cid: String,
+    pub pid: String,
     pub cust_kex_1: String,
     pub cust_kex_2: String,
     pub cust_kex_3: String,
+    pub cust_msig_make: String,
+    pub cust_msig_prepare: String,
+    pub cust_msig_txset: String,
     pub date: i64,
     pub deliver_date: i64,
-    pub ship_date: i64,
     pub hash: String,
-    pub msig_prepare: String,
-    pub msig_make: String,
-    pub msig_kex_1: String,
-    pub msig_kex_2: String,
-    pub msig_kex_3: String,
+    pub mediator_kex_1: String,
+    pub mediator_kex_2: String,
+    pub mediator_kex_3: String,
+    pub mediator_msig_make: String,
+    pub mediator_msig_prepare: String,
+    pub ship_date: i64,
+    /// This is the final destination for the payment
     pub subaddress: String,
     pub status: String,
     pub quantity: i64,
     pub vend_kex_1: String,
     pub vend_kex_2: String,
     pub vend_kex_3: String,
-    pub vend_msig_info: String,
+    pub vend_msig_make: String,
+    pub vend_msig_prepare: String,
     pub vend_msig_txset: String,
+    pub xmr_address: String,
 }
 
 impl Default for Order {
     fn default() -> Self {
         Order {
             orid: utils::empty_string(),
-            c_id: utils::empty_string(),
-            p_id: utils::empty_string(),
-            v_id: utils::empty_string(),
+            cid: utils::empty_string(),
+            pid: utils::empty_string(),
             xmr_address: utils::empty_string(),
-            cust_msig_info: utils::empty_string(),
-            cust_msig_txset: utils::empty_string(),
             cust_kex_1: utils::empty_string(),
             cust_kex_2: utils::empty_string(),
             cust_kex_3: utils::empty_string(),
+            cust_msig_make: utils::empty_string(),
+            cust_msig_prepare: utils::empty_string(),
+            cust_msig_txset: utils::empty_string(),
             date: 0,
             deliver_date: 0,
             ship_date: 0,
             hash: utils::empty_string(),
-            msig_prepare: utils::empty_string(),
-            msig_make: utils::empty_string(),
-            msig_kex_1: utils::empty_string(),
-            msig_kex_2: utils::empty_string(),
-            msig_kex_3: utils::empty_string(),
+            mediator_kex_1: utils::empty_string(),
+            mediator_kex_2: utils::empty_string(),
+            mediator_kex_3: utils::empty_string(),
+            mediator_msig_make: utils::empty_string(),
+            mediator_msig_prepare: utils::empty_string(),
             subaddress: utils::empty_string(),
             status: utils::empty_string(),
             quantity: 0,
             vend_kex_1: utils::empty_string(),
             vend_kex_2: utils::empty_string(),
             vend_kex_3: utils::empty_string(),
-            vend_msig_info: utils::empty_string(),
+            vend_msig_make: utils::empty_string(),
+            vend_msig_prepare: utils::empty_string(),
             vend_msig_txset: utils::empty_string(),
         }
     }
 }
 
-#[derive(Debug, Deserialize)]
+impl Order {
+    pub fn to_db(o: &Order) -> String {
+        format!(
+            "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
+            o.cid, o.pid, o.cust_kex_1, o.cust_kex_2, o.cust_kex_3, o.cust_msig_make, 
+            o.cust_msig_prepare, o.cust_msig_txset, o.date, o.deliver_date, 
+            o.hash, o.mediator_msig_make, o.mediator_msig_prepare, o.mediator_kex_1, 
+            o.mediator_kex_2, o.mediator_kex_3, o.ship_date, o.subaddress, o.status,
+            o.quantity, o.vend_kex_1, o.vend_kex_2, o.vend_kex_3, o.vend_msig_make,
+            o.vend_msig_prepare, o.vend_msig_txset, o.xmr_address,
+        )
+    }
+    pub fn from_db(k: String, v: String) -> Order {
+        let values = v.split(":");
+        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        let orid = k;
+        let cid = v.remove(0);
+        let pid = v.remove(0);
+        let cust_kex_1 = v.remove(0);
+        let cust_kex_2 = v.remove(0);
+        let cust_kex_3 = v.remove(0);
+        let cust_msig_make = v.remove(0);
+        let cust_msig_prepare = v.remove(0);
+        let cust_msig_txset = v.remove(0);
+        let date = match v.remove(0).parse::<i64>() {
+            Ok(d) => d,
+            Err(_) => 0,
+        };
+        let deliver_date = match v.remove(0).parse::<i64>() {
+            Ok(d) => d,
+            Err(_) => 0,
+        };
+        let hash = v.remove(0);
+        let mediator_msig_make = v.remove(0);
+        let mediator_msig_prepare = v.remove(0);
+        let mediator_kex_1 = v.remove(0);
+        let mediator_kex_2 = v.remove(0);
+        let mediator_kex_3 = v.remove(0);
+        let ship_date = match v.remove(0).parse::<i64>() {
+            Ok(d) => d,
+            Err(_) => 0,
+        };
+        let subaddress = v.remove(0);
+        let status = v.remove(0);
+        let quantity = match v.remove(0).parse::<i64>() {
+            Ok(d) => d,
+            Err(_) => 0,
+        };
+        let vend_kex_1 = v.remove(0);
+        let vend_kex_2 = v.remove(0);
+        let vend_kex_3 = v.remove(0);
+        let vend_msig_make = v.remove(0);
+        let vend_msig_prepare = v.remove(0);
+        let vend_msig_txset = v.remove(0);
+        let xmr_address = v.remove(0);
+        Order {
+            orid,
+            cid,
+            pid,
+            cust_kex_1,
+            cust_kex_2,
+            cust_kex_3,
+            cust_msig_make,
+            cust_msig_prepare,
+            cust_msig_txset,
+            date,
+            deliver_date,
+            hash,
+            mediator_kex_1,
+            mediator_kex_2,
+            mediator_kex_3,
+            mediator_msig_make,
+            mediator_msig_prepare,
+            ship_date,
+            subaddress,
+            status,
+            quantity,
+            vend_kex_1,
+            vend_kex_2,
+            vend_kex_3,
+            vend_msig_make,
+            vend_msig_prepare,
+            vend_msig_txset,
+            xmr_address,
+        }
+    }
+    pub fn update(
+        orid: String,
+        o: Order,
+    ) -> Order {
+        Order {
+            orid,
+            cid: String::from(&o.cid),
+            pid: String::from(&o.pid),
+            cust_kex_1: String::from(&o.cust_kex_1),
+            cust_kex_2: String::from(&o.cust_kex_2),
+            cust_kex_3: String::from(&o.cust_kex_3),
+            cust_msig_make: String::from(&o.cust_msig_make),
+            cust_msig_prepare: String::from(&o.cust_msig_make),
+            cust_msig_txset: String::from(&o.cust_msig_txset),
+            date: o.date,
+            deliver_date: o.deliver_date,
+            hash: String::from(&o.hash),
+            mediator_kex_1: String::from(&o.mediator_kex_1),
+            mediator_kex_2: String::from(&o.mediator_kex_2),
+            mediator_kex_3: String::from(&o.mediator_kex_3),
+            mediator_msig_make: String::from(&o.mediator_msig_make),
+            mediator_msig_prepare: String::from(&o.mediator_msig_prepare),
+            ship_date: o.ship_date,
+            subaddress: String::from(&o.subaddress),
+            status: String::from(&o.status),
+            quantity: o.quantity,
+            vend_kex_1: String::from(&o.vend_kex_1),
+            vend_kex_2: String::from(&o.vend_kex_2),
+            vend_kex_3: String::from(&o.vend_kex_3),
+            vend_msig_make: String::from(&o.vend_msig_make),
+            vend_msig_prepare: String::from(&o.vend_msig_prepare),
+            vend_msig_txset: String::from(&o.vend_msig_txset),
+            xmr_address: String::from(&o.xmr_address),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Dispute {
     pub did: String,

@@ -1934,6 +1934,7 @@ dependencies = [
  "nevmes_contact",
  "nevmes_core",
  "nevmes_gui",
+ "nevmes_market",
  "nevmes_message",
  "rocket",
 ]
@@ -2005,6 +2006,17 @@ dependencies = [
  "tracing-subscriber",
  "tracing-wasm",
  "wasm-bindgen-futures",
+]
+
+[[package]]
+name = "nevmes_market"
+version = "0.5.0-alpha"
+dependencies = [
+ "chrono",
+ "env_logger",
+ "log 0.4.17",
+ "nevmes_core",
+ "rocket",
 ]
 
 [[package]]

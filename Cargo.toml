@@ -11,5 +11,6 @@ nevmes_auth    =   { path = "./nevmes-auth" }
 nevmes_contact =   { path = "./nevmes-contact" }
 nevmes_core    =   { path = "./nevmes-core" }
 nevmes_gui     =   { path = "./nevmes-gui" }
+nevmes_market  =   { path = "./nevmes-market" }
 nevmes_message =   { path = "./nevmes-message" }
 rocket = { version = "0.5.0-rc.2", features = ["json"] }

@@ -180,6 +180,12 @@ pub fn get_app_contact_port() -> u16 {
 }
 
 /// app message port
+pub fn get_app_market_port() -> u16 {
+    let args = args::Args::parse();
+    args.marketplace_port
+}
+
+/// app message port
 pub fn get_app_message_port() -> u16 {
     let args = args::Args::parse();
     args.message_port
@@ -355,6 +361,15 @@ fn start_micro_servers() {
         .spawn()
         .expect("failed to start contact server");
     debug!("{:?}", c_output.stdout);
+    info!("starting marketplace admin server");
+    let mut market_path = "nevmes-contact/target/debug/nevmes_market";
+    if env == ReleaseEnvironment::Production {
+        market_path = "nevmes_market";
+    }
+    let market_output = std::process::Command::new(market_path)
+        .spawn()
+        .expect("failed to start marketplace server");
+    debug!("{:?}", market_output.stdout);
     info!("starting message server");
     let mut message_path = "nevmes-message/target/debug/nevmes_message";
     if env == ReleaseEnvironment::Production {

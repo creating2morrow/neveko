@@ -6,27 +6,35 @@ use rocket::{
     serde::json::Json,
 };
 
-use nevmes_core::{
-    contact,
-    i2p,
-    message,
-    models,
-    monero,
-    proof,
-    reqres,
-};
+use nevmes_core::*;
+use nevmes_market::*;
 
 // JSON APIs exposed over i2p
 
 /// Get payment API version
 ///
-/// Protected: false
+/// Protected: true
 ///
 /// This also functions as a health check
 #[get("/version")]
 pub async fn get_version(_jwp: proof::PaymentProof) -> Custom<Json<reqres::XmrRpcVersionResponse>> {
     Custom(Status::Ok, Json(monero::get_version().await))
 }
+
+#[get("/test")]
+pub async fn test() -> Custom<Json<models::User>> {
+    let mut v: Vec<String> = Vec::new();
+    v.push("t1".to_string());
+    v.push("t2".to_string());
+    v.push("t3".to_string());
+    let u: models::User = models::User {
+        uid: v.remove(0),
+        xmr_address: v.remove(0),
+        name: v.remove(0),
+    };
+    Custom(Status::Ok, Json(u))
+}
+
 
 /// If i2p not in the state of rejecting tunnels this will return `open: true`
 ///
@@ -80,4 +88,21 @@ pub async fn gen_invoice() -> Custom<Json<reqres::Invoice>> {
 pub async fn gen_jwp(proof: Json<proof::TxProof>) -> Custom<Json<reqres::Jwp>> {
     let jwp = proof::create_jwp(&proof).await;
     Custom(Status::Ok, Json(reqres::Jwp { jwp }))
+}
+
+// NEVMES Market APIs
+//-----------------------------------------------
+
+/// Get all products by passing vendor address
+/// 
+/// Protected: true
+#[get("/products")]
+pub async fn get_products(
+    _jwp: proof::PaymentProof,
+) -> Custom<Json<Vec<models::Product>>> {
+    let m_products: Vec<models::Product> = product::find_all();
+    Custom(
+        Status::Ok,
+        Json(m_products),
+    )
 }

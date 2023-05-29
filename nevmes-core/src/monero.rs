@@ -598,39 +598,6 @@ pub async fn make_wallet(info: Vec<String>) -> reqres::XmrRpcMakeResponse {
     }
 }
 
-/// Performs the xmr rpc 'finalize_multisig' method
-pub async fn finalize_wallet(info: Vec<String>) -> reqres::XmrRpcFinalizeResponse {
-    info!("executing {}", RpcFields::Finalize.value());
-    let client = reqwest::Client::new();
-    let host = get_rpc_host();
-    let params = reqres::XmrRpcFinalizeParams {
-        multisig_info: info,
-    };
-    let req = reqres::XmrRpcFinalizeRequest {
-        jsonrpc: RpcFields::JsonRpcVersion.value(),
-        id: RpcFields::Id.value(),
-        method: RpcFields::Finalize.value(),
-        params,
-    };
-    let login: RpcLogin = get_rpc_creds();
-    match client
-        .post(host)
-        .json(&req)
-        .send_with_digest_auth(&login.username, &login.credential)
-        .await
-    {
-        Ok(response) => {
-            let res = response.json::<reqres::XmrRpcFinalizeResponse>().await;
-            debug!("{} response: {:?}", RpcFields::Finalize.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
-        }
-        Err(_) => Default::default(),
-    }
-}
-
 /// Performs the xmr rpc 'export_multisig_info' method
 pub async fn export_multisig_info() -> reqres::XmrRpcExportResponse {
     info!("executing {}", RpcFields::Export.value());
@@ -725,7 +692,7 @@ pub async fn sign_multisig(tx_data_hex: String) -> reqres::XmrRpcSignMultisigRes
 /// Performs the xmr rpc 'exchange_multisig_keys' method
 pub async fn exchange_multisig_keys(
     force_update_use_with_caution: bool,
-    multisig_info: String,
+    multisig_info: Vec<String>,
     password: String,
 ) -> reqres::XmrRpcExchangeMultisigKeysResponse {
     info!("executing: {}", RpcFields::ExchangeMultisigKeys.value());

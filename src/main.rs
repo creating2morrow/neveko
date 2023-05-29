@@ -58,4 +58,6 @@ async fn rocket() -> _ {
         .mount("/share", routes![controller::share_contact_info])
         .mount("/i2p", routes![controller::get_i2p_status])
         .mount("/xmr/rpc", routes![controller::get_version])
+        .mount("/market", routes![controller::get_products])
+        .mount("/test", routes![controller::test])
 }

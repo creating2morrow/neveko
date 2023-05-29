@@ -19,6 +19,8 @@ cd nevmes-auth && cargo build --release && cp target/release/nevmes_auth ../$LIN
 cd ../
 cd nevmes-contact && cargo build --release && cp target/release/nevmes_contact ../$LINUX_OUTPUT_DIR
 cd ../
+cd nevmes-market && cargo build --release && cp target/release/nevmes_market ../$LINUX_OUTPUT_DIR
+cd ../
 cd nevmes-message && cargo build --release && cp target/release/nevmes_message ../$LINUX_OUTPUT_DIR
 cd ../
 # make the bzip for linux
