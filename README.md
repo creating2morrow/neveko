@@ -20,7 +20,7 @@ NEVidebla-MESago (invisible message)
 * install dependencies
     * ubuntu example: `sudo apt update -y && sudo apt upgrade -y`
     * `sudo apt install -y libssl-dev build-essential libgpgme-dev`
-* `git clone https://github/com/creating2morrow/nevmes`
+* `git clone https://github.com/creating2morrow/nevmes`
 * `cd nevmes && ./scripts/build_all_and_run.sh "-- -h"`
 * gui built with rust [egui](https://docs.rs/egui/latest/egui/)
 
