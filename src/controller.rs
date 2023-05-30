@@ -21,21 +21,6 @@ pub async fn get_version(_jwp: proof::PaymentProof) -> Custom<Json<reqres::XmrRp
     Custom(Status::Ok, Json(monero::get_version().await))
 }
 
-#[get("/test")]
-pub async fn test() -> Custom<Json<models::User>> {
-    let mut v: Vec<String> = Vec::new();
-    v.push("t1".to_string());
-    v.push("t2".to_string());
-    v.push("t3".to_string());
-    let u: models::User = models::User {
-        uid: v.remove(0),
-        xmr_address: v.remove(0),
-        name: v.remove(0),
-    };
-    Custom(Status::Ok, Json(u))
-}
-
-
 /// If i2p not in the state of rejecting tunnels this will return `open: true`
 ///
 /// Protected: false
@@ -94,15 +79,10 @@ pub async fn gen_jwp(proof: Json<proof::TxProof>) -> Custom<Json<reqres::Jwp>> {
 //-----------------------------------------------
 
 /// Get all products by passing vendor address
-/// 
+///
 /// Protected: true
 #[get("/products")]
-pub async fn get_products(
-    _jwp: proof::PaymentProof,
-) -> Custom<Json<Vec<models::Product>>> {
+pub async fn get_products(_jwp: proof::PaymentProof) -> Custom<Json<Vec<models::Product>>> {
     let m_products: Vec<models::Product> = product::find_all();
-    Custom(
-        Status::Ok,
-        Json(m_products),
-    )
+    Custom(Status::Ok, Json(m_products))
 }

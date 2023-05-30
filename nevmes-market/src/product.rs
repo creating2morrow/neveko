@@ -1,6 +1,14 @@
 // Product repo/service layer
-use nevmes_core::{db, models::*, utils};
-use log::{debug, error, info};
+use log::{
+    debug,
+    error,
+    info,
+};
+use nevmes_core::{
+    db,
+    models::*,
+    utils,
+};
 use rocket::serde::json::Json;
 
 /// Create a new product
@@ -26,7 +34,10 @@ pub fn create(d: Json<Product>) -> Product {
         debug!("creating product index");
     }
     let product_list = [r, String::from(&pid)].join(",");
-    debug!("writing product index {} for id: {}", product_list, list_key);
+    debug!(
+        "writing product index {} for id: {}",
+        product_list, list_key
+    );
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &product_list);
     new_product
 }

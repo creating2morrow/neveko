@@ -1,11 +1,18 @@
-use rocket::http::Status;
-use rocket::response::status::Custom;
-use rocket::serde::json::Json;
-use rocket::{get, patch, post};
+use rocket::{
+    get,
+    http::Status,
+    patch,
+    post,
+    response::status::Custom,
+    serde::json::Json,
+};
 
 use nevmes_core::*;
 
-use crate::{dispute, product};
+use crate::{
+    dispute,
+    product,
+};
 
 // JSON APIs
 
@@ -16,24 +23,18 @@ pub async fn create_product(
     _token: auth::BearerToken,
 ) -> Custom<Json<models::Product>> {
     let m_product: models::Product = product::create(req_product);
-    Custom(
-        Status::Ok,
-        Json(m_product),
-    )
+    Custom(Status::Ok, Json(m_product))
 }
 
 /// Update product information
-#[patch("/<_address>/update", data="<product>")]
+#[patch("/<_address>/update", data = "<product>")]
 pub async fn update_product(
     _address: String,
     product: Json<models::Product>,
     _token: auth::BearerToken,
 ) -> Custom<Json<models::Product>> {
     let m_product: models::Product = product::modify(product);
-    Custom(
-        Status::Ok,
-        Json(m_product),
-    )
+    Custom(Status::Ok, Json(m_product))
 }
 
 // /// Initialize order
@@ -89,22 +90,13 @@ pub async fn create_dispute(
     _token: auth::BearerToken,
 ) -> Custom<Json<models::Dispute>> {
     let m_dispute: models::Dispute = dispute::create(dispute);
-    Custom(
-        Status::Ok,
-        Json(m_dispute),
-    )
+    Custom(Status::Ok, Json(m_dispute))
 }
 
 /// Create a dispute
 #[get("/<did>")]
-pub async fn get_dispute(
-    _token: auth::BearerToken,
-    did: String,
-) -> Custom<Json<models::Dispute>> {
+pub async fn get_dispute(_token: auth::BearerToken, did: String) -> Custom<Json<models::Dispute>> {
     let m_dispute: models::Dispute = dispute::find(&did);
-    Custom(
-        Status::Ok,
-        Json(m_dispute),
-    )
+    Custom(Status::Ok, Json(m_dispute))
 }
 // END JSON APIs

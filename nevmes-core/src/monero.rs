@@ -30,7 +30,6 @@ enum RpcFields {
     CreateWallet,
     ExchangeMultisigKeys,
     Export,
-    Finalize,
     GetTxProof,
     GetTxById,
     GetVersion,
@@ -58,7 +57,6 @@ impl RpcFields {
             RpcFields::CreateWallet => String::from("create_wallet"),
             RpcFields::ExchangeMultisigKeys => String::from("exchange_multisig_keys"),
             RpcFields::Export => String::from("export_multisig_info"),
-            RpcFields::Finalize => String::from("finalize_multisig"),
             RpcFields::GetTxProof => String::from("get_tx_proof"),
             RpcFields::GetTxById => String::from("get_transfer_by_txid"),
             RpcFields::GetVersion => String::from("get_version"),
@@ -400,10 +398,7 @@ pub async fn close_wallet(filename: String, password: String) -> bool {
     info!("executing {}", RpcFields::Close.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params = reqres::XmrRpcOpenWalletParams {
-        filename,
-        password,
-    };
+    let params = reqres::XmrRpcOpenWalletParams { filename, password };
     let req = reqres::XmrRpcOpenRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
         id: RpcFields::Id.value(),

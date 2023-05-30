@@ -21,7 +21,6 @@
 //     }
 // }
 
-
 // /// Create a skeleton for order
 // pub fn create(cid: String, pid: String) -> models::Order {
 //     let ts = chrono::offset::Utc::now().timestamp();
@@ -77,7 +76,6 @@
 //     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &order_list);
 //     new_order
 // }
-
 
 // /// Lookup order
 // pub fn find(oid: String) -> models::Order {

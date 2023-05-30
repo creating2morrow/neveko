@@ -419,8 +419,8 @@ pub async fn start_up() {
     // wait for rpc server for a bit
     tokio::time::sleep(std::time::Duration::new(5, 0)).await;
     monero::check_rpc_connection().await;
-    let wallet_password = std::env::var(crate::MONERO_WALLET_PASSWORD)
-        .unwrap_or(String::from("password"));
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
     gen_app_wallet(&wallet_password).await;
     i2p::start().await;
     gen_app_gpg().await;

@@ -1,6 +1,14 @@
-use nevmes_core::{db, models::*, utils};
+use log::{
+    debug,
+    error,
+    info,
+};
+use nevmes_core::{
+    db,
+    models::*,
+    utils,
+};
 use rocket::serde::json::Json;
-use log::{debug, error, info};
 
 /// Create a new dispute
 pub fn create(d: Json<Dispute>) -> Dispute {
@@ -25,7 +33,7 @@ pub fn find(did: &String) -> Dispute {
     let r = db::Interface::read(&s.env, &s.handle, &String::from(did));
     if r == utils::empty_string() {
         error!("dispute not found");
-        return Default::default()
+        return Default::default();
     }
     Dispute::from_db(String::from(did), r)
 }

@@ -15,8 +15,14 @@ async fn rocket() -> _ {
     env_logger::init();
     log::info!("nevmes-auth is online");
     rocket::custom(&config)
-        .mount("/dispute", routes![controller::create_dispute, controller::get_dispute])
+        .mount(
+            "/dispute",
+            routes![controller::create_dispute, controller::get_dispute],
+        )
         // .mount("/order", routes![controller::initialize_order, controller::update_order])
         // .mount("/orders", routes![controller::get_orders])
-        .mount("/product", routes![controller::create_product, controller::update_product])
+        .mount(
+            "/product",
+            routes![controller::create_product, controller::update_product],
+        )
 }

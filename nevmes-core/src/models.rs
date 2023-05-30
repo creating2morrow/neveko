@@ -374,12 +374,33 @@ impl Order {
     pub fn to_db(o: &Order) -> String {
         format!(
             "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
-            o.cid, o.pid, o.cust_kex_1, o.cust_kex_2, o.cust_kex_3, o.cust_msig_make, 
-            o.cust_msig_prepare, o.cust_msig_txset, o.date, o.deliver_date, 
-            o.hash, o.mediator_msig_make, o.mediator_msig_prepare, o.mediator_kex_1, 
-            o.mediator_kex_2, o.mediator_kex_3, o.ship_date, o.subaddress, o.status,
-            o.quantity, o.vend_kex_1, o.vend_kex_2, o.vend_kex_3, o.vend_msig_make,
-            o.vend_msig_prepare, o.vend_msig_txset, o.xmr_address,
+            o.cid,
+            o.pid,
+            o.cust_kex_1,
+            o.cust_kex_2,
+            o.cust_kex_3,
+            o.cust_msig_make,
+            o.cust_msig_prepare,
+            o.cust_msig_txset,
+            o.date,
+            o.deliver_date,
+            o.hash,
+            o.mediator_msig_make,
+            o.mediator_msig_prepare,
+            o.mediator_kex_1,
+            o.mediator_kex_2,
+            o.mediator_kex_3,
+            o.ship_date,
+            o.subaddress,
+            o.status,
+            o.quantity,
+            o.vend_kex_1,
+            o.vend_kex_2,
+            o.vend_kex_3,
+            o.vend_msig_make,
+            o.vend_msig_prepare,
+            o.vend_msig_txset,
+            o.xmr_address,
         )
     }
     pub fn from_db(k: String, v: String) -> Order {
@@ -456,10 +477,7 @@ impl Order {
             xmr_address,
         }
     }
-    pub fn update(
-        orid: String,
-        o: Order,
-    ) -> Order {
+    pub fn update(orid: String, o: Order) -> Order {
         Order {
             orid,
             cid: String::from(&o.cid),
