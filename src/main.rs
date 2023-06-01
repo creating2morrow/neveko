@@ -52,6 +52,7 @@ async fn rocket() -> _ {
     utils::start_up().await;
     rocket::custom(&config)
         .register("/", catchers![internal_error, not_found, payment_required])
+        .mount("/multisig/info", routes![controller::get_multisig_info])
         .mount("/invoice", routes![controller::gen_invoice])
         .mount("/message/rx", routes![controller::rx_message])
         .mount("/message/rx/multisig", routes![controller::rx_multisig_message])

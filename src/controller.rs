@@ -120,17 +120,20 @@ pub async fn retrieve_order(
 /// Send multisig info for contact's order
 ///
 /// Protected: true
-#[post("/multisig/info", data = "<r_info>")]
+#[post("/", data = "<r_info>")]
 pub async fn get_multisig_info(
     r_info: Json<reqres::MultisigInfoRequest>,
     _jwp: proof::PaymentProof) -> Custom<Json<models::Order>> {
+        let info: Vec<String> = r_info.info.iter().cloned().collect();
         if r_info.msig_type == String::from(message::PREPARE_MSIG) {
-            message::send_prepare_info(&r_info.orid, &r_info.contact ).await;
-        } else {
-            let info: Vec<String> = r_info.info.iter().cloned().collect();
+            message::send_prepare_info(&r_info.orid, &r_info.contact).await;
+        } else if r_info.msig_type == String::from(message::MAKE_MSIG) {
             message::send_make_info(&r_info.orid, &r_info.contact, info).await;
+        } else if r_info.msig_type == String::from(message::EXPORT_MSIG) {
+            message::send_export_info(&r_info.orid, &r_info.contact).await;
+        } else {
+            message::send_exchange_info(&r_info.orid, &r_info.contact, info).await;
         }
-    
     Custom(Status::Ok, Json(Default::default()))
 }
 
