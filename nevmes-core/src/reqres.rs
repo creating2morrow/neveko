@@ -1081,7 +1081,7 @@ impl Default for ErrorResponse {
     }
 }
 
-/// Handle intial information for request
+/// Handle intial order information for request
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct OrderRequest {
@@ -1098,6 +1098,28 @@ impl Default for OrderRequest {
             pid: utils::empty_string(),
             ship_address: Vec::new(),
             quantity: 0,
+        }
+    }
+}
+
+/// Handle multisig info requests
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct MultisigInfoRequest {
+    pub contact: String,
+    /// Send empty array on prepare info request
+    pub info: Vec<String>,
+    pub msig_type: String,
+    pub orid: String,
+}
+
+impl Default for MultisigInfoRequest {
+    fn default() -> Self {
+        MultisigInfoRequest {
+            contact: utils::empty_string(),
+            info: Vec::new(),
+            msig_type: utils::empty_string(),
+            orid: utils::empty_string(),
         }
     }
 }

@@ -17,6 +17,11 @@ use reqwest::StatusCode;
 use rocket::serde::json::Json;
 use std::error::Error;
 
+pub const EXCHANGE_MSIG: &str = "exchange";
+pub const EXPORT_MSIG: &str = "export";
+pub const MAKE_MSIG: &str = "make";
+pub const PREPARE_MSIG: &str = "prepare";
+
 #[derive(PartialEq)]
 pub enum MessageType {
     Normal,
@@ -425,19 +430,37 @@ fn is_fts_clear(r: String) -> bool {
     v.len() >= 2 && v[v.len() - 1] == utils::empty_string() && v[0] == utils::empty_string()
 }
 
-pub async fn send_prepare_info(orid:String, contact:String) {
+pub async fn send_prepare_info(orid: &String, contact: &String) {
     let s = db::Interface::open();
     let prepare_info = monero::prepare_wallet().await;
-    let k = format!("{}-{}", "fts-jwp", &contact);
+    let k = format!("{}-{}", "fts-jwp", contact);
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
-    let body_str = format!("prepare:{}:{}", &orid, &prepare_info.result.multisig_info);
+    let body_str = format!("{}:{}:{}", PREPARE_MSIG, orid, &prepare_info.result.multisig_info);
     let message: Message = Message {
         mid: utils::empty_string(),
         uid: utils::empty_string(),
         body: body_str.into_bytes(),
         created: chrono::Utc::now().timestamp(),
         from: utils::empty_string(),
-        to: String::from(&contact),
+        to: String::from(contact),
+    };
+    let j_message: Json<Message> = utils::message_to_json(&message);
+    create(j_message, jwp, MessageType::Multisig).await;
+}
+
+pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) {
+    let s = db::Interface::open();
+    let make_info = monero::make_wallet(info).await;
+    let k = format!("{}-{}", "fts-jwp", contact);
+    let jwp = db::Interface::read(&s.env, &s.handle, &k);
+    let body_str = format!("{}:{}:{}", MAKE_MSIG, orid, &make_info.result.multisig_info);
+    let message: Message = Message {
+        mid: utils::empty_string(),
+        uid: utils::empty_string(),
+        body: body_str.into_bytes(),
+        created: chrono::Utc::now().timestamp(),
+        from: utils::empty_string(),
+        to: String::from(contact),
     };
     let j_message: Json<Message> = utils::message_to_json(&message);
     create(j_message, jwp, MessageType::Multisig).await;
