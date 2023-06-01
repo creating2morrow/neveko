@@ -778,7 +778,8 @@ fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: Stri
     };
     let j_message = utils::message_to_json(&m);
     tokio::spawn(async move {
-        let result = message::create(j_message, jwp).await;
+        let m_type = message::MessageType::Normal;
+        let result = message::create(j_message, jwp, m_type).await;
         if result.mid != utils::empty_string() {
             log::info!("sent message: {}", result.mid);
             let _ = tx.send(true);

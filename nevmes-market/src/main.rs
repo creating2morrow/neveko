@@ -13,7 +13,7 @@ async fn rocket() -> _ {
         ..rocket::Config::debug_default()
     };
     env_logger::init();
-    log::info!("nevmes-auth is online");
+    log::info!("nevmes-market is online");
     rocket::custom(&config)
         .mount(
             "/dispute",

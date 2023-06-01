@@ -6,7 +6,7 @@ use crate::{
     i2p,
     models::*,
     reqres,
-    utils,
+    utils, monero,
 };
 use log::{
     debug,
@@ -17,9 +17,25 @@ use reqwest::StatusCode;
 use rocket::serde::json::Json;
 use std::error::Error;
 
+#[derive(PartialEq)]
+pub enum MessageType {
+    Normal,
+    Multisig,
+}
+
+struct MultisigMessageData {
+    info: String,
+    sub_type: String,
+    orid: String,
+}
+
 /// Create a new message
-pub async fn create(m: Json<Message>, jwp: String) -> Message {
-    let f_mid: String = format!("m{}", utils::generate_rnd());
+pub async fn create(m: Json<Message>, jwp: String, m_type: MessageType) -> Message {
+    let rnd = utils::generate_rnd();
+    let mut f_mid: String = format!("m{}", &rnd);
+    if m_type == MessageType::Multisig {
+        f_mid = format!("msig{}", &rnd);
+    }
     info!("creating message: {}", &f_mid);
     let created = chrono::offset::Utc::now().timestamp();
     // get contact public gpg key and encrypt the message
@@ -47,7 +63,7 @@ pub async fn create(m: Json<Message>, jwp: String) -> Message {
     debug!("writing message index {} for id: {}", msg_list, list_key);
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
     info!("attempting to send message");
-    let send = send_message(&new_message, &jwp).await;
+    let send = send_message(&new_message, &jwp, m_type).await;
     send.unwrap();
     new_message
 }
@@ -86,6 +102,68 @@ pub async fn rx(m: Json<Message>) {
     let msg_list = [r, String::from(&f_mid)].join(",");
     debug!("writing message index {} for {}", msg_list, list_key);
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
+}
+
+/// Parse the multisig message type and info
+fn parse_multisig_message(mid: String) -> MultisigMessageData {
+    let d: reqres::DecryptedMessageBody = decrypt_body(mid);
+    let mut bytes = hex::decode(d.body.into_bytes()).unwrap_or(Vec::new());
+    let decoded = String::from_utf8(bytes).unwrap_or(utils::empty_string());
+    let values = decoded.split(":");
+    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    let sub_type: String = v.remove(0);
+    let orid: String = v.remove(0);
+    let info: String = v.remove(0);
+    bytes = Vec::new();
+    debug!("zero decryption bytes: {:?}", bytes);
+    MultisigMessageData { info, sub_type, orid }
+}
+
+/// Rx multisig message
+/// 
+/// Upon multisig message receipt the message is automatically
+/// 
+/// decrypted for convenience sake. The client must determine which
+/// 
+/// .b32.i2p address belongs to the vendor / mediator.
+/// 
+/// ### Example
+/// 
+/// ```rust
+/// // lookup prepare info for vendor
+/// let s = db::Interface::open();
+/// let key = "prepare-o123-test.b32.i2p";
+/// db::Interface::read(&s.env, &s.handle, &key);
+/// ```
+pub async fn rx_multisig(m: Json<Message>) {
+    // make sure the message isn't something strange
+    let is_valid = validate_message(&m);
+    if !is_valid {
+        return;
+    }
+    // don't allow messages from outside the contact list
+    let is_in_contact_list = contact::exists(&m.from);
+    if !is_in_contact_list {
+        return;
+    }
+    let f_mid: String = format!("m{}", utils::generate_rnd());
+    let new_message = Message {
+        mid: String::from(&f_mid),
+        uid: String::from("rx"),
+        from: String::from(&m.from),
+        body: m.body.iter().cloned().collect(),
+        created: chrono::offset::Utc::now().timestamp(),
+        to: String::from(&m.to),
+    };
+    debug!("insert multisig message: {:?}", &new_message);
+    let s = db::Interface::open();
+    let k = &new_message.mid;
+    db::Interface::async_write(&s.env, &s.handle, k, &Message::to_db(&new_message)).await;
+    let data: MultisigMessageData = parse_multisig_message(new_message.mid);
+    debug!("writing multisig message type {} for order {}", &data.sub_type, &data.orid);
+    // lookup msig message data by {type}-{order id}-{contact .b32.i2p address}
+    let msig_key = format!("{}-{}-{}", &data.sub_type, &data.orid, &m.from);
+    db::Interface::write(&s.env, &s.handle, &msig_key, &data.info);
 }
 
 /// Message lookup
@@ -134,18 +212,21 @@ pub fn find_all() -> Vec<Message> {
 }
 
 /// Tx message
-async fn send_message(out: &Message, jwp: &str) -> Result<(), Box<dyn Error>> {
+async fn send_message(out: &Message, jwp: &str, m_type: MessageType) -> Result<(), Box<dyn Error>> {
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
-
+    let mut url = format!("http://{}/message/rx", out.to);
+    if m_type == MessageType::Multisig {
+        url = format!("http://{}/message/rx/multisig", out.to)
+    }
     // check if the contact is online
     let is_online: bool = is_contact_online(&out.to, String::from(jwp))
         .await
         .unwrap_or(false);
     if is_online {
         return match client?
-            .post(format!("http://{}/message/rx", out.to))
+            .post(url)
             .header("proof", jwp)
             .json(&out)
             .send()
@@ -314,7 +395,12 @@ pub async fn retry_fts() {
                 let k = format!("{}-{}", "fts-jwp", &message.to);
                 let jwp = db::Interface::read(&s.env, &s.handle, &k);
                 if jwp != utils::empty_string() {
-                    send_message(&message, &jwp).await.unwrap();
+                    let m_type = if message.mid.contains("misg") {
+                        MessageType::Multisig
+                    } else {
+                        MessageType::Normal
+                    };
+                    send_message(&message, &jwp, m_type).await.unwrap();
                 } else {
                     error!("not jwp found for fts id: {}", &message.mid);
                 }
@@ -337,6 +423,24 @@ fn is_fts_clear(r: String) -> bool {
     let v: Vec<String> = v_mid.map(|s| String::from(s)).collect();
     debug!("fts contents: {:#?}", v);
     v.len() >= 2 && v[v.len() - 1] == utils::empty_string() && v[0] == utils::empty_string()
+}
+
+pub async fn send_prepare_info(orid:String, contact:String) {
+    let s = db::Interface::open();
+    let prepare_info = monero::prepare_wallet().await;
+    let k = format!("{}-{}", "fts-jwp", &contact);
+    let jwp = db::Interface::read(&s.env, &s.handle, &k);
+    let body_str = format!("prepare:{}:{}", &orid, &prepare_info.result.multisig_info);
+    let message: Message = Message {
+        mid: utils::empty_string(),
+        uid: utils::empty_string(),
+        body: body_str.into_bytes(),
+        created: chrono::Utc::now().timestamp(),
+        from: utils::empty_string(),
+        to: String::from(&contact),
+    };
+    let j_message: Json<Message> = utils::message_to_json(&message);
+    create(j_message, jwp, MessageType::Multisig).await;
 }
 
 // Tests
@@ -366,7 +470,7 @@ mod tests {
         let j_message = utils::message_to_json(&message);
         let jwp = String::from("test-jwp");
         tokio::spawn(async move {
-            let test_message = create(j_message, jwp).await;
+            let test_message = create(j_message, jwp, MessageType::Normal).await;
             let expected: Message = Default::default();
             assert_eq!(test_message.body, expected.body);
             cleanup(&test_message.mid).await;

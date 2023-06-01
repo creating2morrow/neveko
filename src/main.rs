@@ -54,6 +54,7 @@ async fn rocket() -> _ {
         .register("/", catchers![internal_error, not_found, payment_required])
         .mount("/invoice", routes![controller::gen_invoice])
         .mount("/message/rx", routes![controller::rx_message])
+        .mount("/message/rx/multisig", routes![controller::rx_multisig_message])
         .mount("/prove", routes![controller::gen_jwp])
         .mount("/share", routes![controller::share_contact_info])
         .mount("/i2p", routes![controller::get_i2p_status])

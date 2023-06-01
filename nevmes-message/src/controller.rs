@@ -15,12 +15,18 @@ use nevmes_core::{
 };
 
 /// Send message
-#[post("/", data = "<m_req>")]
+#[post("/<r_type>", data = "<m_req>")]
 pub async fn send_message(
     m_req: Json<Message>,
+    r_type: String,
     token: proof::PaymentProof,
 ) -> Custom<Json<Message>> {
-    let res: Message = message::create(m_req, token.get_jwp()).await;
+    let m_type: message::MessageType = if r_type == "multisig" {
+        message::MessageType::Multisig
+    } else {
+        message::MessageType::Normal
+    };
+    let res: Message = message::create(m_req, token.get_jwp(), m_type).await;
     Custom(Status::Ok, Json(res))
 }
 

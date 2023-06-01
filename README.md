@@ -75,8 +75,9 @@ NEVidebla-MESago (invisible message)
 * nevmes-auth - `internal` auth server
 * nevmes-contact - `internal` add contacts server
 * nevmes-gui - primary user interface
+* nevmes-market - `internal` marketplace admin server
 * nevmes-message - `internal` message tx/read etc. server
-* nevmes - `external` primary server for contact share, payment, message rx etc.
+* nevmes - `external` primary server for contact share, payment, market, message rx etc.
 * [monerod](https://www.getmonero.org/downloads/#cli) - (not included) monero-wallet-rpc needs this
     * can be overriden with remote node
     * use the `--remote-node` flag

@@ -315,17 +315,20 @@ pub struct Order {
     pub cust_msig_txset: String,
     pub date: i64,
     pub deliver_date: i64,
+    /// Transaction hash from vendor or customer signed txset
     pub hash: String,
     pub mediator_kex_1: String,
     pub mediator_kex_2: String,
     pub mediator_kex_3: String,
     pub mediator_msig_make: String,
     pub mediator_msig_prepare: String,
+    /// Address gpg key encrypted bytes
+    pub ship_address: Vec<u8>,
     pub ship_date: i64,
     /// This is the final destination for the payment
     pub subaddress: String,
     pub status: String,
-    pub quantity: i64,
+    pub quantity: u64,
     pub vend_kex_1: String,
     pub vend_kex_2: String,
     pub vend_kex_3: String,
@@ -350,13 +353,14 @@ impl Default for Order {
             cust_msig_txset: utils::empty_string(),
             date: 0,
             deliver_date: 0,
-            ship_date: 0,
             hash: utils::empty_string(),
             mediator_kex_1: utils::empty_string(),
             mediator_kex_2: utils::empty_string(),
             mediator_kex_3: utils::empty_string(),
             mediator_msig_make: utils::empty_string(),
             mediator_msig_prepare: utils::empty_string(),
+            ship_address: Vec::new(),
+            ship_date: 0,
             subaddress: utils::empty_string(),
             status: utils::empty_string(),
             quantity: 0,
@@ -372,8 +376,9 @@ impl Default for Order {
 
 impl Order {
     pub fn to_db(o: &Order) -> String {
+        let ship_address = hex::encode(&o.ship_address);
         format!(
-            "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
+            "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
             o.cid,
             o.pid,
             o.cust_kex_1,
@@ -390,6 +395,7 @@ impl Order {
             o.mediator_kex_1,
             o.mediator_kex_2,
             o.mediator_kex_3,
+            ship_address,
             o.ship_date,
             o.subaddress,
             o.status,
@@ -429,13 +435,14 @@ impl Order {
         let mediator_kex_1 = v.remove(0);
         let mediator_kex_2 = v.remove(0);
         let mediator_kex_3 = v.remove(0);
+        let ship_address = hex::decode(v.remove(0)).unwrap_or(Vec::new());
         let ship_date = match v.remove(0).parse::<i64>() {
             Ok(d) => d,
             Err(_) => 0,
         };
         let subaddress = v.remove(0);
         let status = v.remove(0);
-        let quantity = match v.remove(0).parse::<i64>() {
+        let quantity = match v.remove(0).parse::<u64>() {
             Ok(d) => d,
             Err(_) => 0,
         };
@@ -464,6 +471,7 @@ impl Order {
             mediator_kex_3,
             mediator_msig_make,
             mediator_msig_prepare,
+            ship_address,
             ship_date,
             subaddress,
             status,
@@ -496,6 +504,7 @@ impl Order {
             mediator_kex_3: String::from(&o.mediator_kex_3),
             mediator_msig_make: String::from(&o.mediator_msig_make),
             mediator_msig_prepare: String::from(&o.mediator_msig_prepare),
+            ship_address: o.ship_address.iter().cloned().collect(),
             ship_date: o.ship_date,
             subaddress: String::from(&o.subaddress),
             status: String::from(&o.status),
