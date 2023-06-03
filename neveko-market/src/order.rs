@@ -33,6 +33,11 @@ impl StatusType {
 /// Create a intial order
 pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     info!("creating order");
+    let wallet_name = String::from(neveko_core::APP_NAME);
+    let wallet_password =
+        std::env::var(neveko_core::MONERO_WALLET_PASSWORD)
+        .unwrap_or(String::from("password"));
+    monero::close_wallet(&wallet_name, &wallet_password).await;
     let ts = chrono::offset::Utc::now().timestamp();
     let orid: String = format!("O{}", utils::generate_rnd());
     let r_subaddress = monero::create_address().await;
@@ -49,9 +54,10 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
         ..Default::default()
     };
     debug!("insert order: {:?}", new_order);
-    let m_wallet = monero::create_wallet(String::from(&orid), &utils::empty_string()).await;
+    let m_wallet = monero::create_wallet(&orid, &utils::empty_string()).await;
     if !m_wallet {
         error!("error creating msig wallet for order {}", &orid);
+        monero::close_wallet(&orid, &wallet_password).await;
         return Default::default();
     }
     debug!("insert order: {:?}", &new_order);
@@ -67,6 +73,7 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     let order_list = [r, String::from(&orid)].join(",");
     debug!("writing order index {} for id: {}", order_list, list_key);
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &order_list);
+    monero::close_wallet(&orid, &wallet_password).await;
     new_order
 }
 

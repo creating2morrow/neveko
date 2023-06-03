@@ -690,6 +690,11 @@ fn send_payment_req(
         let ptxp_address = String::from(&d.address);
         let ftxp_address = String::from(&d.address);
         log::debug!("sending {} piconero(s) to: {}", &d.amount, &d.address);
+        let wallet_name = String::from(neveko_core::APP_NAME);
+        let wallet_password =
+            std::env::var(neveko_core::MONERO_WALLET_PASSWORD)
+            .unwrap_or(String::from("password"));
+        monero::open_wallet(&wallet_name, &wallet_password).await;
         let transfer: reqres::XmrRpcTransferResponse = monero::transfer(d).await;
         // in order to keep the jwp creation process transparent to the user
         // we will process all logic in one shot here.
@@ -739,6 +744,7 @@ fn send_payment_req(
             String::from(&contact),
             &ftxp.hash
         );
+        monero::close_wallet(&wallet_name, &wallet_password).await;
         // if we made it this far we can now request a JWP from our friend
         match proof::prove_payment(String::from(&contact), &ftxp).await {
             Ok(result) => {

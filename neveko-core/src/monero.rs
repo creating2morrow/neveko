@@ -312,12 +312,12 @@ pub async fn verify(address: String, data: String, signature: String) -> String 
 }
 
 /// Performs the xmr rpc 'create_wallet' method
-pub async fn create_wallet(filename: String, password: &String) -> bool {
+pub async fn create_wallet(filename: &String, password: &String) -> bool {
     info!("executing {}", RpcFields::CreateWallet.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcCreateWalletParams {
-        filename,
+        filename: String::from(filename),
         language: String::from("English"),
         password: String::from(password),
     };
@@ -353,12 +353,12 @@ pub async fn create_wallet(filename: String, password: &String) -> bool {
 }
 
 /// Performs the xmr rpc 'open_wallet' method
-pub async fn open_wallet(filename: String, password: &String) -> bool {
+pub async fn open_wallet(filename: &String, password: &String) -> bool {
     info!("executing {}", RpcFields::Open.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcOpenWalletParams {
-        filename,
+        filename: String::from(filename),
         password: String::from(password),
     };
     let req = reqres::XmrRpcOpenRequest {
@@ -394,11 +394,14 @@ pub async fn open_wallet(filename: String, password: &String) -> bool {
 }
 
 /// Performs the xmr rpc 'close_wallet' method
-pub async fn close_wallet(filename: String, password: String) -> bool {
+pub async fn close_wallet(filename: &String, password: &String) -> bool {
     info!("executing {}", RpcFields::Close.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let params = reqres::XmrRpcOpenWalletParams { filename, password };
+    let params = reqres::XmrRpcOpenWalletParams {
+        filename: String::from(filename),
+        password: String::from(password),
+    };
     let req = reqres::XmrRpcOpenRequest {
         jsonrpc: RpcFields::JsonRpcVersion.value(),
         id: RpcFields::Id.value(),
@@ -688,14 +691,14 @@ pub async fn sign_multisig(tx_data_hex: String) -> reqres::XmrRpcSignMultisigRes
 pub async fn exchange_multisig_keys(
     force_update_use_with_caution: bool,
     multisig_info: Vec<String>,
-    password: String,
+    password: &String,
 ) -> reqres::XmrRpcExchangeMultisigKeysResponse {
     info!("executing: {}", RpcFields::ExchangeMultisigKeys.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcExchangeMultisigKeysParams {
         force_update_use_with_caution,
-        password,
+        password: String::from(password),
         multisig_info,
     };
     let req = reqres::XmrRpcExchangeMultisigKeysRequest {

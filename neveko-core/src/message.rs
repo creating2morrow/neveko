@@ -37,7 +37,6 @@ struct MultisigMessageData {
 
 /*
    TODOs(c2m): 
-     - add wallet open before multisig methods
      - API to valid payment and import multisig info
      - API to sign and submit the signed tx set
  */ 
@@ -451,6 +450,8 @@ fn is_fts_clear(r: String) -> bool {
 /// `prepare_multisig_info` method.
 pub async fn send_prepare_info(orid: &String, contact: &String) {
     let s = db::Interface::open();
+    let wallet_password = utils::empty_string();
+    monero::open_wallet(&orid, &wallet_password).await;
     let prepare_info = monero::prepare_wallet().await;
     let k = format!("{}-{}", "fts-jwp", contact);
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
@@ -465,6 +466,7 @@ pub async fn send_prepare_info(orid: &String, contact: &String) {
         ..Default::default()
     };
     let j_message: Json<Message> = utils::message_to_json(&message);
+    monero::close_wallet(&orid, &wallet_password).await;
     create(j_message, jwp, MessageType::Multisig).await;
 }
 
@@ -473,6 +475,8 @@ pub async fn send_prepare_info(orid: &String, contact: &String) {
 /// `make_multisig_info` method.
 pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) {
     let s = db::Interface::open();
+    let wallet_password = utils::empty_string();
+    monero::open_wallet(&orid, &wallet_password).await;
     let make_info = monero::make_wallet(info).await;
     let k = format!("{}-{}", "fts-jwp", contact);
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
@@ -484,6 +488,7 @@ pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) 
         ..Default::default()
     };
     let j_message: Json<Message> = utils::message_to_json(&message);
+    monero::close_wallet(&orid, &wallet_password).await;
     create(j_message, jwp, MessageType::Multisig).await;
 }
 
@@ -492,9 +497,9 @@ pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) 
 /// `exchange_multisig_keys` method.
 pub async fn send_exchange_info(orid: &String, contact: &String, info: Vec<String>) {
     let s = db::Interface::open();
-    let wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
-    let exchange_info = monero::exchange_multisig_keys(false, info, wallet_password).await;
+    let wallet_password = utils::empty_string();
+    monero::open_wallet(&orid, &wallet_password).await;
+    let exchange_info = monero::exchange_multisig_keys(false, info, &wallet_password).await;
     let k = format!("{}-{}", "fts-jwp", contact);
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
     let body_str = format!(
@@ -508,6 +513,7 @@ pub async fn send_exchange_info(orid: &String, contact: &String, info: Vec<Strin
         ..Default::default()
     };
     let j_message: Json<Message> = utils::message_to_json(&message);
+    monero::close_wallet(&orid, &wallet_password).await;
     create(j_message, jwp, MessageType::Multisig).await;
 }
 
@@ -516,6 +522,8 @@ pub async fn send_exchange_info(orid: &String, contact: &String, info: Vec<Strin
 /// `export_multisig_info` method.
 pub async fn send_export_info(orid: &String, contact: &String) {
     let s = db::Interface::open();
+    let wallet_password = utils::empty_string();
+    monero::open_wallet(&orid, &wallet_password).await;
     let exchange_info = monero::export_multisig_info().await;
     let k = format!("{}-{}", "fts-jwp", contact);
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
@@ -527,6 +535,7 @@ pub async fn send_export_info(orid: &String, contact: &String) {
         ..Default::default()
     };
     let j_message: Json<Message> = utils::message_to_json(&message);
+    monero::close_wallet(&orid, &wallet_password).await;
     create(j_message, jwp, MessageType::Multisig).await;
 }
 

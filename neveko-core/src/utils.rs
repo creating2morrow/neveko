@@ -279,14 +279,14 @@ fn create_wallet_dir() {
 /// Generate application wallet at startup if none exist
 async fn gen_app_wallet(password: &String) {
     info!("fetching application wallet");
-    let filename = "neveko";
-    let mut m_wallet = monero::open_wallet(String::from(filename), password).await;
+    let filename = String::from(crate::APP_NAME);
+    let mut m_wallet = monero::open_wallet(&filename, password).await;
     if !m_wallet {
-        m_wallet = monero::create_wallet(String::from(filename), password).await;
+        m_wallet = monero::create_wallet(&filename, password).await;
         if !m_wallet {
             error!("failed to create wallet")
         } else {
-            m_wallet = monero::open_wallet(String::from(filename), password).await;
+            m_wallet = monero::open_wallet(&filename, password).await;
             if m_wallet {
                 let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
                 info!("app wallet address: {}", m_address.result.address)
@@ -638,7 +638,13 @@ pub async fn estimate_fee() -> u128 {
 ///
 /// determine whether or not a transfer for a given invoice is possible.
 pub async fn can_transfer(invoice: u128) -> bool {
+    let wallet_name = String::from(crate::APP_NAME);
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD)
+        .unwrap_or(String::from("password"));
+    monero::open_wallet(&wallet_name, &wallet_password).await;
     let balance = monero::get_balance().await;
+    monero::close_wallet(&wallet_name, &wallet_password).await;
     let fee = estimate_fee().await;
     debug!("fee estimated to: {}", fee);
     debug!("balance: {}", balance.result.unlocked_balance);

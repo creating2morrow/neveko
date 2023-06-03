@@ -12,6 +12,7 @@ pub mod reqres;     // http request/responses
 pub mod user;       // misc.
 pub mod utils;      // user rep/service layer
 
+pub const APP_NAME: &str = "neveko";
 pub const NEVEKO_JWP_SECRET_KEY: &str = "NEVEKO_JWP_SECRET_KEY";
 pub const NEVEKO_JWT_SECRET_KEY: &str = "NEVEKO_JWT_SECRET_KEY";
 

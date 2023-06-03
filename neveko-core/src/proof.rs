@@ -56,7 +56,12 @@ impl Default for TxProof {
 pub async fn create_invoice() -> reqres::Invoice {
     info!("creating invoice");
     // create a new subaddress
+    let wallet_name = String::from(crate::APP_NAME);
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    monero::open_wallet(&wallet_name, &wallet_password).await;
     let c_address = monero::create_address().await;
+    monero::close_wallet(&wallet_name, &wallet_password).await;
     let address = c_address.result.address;
     let pay_threshold = utils::get_payment_threshold();
     let conf_threshold = utils::get_conf_threshold();
@@ -251,6 +256,10 @@ impl<'r> FromRequest<'r> for PaymentProof {
 //            jwp creation, however, will always require blockchain validation?
 //            future validations not so much
 async fn validate_proof(txp: &TxProof) -> TxProof {
+    let wallet_name = String::from(crate::APP_NAME);
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    monero::open_wallet(&wallet_name, &wallet_password).await;
     // verify unlock time isn't something funky (e.g. > 20)
     let tx: reqres::XmrRpcGetTxByIdResponse = monero::get_transfer_by_txid(&txp.hash).await;
     let unlock_time = tx.result.transfer.unlock_time;
@@ -271,6 +280,7 @@ async fn validate_proof(txp: &TxProof) -> TxProof {
             signature: String::from(&txp.signature),
         };
     }
+    monero::close_wallet(&wallet_name, &wallet_password).await;
     Default::default()
 }
 
@@ -280,7 +290,12 @@ async fn validate_proof(txp: &TxProof) -> TxProof {
 ///
 /// for faster lookups (check minor > 0)
 async fn validate_subaddress(subaddress: &String) -> bool {
+    let wallet_name = String::from(crate::APP_NAME);
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    monero::open_wallet(&wallet_name, &wallet_password).await;
     let m_address = monero::get_address().await;
+    monero::close_wallet(&wallet_name, &wallet_password).await;
     let all_address = m_address.result.addresses;
     let mut address_list: Vec<String> = Vec::new();
     for s_address in all_address {

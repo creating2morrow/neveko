@@ -7,6 +7,8 @@ use std::sync::mpsc::{
     Sender,
 };
 
+// TODO(c2m): gui marketplace integration
+
 // ----------------------------------------------------------------------------
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

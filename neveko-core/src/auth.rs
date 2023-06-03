@@ -88,11 +88,16 @@ fn update_expiration(f_auth: &Authorization, address: &String) -> Authorization 
 
 /// Performs the signature verfication against stored auth
 pub async fn verify_login(aid: String, uid: String, signature: String) -> Authorization {
+    let wallet_name = String::from(crate::APP_NAME);
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    monero::open_wallet(&wallet_name, &wallet_password).await;
     let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
     let address = m_address.result.address;
     let f_auth: Authorization = find(&aid);
     if f_auth.xmr_address == utils::empty_string() {
         error!("auth not found");
+        monero::close_wallet(&wallet_name, &wallet_password).await;
         return create(&address);
     }
     let data: String = String::from(&f_auth.rnd);
@@ -100,6 +105,7 @@ pub async fn verify_login(aid: String, uid: String, signature: String) -> Author
         monero::verify(String::from(&address), data, String::from(&signature)).await;
     if sig_address == utils::ApplicationErrors::LoginError.value() {
         error!("signature validation failed");
+        monero::close_wallet(&wallet_name, &wallet_password).await;
         return f_auth;
     }
     let f_user: User = user::find(&uid);
@@ -116,16 +122,20 @@ pub async fn verify_login(aid: String, uid: String, signature: String) -> Author
             &u_auth.aid,
             &Authorization::to_db(&u_auth),
         );
+        monero::close_wallet(&wallet_name, &wallet_password).await;
         return u_auth;
     } else if f_user.xmr_address != utils::empty_string() {
         info!("returning user");
         let m_access = verify_access(&address, &signature).await;
         if !m_access {
+            monero::close_wallet(&wallet_name, &wallet_password).await;
             return Default::default();
         }
+        monero::close_wallet(&wallet_name, &wallet_password).await;
         return f_auth;
     } else {
         error!("error creating user");
+        monero::close_wallet(&wallet_name, &wallet_password).await;
         return Default::default();
     }
 }
@@ -198,7 +208,12 @@ impl<'r> FromRequest<'r> for BearerToken {
             return Outcome::Success(BearerToken(utils::empty_string()));
         }
         let token = request.headers().get_one("token");
+        let wallet_name = String::from(crate::APP_NAME);
+        let wallet_password =
+            std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+        monero::open_wallet(&wallet_name, &wallet_password).await;
         let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
+        monero::close_wallet(&wallet_name, &wallet_password).await;
         let address = m_address.result.address;
         debug!("{}", address);
         match token {

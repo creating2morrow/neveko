@@ -89,7 +89,12 @@ pub fn find_all() -> Vec<Contact> {
 
 async fn validate_contact(j: &Json<Contact>) -> bool {
     info!("validating contact: {}", &j.cid);
+    let wallet_name = String::from(crate::APP_NAME);
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    monero::open_wallet(&wallet_name, &wallet_password).await;
     let validate_address = monero::validate_address(&j.xmr_address).await;
+    monero::close_wallet(&wallet_name, &wallet_password).await;
     j.cid.len() < utils::string_limit()
         && j.i2p_address.len() < utils::string_limit()
         && j.i2p_address.contains(".b32.i2p")
@@ -101,7 +106,12 @@ async fn validate_contact(j: &Json<Contact>) -> bool {
 pub async fn share() -> Contact {
     let vendor_env = std::env::var(NEVEKO_VENDOR_ENABLED).unwrap_or(String::from("0"));
     let is_vendor = vendor_env == String::from("1");
+    let wallet_name = String::from(crate::APP_NAME);
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    monero::open_wallet(&wallet_name, &wallet_password).await;
     let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
+    monero::close_wallet(&wallet_name, &wallet_password).await;
     let gpg_key = gpg::export_key().unwrap_or(Vec::new());
     let i2p_address = i2p::get_destination();
     let xmr_address = m_address.result.address;
@@ -123,11 +133,11 @@ pub fn exists(from: &String) -> bool {
     return addresses.contains(from);
 }
 
-/// Sign for trusted neveko contacts
+/// Sign for trusted nevmes contacts
 ///
 /// UI/UX should have some prompt about the implication of trusting keys
 ///
-/// however that is beyond the scope of this app. neveko assumes contacts
+/// however that is beyond the scope of this app. nevmes assumes contacts
 ///
 /// using the app already have some level of knowledge about each other.
 ///
