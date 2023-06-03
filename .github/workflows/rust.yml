@@ -25,4 +25,4 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Run tests
-      run: cd nevmes-core && RUST_TEST_THREADS=1 cargo test --verbose
+      run: cd neveko-core && RUST_TEST_THREADS=1 cargo test --verbose

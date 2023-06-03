@@ -1,18 +1,19 @@
-# NEVMES
+# NEVEKO
 
-NEVidebla-MESago (invisible message)
+NEVidebla-EKOnomia (invisible economy)
 
-[![cargo-build](https://github.com/creating2morrow/nevmes/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/creating2morrow/nevmes/actions/workflows/rust.yml)
-[![cargo-audit](https://github.com/creating2morrow/nevmes/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/creating2morrow/nevmes/actions/workflows/audit.yml)
+[![cargo-build](https://github.com/creating2morrow/neveko/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/creating2morrow/neveko/actions/workflows/rust.yml)
+[![cargo-audit](https://github.com/creating2morrow/neveko/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/creating2morrow/neveko/actions/workflows/audit.yml)
 
-### gpg and i2p made simple for end-to-end encrypted, secure comms
+### gpg and i2p made simple for end-to-end encrypted, secure marketplace, messaging and more
 
 ## About
 
 * send messages over the invisible internet
 * vanity base32 addresses (advanced)
 * automated mandatory gpg key encryption
-* xmr payment integration
+* self-hosted i2p marketplace
+* xmr multisig / payment integration
 
 ## Dev
 
@@ -20,14 +21,14 @@ NEVidebla-MESago (invisible message)
 * install dependencies
     * ubuntu example: `sudo apt update -y && sudo apt upgrade -y`
     * `sudo apt install -y libssl-dev build-essential libgpgme-dev`
-* `git clone https://github.com/creating2morrow/nevmes`
-* `cd nevmes && ./scripts/build_all_and_run.sh "-- -h"`
+* `git clone https://github.com/creating2morrow/neveko`
+* `cd neveko && ./scripts/build_all_and_run.sh "-- -h"`
 * gui built with rust [egui](https://docs.rs/egui/latest/egui/)
 
 ## Installation Mananger
 
 * additional required software can be downloaded from the gui home or `Binaries` links below
-* hashes are in core [lib.rs](./nevmes-core/src/lib.rs)
+* hashes are in core [lib.rs](./neveko-core/src/lib.rs)
 * download i2p-zero, put the path in the connection manager or cli `--i2p-zero-dir` flag
 * download monero, update connection manager or cli
   * `--monero-blockchain-dir`, where to put lmdb for monero (e.g. path/to/ssd)
@@ -72,19 +73,19 @@ NEVidebla-MESago (invisible message)
 
 ## Binaries
 
-* nevmes-auth - `internal` auth server
-* nevmes-contact - `internal` add contacts server
-* nevmes-gui - primary user interface
-* nevmes-market - `internal` marketplace admin server
-* nevmes-message - `internal` message tx/read etc. server
-* nevmes - `external` primary server for contact share, payment, market, message rx etc.
+* neveko-auth - `internal` auth server
+* neveko-contact - `internal` add contacts server
+* neveko-gui - primary user interface
+* neveko-market - `internal` marketplace admin server
+* neveko-message - `internal` message tx/read etc. server
+* neveko - `external` primary server for contact share, payment, market, message rx etc.
 * [monerod](https://www.getmonero.org/downloads/#cli) - (not included) monero-wallet-rpc needs this
     * can be overriden with remote node
     * use the `--remote-node` flag
 * [monero-wallet-rpc](https://www.getmonero.org/downloads/#cli) - (not included) interface for xmr wallet ops
-* [i2p-zero](https://github.com/creating2morrow/i2p-zero/releases/tag/v1.21-nevmes) - (not included) tunnel creation and http proxy
+* [i2p-zero](https://github.com/creating2morrow/i2p-zero/releases/tag/v1.21-neveko) - (not included) tunnel creation and http proxy
 
-most of the complex logic stays in nevmes-core, exported from [lib.rs](./nevmes-core/src/lib.rs)
+most of the complex logic stays in neveko-core, exported from [lib.rs](./neveko-core/src/lib.rs)
 
 ## Manual
 

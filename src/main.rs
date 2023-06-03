@@ -6,8 +6,8 @@ use rocket::{
     serde::json::Json,
 };
 
-use nevmes::*;
-use nevmes_core::*;
+use neveko::*;
+use neveko_core::*;
 
 #[catch(402)]
 fn payment_required() -> Custom<Json<reqres::ErrorResponse>> {

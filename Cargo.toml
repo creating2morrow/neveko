@@ -1,5 +1,5 @@
 [package]
-name = "nevmes"
+name = "neveko"
 version = "0.5.0-alpha"
 edition = "2021"
 
@@ -7,10 +7,10 @@ edition = "2021"
 
 [dependencies]
 env_logger = "0.10.0"
-nevmes_auth    =   { path = "./nevmes-auth" }
-nevmes_contact =   { path = "./nevmes-contact" }
-nevmes_core    =   { path = "./nevmes-core" }
-nevmes_gui     =   { path = "./nevmes-gui" }
-nevmes_market  =   { path = "./nevmes-market" }
-nevmes_message =   { path = "./nevmes-message" }
+neveko_auth    =   { path = "./neveko-auth" }
+neveko_contact =   { path = "./neveko-contact" }
+neveko_core    =   { path = "./neveko-core" }
+neveko_gui     =   { path = "./neveko-gui" }
+neveko_market  =   { path = "./neveko-market" }
+neveko_message =   { path = "./neveko-message" }
 rocket = { version = "0.5.0-rc.2", features = ["json"] }

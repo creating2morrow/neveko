@@ -23,5 +23,5 @@ jobs:
       - run: ./scripts/build_release.sh ${{ steps.extract_branch.outputs.branch }}
       - uses: actions/upload-artifact@v3
         with:
-          name: nevmes-x86_64-linux-gnu-${{ steps.extract_branch.outputs.branch }}
-          path: nevmes-x86_64-linux-gnu-${{ steps.extract_branch.outputs.branch }}.tar.bz2
+          name: neveko-x86_64-linux-gnu-${{ steps.extract_branch.outputs.branch }}
+          path: neveko-x86_64-linux-gnu-${{ steps.extract_branch.outputs.branch }}.tar.bz2

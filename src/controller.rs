@@ -6,8 +6,8 @@ use rocket::{
     serde::json::Json,
 };
 
-use nevmes_core::*;
-use nevmes_market::*;
+use neveko_core::*;
+use neveko_market::*;
 
 // JSON APIs exposed over i2p
 
@@ -75,7 +75,7 @@ pub async fn gen_jwp(proof: Json<proof::TxProof>) -> Custom<Json<reqres::Jwp>> {
     Custom(Status::Ok, Json(reqres::Jwp { jwp }))
 }
 
-// NEVMES Market APIs
+// NEVEKO Market APIs
 //-----------------------------------------------
 
 /// Get all products

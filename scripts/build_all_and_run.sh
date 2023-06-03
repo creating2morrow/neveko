@@ -1,8 +1,8 @@
 #!/bin/bash
-cd nevmes-auth && cargo build
-cd ../nevmes-contact && cargo build
-cd ../nevmes-core && cargo build
-cd ../nevmes-gui && cargo build
-cd ../nevmes-market && cargo build
-cd ../nevmes-message && cargo build
+cd neveko-auth && cargo build
+cd ../neveko-contact && cargo build
+cd ../neveko-core && cargo build
+cd ../neveko-gui && cargo build
+cd ../neveko-market && cargo build
+cd ../neveko-message && cargo build
 cd ../ && RUST_LOG=debug cargo run $1

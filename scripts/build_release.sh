@@ -1,27 +1,27 @@
 #!/bin/bash
-# Build nevmes release
-# Run from the nevmes root
+# Build neveko release
+# Run from the neveko root
 # usage: ./scripts/build_release vX.X.X-ver
 
 # Linux x86_64 output directory
 
 LINUX_X86_64="x86_64-linux-gnu"
-RELEASE_NAME="nevmes-$LINUX_X86_64-$1"
+RELEASE_NAME="neveko-$LINUX_X86_64-$1"
 LINUX_OUTPUT_DIR=".build/release/$RELEASE_NAME"
 
 mkdir -p $LINUX_OUTPUT_DIR
 cargo build --release
-cp target/release/nevmes $LINUX_OUTPUT_DIR
-cd nevmes-gui && cargo build --release && cp target/release/nevmes_gui ../$LINUX_OUTPUT_DIR
+cp target/release/neveko $LINUX_OUTPUT_DIR
+cd neveko-gui && cargo build --release && cp target/release/neveko_gui ../$LINUX_OUTPUT_DIR
 cp -r assets/ ../$LINUX_OUTPUT_DIR
 cd ../
-cd nevmes-auth && cargo build --release && cp target/release/nevmes_auth ../$LINUX_OUTPUT_DIR
+cd neveko-auth && cargo build --release && cp target/release/neveko_auth ../$LINUX_OUTPUT_DIR
 cd ../
-cd nevmes-contact && cargo build --release && cp target/release/nevmes_contact ../$LINUX_OUTPUT_DIR
+cd neveko-contact && cargo build --release && cp target/release/neveko_contact ../$LINUX_OUTPUT_DIR
 cd ../
-cd nevmes-market && cargo build --release && cp target/release/nevmes_market ../$LINUX_OUTPUT_DIR
+cd neveko-market && cargo build --release && cp target/release/neveko_market ../$LINUX_OUTPUT_DIR
 cd ../
-cd nevmes-message && cargo build --release && cp target/release/nevmes_message ../$LINUX_OUTPUT_DIR
+cd neveko-message && cargo build --release && cp target/release/neveko_message ../$LINUX_OUTPUT_DIR
 cd ../
 # make the bzip for linux
 cd .build/release/ && tar -cjf $RELEASE_NAME.tar.bz2 $RELEASE_NAME/ && mv $RELEASE_NAME.tar.bz2 ../../
