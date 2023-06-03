@@ -29,8 +29,9 @@ impl Interface {
     pub fn open() -> Self {
         let release_env = utils::get_release_env();
         let file_path = format!(
-            "/home/{}/.neveko/",
-            std::env::var("USER").unwrap_or(String::from("user"))
+            "/home/{}/.{}/",
+            std::env::var("USER").unwrap_or(String::from("user")),
+            crate::APP_NAME,
         );
         let mut env_str: &str = "test-lmdb";
         if release_env != utils::ReleaseEnvironment::Development {
