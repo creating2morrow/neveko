@@ -16,6 +16,9 @@ use log::{
 use rocket::serde::json::Json;
 use std::error::Error;
 
+/// Environment variable for activating vendor functionality
+pub const NEVMES_VENDOR_ENABLED: &str = "NEVMES_VENDOR_ENABLED";
+
 /// Create a new contact
 pub async fn create(c: &Json<Contact>) -> Contact {
     let f_cid: String = format!("c{}", utils::generate_rnd());
@@ -24,6 +27,7 @@ pub async fn create(c: &Json<Contact>) -> Contact {
         cid: String::from(&f_cid),
         gpg_key: c.gpg_key.iter().cloned().collect(),
         i2p_address: String::from(&c.i2p_address),
+        is_vendor: false,
         xmr_address: String::from(&c.xmr_address),
     };
     let is_valid = validate_contact(c).await;
@@ -95,6 +99,8 @@ async fn validate_contact(j: &Json<Contact>) -> bool {
 
 /// Send our information
 pub async fn share() -> Contact {
+    let vendor_env = std::env::var(NEVMES_VENDOR_ENABLED).unwrap_or(String::from("0"));
+    let is_vendor = vendor_env == String::from("1");
     let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
     let gpg_key = gpg::export_key().unwrap_or(Vec::new());
     let i2p_address = i2p::get_destination();
@@ -103,6 +109,7 @@ pub async fn share() -> Contact {
         cid: utils::empty_string(),
         gpg_key,
         i2p_address,
+        is_vendor,
         xmr_address,
     }
 }

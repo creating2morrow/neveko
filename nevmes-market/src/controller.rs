@@ -11,25 +11,32 @@ use nevmes_core::*;
 
 use crate::{
     dispute,
+    order,
     product,
 };
 
 // JSON APIs
 
-/// Create a product by passing vendor vid
+/// Create a product by passings json product
 #[post("/create", data = "<req_product>")]
 pub async fn create_product(
     req_product: Json<models::Product>,
     _token: auth::BearerToken,
 ) -> Custom<Json<models::Product>> {
     let m_product: models::Product = product::create(req_product);
+    Custom(Status::Created, Json(m_product))
+}
+
+/// Get a product by passing id
+#[post("/<pid>")]
+pub async fn get_product(pid: String, _token: auth::BearerToken) -> Custom<Json<models::Product>> {
+    let m_product: models::Product = product::find(&pid);
     Custom(Status::Ok, Json(m_product))
 }
 
 /// Update product information
-#[patch("/<_address>/update", data = "<product>")]
+#[patch("/update", data = "<product>")]
 pub async fn update_product(
-    _address: String,
     product: Json<models::Product>,
     _token: auth::BearerToken,
 ) -> Custom<Json<models::Product>> {
@@ -37,51 +44,36 @@ pub async fn update_product(
     Custom(Status::Ok, Json(m_product))
 }
 
-// /// Initialize order
-// #[get("/<address>/create/<pid>")]
-// pub async fn initialize_order(
-//     address: String,
-//     _token: auth::BearerToken,
-//     pid: String,
-// ) -> Custom<Json<reqres::GetOrderResponse>> {
-//     // get the cid from the address after verification
-//     let m_customer = customer::find(address).await;
-//     let temp_pid = String::from(&pid);
-//     let m_order: models::Order = order::create(m_customer.cid, temp_pid).await;
-//     Custom(
-//         Status::Ok,
-//         Json(reqres::GetOrderResponse::build(pid, m_order)),
-//     )
-// }
+/// Return all products
+#[patch("/")]
+pub async fn get_products(_token: auth::BearerToken) -> Custom<Json<Vec<models::Product>>> {
+    let m_products: Vec<models::Product> = product::find_all();
+    Custom(Status::Ok, Json(m_products))
+}
 
-// /// Update order information from vendor
-// #[patch("/update/<pid>/<oid>/<data>/vendor")]
-// pub async fn update_order(
-//     _address: String,
-//     oid: String,
-//     pid: String,
-//     _token: auth::BearerToken,
-//     data: String,
-// ) -> Custom<Json<reqres::GetOrderResponse>> {
-//     let temp_pid: String = String::from(&pid);
-//     let m_order: models::Order = order::modify(oid, pid, data, update_type).await;
-//     Custom(
-//         Status::Ok,
-//         Json(reqres::GetOrderResponse::build(temp_pid, m_order)),
-//     )
-// }
+/// Get a order by passing id
+#[post("/<orid>")]
+pub async fn get_order(orid: String, _token: auth::BearerToken) -> Custom<Json<models::Order>> {
+    let m_order: models::Order = order::find(&orid);
+    Custom(Status::Ok, Json(m_order))
+}
 
-// /// Get all orders
-// ///  by passing auth
-// #[get("/<address>/<corv>")]
-// pub async fn get_orders(
-//     address: String,
-//     corv: String,
-//     _token: auth::BearerToken,
-// ) -> Custom<Json<reqres::GetOrdersResponse>> {
-//     let m_orders: Vec<models::Order> = order::find_all(address, corv).await;
-//     Custom(Status::Ok, Json(reqres::GetOrdersResponse::build(m_orders)))
-// }
+/// Get a order by passing id
+#[post("/")]
+pub async fn get_orders(_token: auth::BearerToken) -> Custom<Json<Vec<models::Order>>> {
+    let m_orders: Vec<models::Order> = order::find_all();
+    Custom(Status::Ok, Json(m_orders))
+}
+
+/// Update order information
+#[patch("/update", data = "<order>")]
+pub async fn update_order(
+    order: Json<models::Order>,
+    _token: auth::BearerToken,
+) -> Custom<Json<models::Order>> {
+    let m_order: models::Order = order::modify(order);
+    Custom(Status::Ok, Json(m_order))
+}
 
 /// Create a dispute
 #[post("/create", data = "<dispute>")]

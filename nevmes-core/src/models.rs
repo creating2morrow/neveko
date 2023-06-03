@@ -1,5 +1,6 @@
 use crate::utils;
 use rocket::serde::{
+    json::Json,
     Deserialize,
     Serialize,
 };
@@ -88,6 +89,7 @@ impl Authorization {
 pub struct Contact {
     pub cid: String,
     pub i2p_address: String,
+    pub is_vendor: bool,
     pub xmr_address: String,
     pub gpg_key: Vec<u8>,
 }
@@ -98,6 +100,7 @@ impl Default for Contact {
             cid: utils::empty_string(),
             gpg_key: Vec::new(),
             i2p_address: utils::empty_string(),
+            is_vendor: false,
             xmr_address: utils::empty_string(),
         }
     }
@@ -106,18 +109,26 @@ impl Default for Contact {
 impl Contact {
     pub fn to_db(c: &Contact) -> String {
         let gpg = hex::encode(&c.gpg_key);
-        format!("{}!{}!{}", gpg, c.i2p_address, c.xmr_address)
+        format!(
+            "{}!{}!{}!{}",
+            gpg, c.i2p_address, c.is_vendor, c.xmr_address
+        )
     }
     pub fn from_db(k: String, v: String) -> Contact {
         let values = v.split("!");
         let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
         let gpg_key = hex::decode(v.remove(0)).unwrap_or(Vec::new());
         let i2p_address = v.remove(0);
+        let is_vendor = match v.remove(0).parse::<bool>() {
+            Ok(n) => n,
+            Err(_e) => false,
+        };
         let xmr_address = v.remove(0);
         Contact {
             cid: k,
             gpg_key,
             i2p_address,
+            is_vendor,
             xmr_address,
         }
     }
@@ -279,23 +290,15 @@ impl Product {
             qty,
         }
     }
-    pub fn update(
-        p: Product,
-        description: String,
-        image: Vec<u8>,
-        in_stock: bool,
-        name: String,
-        price: i64,
-        qty: i64,
-    ) -> Product {
+    pub fn update(p: Product, jp: &Json<Product>) -> Product {
         Product {
             pid: p.pid,
-            description,
-            image,
-            in_stock,
-            name,
-            price,
-            qty,
+            description: String::from(&jp.description),
+            image: jp.image.iter().cloned().collect(),
+            in_stock: jp.in_stock,
+            name: String::from(&jp.name),
+            price: jp.price,
+            qty: jp.qty,
         }
     }
 }
@@ -485,7 +488,7 @@ impl Order {
             xmr_address,
         }
     }
-    pub fn update(orid: String, o: Order) -> Order {
+    pub fn update(orid: String, o: &Json<Order>) -> Order {
         Order {
             orid,
             cid: String::from(&o.cid),

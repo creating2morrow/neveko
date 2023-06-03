@@ -407,6 +407,7 @@ impl eframe::App for AddressBookApp {
             let mut is_added = self.added;
             let is_loading = self.is_loading;
             let i2p_address = self.s_contact.i2p_address.clone();
+            let is_vendor = self.s_contact.is_vendor;
             let xmr_address = self.s_contact.xmr_address.clone();
             let gpg_key = self.s_contact.gpg_key.iter().cloned().collect();
 
@@ -453,6 +454,7 @@ impl eframe::App for AddressBookApp {
                                 let c_contact: models::Contact = models::Contact {
                                     cid: self.s_contact.cid.clone(),
                                     i2p_address,
+                                    is_vendor,
                                     xmr_address,
                                     gpg_key: self.s_contact.gpg_key.iter().cloned().collect(),
                                 };

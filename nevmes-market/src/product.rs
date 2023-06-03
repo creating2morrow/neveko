@@ -81,15 +81,7 @@ pub fn modify(p: Json<Product>) -> Product {
         error!("product not found");
         return Default::default();
     }
-    let u_prod = Product::update(
-        f_prod,
-        String::from(&p.description),
-        p.image.iter().cloned().collect(),
-        p.in_stock,
-        String::from(&p.description),
-        p.price,
-        p.qty,
-    );
+    let u_prod = Product::update(f_prod, &p);
     let s = db::Interface::open();
     db::Interface::delete(&s.env, &s.handle, &u_prod.pid);
     db::Interface::write(&s.env, &s.handle, &u_prod.pid, &Product::to_db(&u_prod));

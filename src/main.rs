@@ -55,10 +55,16 @@ async fn rocket() -> _ {
         .mount("/multisig/info", routes![controller::get_multisig_info])
         .mount("/invoice", routes![controller::gen_invoice])
         .mount("/message/rx", routes![controller::rx_message])
-        .mount("/message/rx/multisig", routes![controller::rx_multisig_message])
+        .mount(
+            "/message/rx/multisig",
+            routes![controller::rx_multisig_message],
+        )
         .mount("/prove", routes![controller::gen_jwp])
         .mount("/share", routes![controller::share_contact_info])
         .mount("/i2p", routes![controller::get_i2p_status])
         .mount("/xmr/rpc", routes![controller::get_version])
-        .mount("/market", routes![controller::get_products])
+        .mount(
+            "/market",
+            routes![controller::create_order, controller::get_products],
+        )
 }

@@ -208,6 +208,7 @@ pub fn contact_to_json(c: &models::Contact) -> Json<models::Contact> {
     let r_contact: models::Contact = models::Contact {
         cid: String::from(&c.cid),
         i2p_address: String::from(&c.i2p_address),
+        is_vendor: c.is_vendor,
         xmr_address: String::from(&c.xmr_address),
         gpg_key: c.gpg_key.iter().cloned().collect(),
     };
