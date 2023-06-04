@@ -244,6 +244,10 @@ pub const fn message_limit() -> usize {
     9999
 }
 
+pub const fn image_limit() -> usize {
+    2048
+}
+
 /// Generate application gpg keys at startup if none exist
 async fn gen_app_gpg() {
     let mut gpg_key = gpg::find_key().unwrap_or(utils::empty_string());

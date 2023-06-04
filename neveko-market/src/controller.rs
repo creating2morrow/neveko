@@ -28,7 +28,7 @@ pub async fn create_product(
 }
 
 /// Get a product by passing id
-#[post("/<pid>")]
+#[get("/<pid>")]
 pub async fn get_product(pid: String, _token: auth::BearerToken) -> Custom<Json<models::Product>> {
     let m_product: models::Product = product::find(&pid);
     Custom(Status::Ok, Json(m_product))
@@ -45,21 +45,21 @@ pub async fn update_product(
 }
 
 /// Return all products
-#[patch("/")]
+#[get("/")]
 pub async fn get_products(_token: auth::BearerToken) -> Custom<Json<Vec<models::Product>>> {
     let m_products: Vec<models::Product> = product::find_all();
     Custom(Status::Ok, Json(m_products))
 }
 
 /// Get a order by passing id
-#[post("/<orid>")]
+#[get("/<orid>")]
 pub async fn get_order(orid: String, _token: auth::BearerToken) -> Custom<Json<models::Order>> {
     let m_order: models::Order = order::find(&orid);
     Custom(Status::Ok, Json(m_order))
 }
 
 /// Get a order by passing id
-#[post("/")]
+#[get("/")]
 pub async fn get_orders(_token: auth::BearerToken) -> Custom<Json<Vec<models::Order>>> {
     let m_orders: Vec<models::Order> = order::find_all();
     Custom(Status::Ok, Json(m_orders))

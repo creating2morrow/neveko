@@ -14,6 +14,10 @@ use rocket::serde::json::Json;
 /// Create a new product
 pub fn create(d: Json<Product>) -> Product {
     let pid: String = format!("product{}", utils::generate_rnd());
+    if !validate_product(&d) {
+        error!("invalid product");
+        return Default::default()
+    }
     let new_product = Product {
         pid: String::from(&pid),
         description: String::from(&d.description),
@@ -65,8 +69,10 @@ pub fn find_all() -> Vec<Product> {
     let i_v: Vec<String> = i_v_pid.map(|s| String::from(s)).collect();
     let mut products: Vec<Product> = Vec::new();
     for p in i_v {
-        let product: Product = find(&p);
+        let mut product: Product = find(&p);
         if product.pid != utils::empty_string() {
+            // don't return images
+            product.image = Vec::new();
             products.push(product);
         }
     }
@@ -86,4 +92,13 @@ pub fn modify(p: Json<Product>) -> Product {
     db::Interface::delete(&s.env, &s.handle, &u_prod.pid);
     db::Interface::write(&s.env, &s.handle, &u_prod.pid, &Product::to_db(&u_prod));
     return u_prod;
+}
+
+/// check product field lengths to prevent db spam
+fn validate_product(p: &Json<Product>) -> bool {
+    info!("validating product: {}", &p.pid);
+    p.pid.len() < utils::string_limit()
+        && p.description.len() < utils::string_limit()
+        && p.name.len() < utils::string_limit()
+        && p.image.len() < utils::image_limit()
 }
