@@ -3,7 +3,7 @@ use log::{
     error,
     info,
 };
-use neveko_core::{
+use crate::{
     db,
     models::*,
     monero,
@@ -33,9 +33,9 @@ impl StatusType {
 /// Create a intial order
 pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     info!("creating order");
-    let wallet_name = String::from(neveko_core::APP_NAME);
+    let wallet_name = String::from(crate::APP_NAME);
     let wallet_password =
-        std::env::var(neveko_core::MONERO_WALLET_PASSWORD)
+        std::env::var(crate::MONERO_WALLET_PASSWORD)
         .unwrap_or(String::from("password"));
     monero::close_wallet(&wallet_name, &wallet_password).await;
     let ts = chrono::offset::Utc::now().timestamp();

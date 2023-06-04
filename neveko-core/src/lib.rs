@@ -1,12 +1,15 @@
 pub mod args;       // command line arguments
 pub mod auth;       // internal auth repo/service layer
 pub mod contact;    // contact repo/service layer
+pub mod dispute;    // Dispute repo/service layer
 pub mod db;         // lmdb interface
 pub mod gpg;        // gpgme interface
 pub mod i2p;        // i2p repo/service layer
 pub mod message;    // message repo/service layer
 pub mod models;     // db structs
 pub mod monero;     // monero-wallet-rpc interface
+pub mod order;      // Order repo/service layer
+pub mod product;    // Product repo/service layer
 pub mod proof;      // external auth/payment proof module
 pub mod reqres;     // http request/responses
 pub mod user;       // misc.

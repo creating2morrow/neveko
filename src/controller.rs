@@ -7,7 +7,6 @@ use rocket::{
 };
 
 use neveko_core::*;
-use neveko_market::*;
 
 // JSON APIs exposed over i2p
 
