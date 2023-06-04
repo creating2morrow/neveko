@@ -79,10 +79,24 @@ pub async fn create_dispute(
     Custom(Status::Ok, Json(m_dispute))
 }
 
-/// Create a dispute
+/// Fetch a dispute
 #[get("/<did>")]
 pub async fn get_dispute(_token: auth::BearerToken, did: String) -> Custom<Json<models::Dispute>> {
     let m_dispute: models::Dispute = dispute::find(&did);
     Custom(Status::Ok, Json(m_dispute))
+}
+
+/// Create a dispute
+#[post("/sign/submit", data = "<r_data>")]
+pub async fn sign_and_submit_multisig(
+    r_data: Json<reqres::SignAndSubmitRequest>,
+    _token: auth::BearerToken,
+) -> Custom<Json<reqres::SignAndSubmitRequest>> {
+    let result: reqres::XmrRpcSubmitMultisigResponse =
+        order::sign_and_submit_multisig(&r_data.orid, &r_data.txset).await;
+    if result.result.tx_hash_list.is_empty() {
+        return Custom(Status::BadRequest, Json(Default::default()));
+    }
+    Custom(Status::Ok, Json(Default::default()))
 }
 // END JSON APIs

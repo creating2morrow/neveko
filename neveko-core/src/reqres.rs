@@ -343,6 +343,12 @@ pub struct XmrRpcImportResult {
 
 #[derive(Deserialize, Debug)]
 pub struct XmrRpcSignMultisigResult {
+    pub tx_data_hex: String,
+    pub tx_hash_list: Vec<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcSubmitMultisigResult {
     pub tx_hash_list: Vec<String>,
 }
 
@@ -862,6 +868,22 @@ impl Default for XmrRpcSignMultisigResponse {
     fn default() -> Self {
         XmrRpcSignMultisigResponse {
             result: XmrRpcSignMultisigResult {
+                tx_data_hex: utils::empty_string(),
+                tx_hash_list: Vec::new(),
+            },
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcSubmitMultisigResponse {
+    pub result: XmrRpcSubmitMultisigResult,
+}
+
+impl Default for XmrRpcSubmitMultisigResponse {
+    fn default() -> Self {
+        XmrRpcSubmitMultisigResponse {
+            result: XmrRpcSubmitMultisigResult {
                 tx_hash_list: Vec::new(),
             },
         }
@@ -1120,6 +1142,23 @@ impl Default for MultisigInfoRequest {
             info: Vec::new(),
             msig_type: utils::empty_string(),
             orid: utils::empty_string(),
+        }
+    }
+}
+
+/// Request for signing and submitting the unsigned txset
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct SignAndSubmitRequest {
+    pub orid: String,
+    pub txset: String,
+}
+
+impl Default for SignAndSubmitRequest {
+    fn default() -> Self {
+        SignAndSubmitRequest {
+            orid: utils::empty_string(),
+            txset: utils::empty_string(),
         }
     }
 }

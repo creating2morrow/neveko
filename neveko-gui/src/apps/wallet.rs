@@ -141,8 +141,7 @@ fn send_address_req(tx: Sender<reqres::XmrRpcAddressResponse>, ctx: egui::Contex
     tokio::spawn(async move {
         let wallet_name = String::from(neveko_core::APP_NAME);
         let wallet_password =
-            std::env::var(neveko_core::MONERO_WALLET_PASSWORD)
-            .unwrap_or(String::from("password"));
+            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
         monero::open_wallet(&wallet_name, &wallet_password).await;
         let address: reqres::XmrRpcAddressResponse = monero::get_address().await;
         monero::close_wallet(&wallet_name, &wallet_password).await;
@@ -159,8 +158,7 @@ fn send_sweep_all_req(
     tokio::spawn(async move {
         let wallet_name = String::from(neveko_core::APP_NAME);
         let wallet_password =
-            std::env::var(neveko_core::MONERO_WALLET_PASSWORD)
-            .unwrap_or(String::from("password"));
+            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
         monero::open_wallet(&wallet_name, &wallet_password).await;
         let result: reqres::XmrRpcSweepAllResponse = monero::sweep_all(address).await;
         monero::close_wallet(&wallet_name, &wallet_password).await;

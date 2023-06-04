@@ -237,9 +237,11 @@ pub fn empty_string() -> String {
 pub const fn string_limit() -> usize {
     512
 }
+
 pub const fn gpg_key_limit() -> usize {
     4096
 }
+
 pub const fn message_limit() -> usize {
     9999
 }
@@ -644,8 +646,7 @@ pub async fn estimate_fee() -> u128 {
 pub async fn can_transfer(invoice: u128) -> bool {
     let wallet_name = String::from(crate::APP_NAME);
     let wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD)
-        .unwrap_or(String::from("password"));
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let balance = monero::get_balance().await;
     monero::close_wallet(&wallet_name, &wallet_password).await;

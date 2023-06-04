@@ -1,12 +1,12 @@
-use log::{
-    debug,
-    error,
-    info,
-};
 use crate::{
     db,
     models::*,
     utils,
+};
+use log::{
+    debug,
+    error,
+    info,
 };
 use rocket::serde::json::Json;
 

@@ -692,8 +692,7 @@ fn send_payment_req(
         log::debug!("sending {} piconero(s) to: {}", &d.amount, &d.address);
         let wallet_name = String::from(neveko_core::APP_NAME);
         let wallet_password =
-            std::env::var(neveko_core::MONERO_WALLET_PASSWORD)
-            .unwrap_or(String::from("password"));
+            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
         monero::open_wallet(&wallet_name, &wallet_password).await;
         let transfer: reqres::XmrRpcTransferResponse = monero::transfer(d).await;
         // in order to keep the jwp creation process transparent to the user

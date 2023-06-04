@@ -1,13 +1,13 @@
 // Product repo/service layer
-use log::{
-    debug,
-    error,
-    info,
-};
 use crate::{
     db,
     models::*,
     utils,
+};
+use log::{
+    debug,
+    error,
+    info,
 };
 use rocket::serde::json::Json;
 
@@ -16,7 +16,7 @@ pub fn create(d: Json<Product>) -> Product {
     let pid: String = format!("product{}", utils::generate_rnd());
     if !validate_product(&d) {
         error!("invalid product");
-        return Default::default()
+        return Default::default();
     }
     let new_product = Product {
         pid: String::from(&pid),

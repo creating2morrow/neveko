@@ -35,12 +35,6 @@ struct MultisigMessageData {
     orid: String,
 }
 
-/*
-   TODOs(c2m): 
-     - API to valid payment and import multisig info
-     - API to sign and submit the signed tx set
- */ 
-
 /// Create a new message
 pub async fn create(m: Json<Message>, jwp: String, m_type: MessageType) -> Message {
     let rnd = utils::generate_rnd();

@@ -1,8 +1,3 @@
-use log::{
-    debug,
-    error,
-    info,
-};
 use crate::{
     db,
     models::*,
@@ -10,7 +5,20 @@ use crate::{
     reqres,
     utils,
 };
+use log::{
+    debug,
+    error,
+    info,
+};
 use rocket::serde::json::Json;
+
+
+/*
+  TODOs(c2m):
+    - API to valid payment and import multisig info
+    - update order status
+*/
+
 
 enum StatusType {
     _Delivered,
@@ -35,8 +43,7 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     info!("creating order");
     let wallet_name = String::from(crate::APP_NAME);
     let wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD)
-        .unwrap_or(String::from("password"));
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
     monero::close_wallet(&wallet_name, &wallet_password).await;
     let ts = chrono::offset::Utc::now().timestamp();
     let orid: String = format!("O{}", utils::generate_rnd());
@@ -143,4 +150,19 @@ pub fn modify(o: Json<Order>) -> Order {
     db::Interface::delete(&s.env, &s.handle, &u_order.pid);
     db::Interface::write(&s.env, &s.handle, &u_order.pid, &Order::to_db(&u_order));
     return u_order;
+}
+
+/// Sign and submit multisig
+pub async fn sign_and_submit_multisig(
+    orid: &String,
+    tx_data_hex: &String) -> reqres::XmrRpcSubmitMultisigResponse {
+    info!("signin and submitting multisig");
+    let r_sign: reqres::XmrRpcSignMultisigResponse = 
+        monero::sign_multisig(String::from(tx_data_hex)).await;
+    let r_submit: reqres::XmrRpcSubmitMultisigResponse =
+        monero::submit_multisig(r_sign.result.tx_data_hex).await;
+    if r_submit.result.tx_hash_list.len() == 0 {
+        error!("unable to submit payment for order: {}", orid);
+    }
+    r_submit
 }

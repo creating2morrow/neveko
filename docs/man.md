@@ -3,7 +3,7 @@
 ## Architecture
 
 * gui
-* three internal mircoservers (auth, contact and message)
+* four internal mircoservers (auth, contact, market and message)
 * core code module and lmdb
 * one external i2p hidden service
 * jwt for internal auth, jwp for external
@@ -62,3 +62,7 @@
 * If contacts don't come back online before JWP expiration the message must be drafted again
 * It is primarily meant for handling connectivity issues or the edge case where a contact is
   is online during the `check status` but goes offline while the message is being drafted
+
+## Market
+
+WIP

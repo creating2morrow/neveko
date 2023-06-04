@@ -40,6 +40,7 @@ enum RpcFields {
     Open,
     Prepare,
     SignMultisig,
+    SubmitMultisig,
     SweepAll,
     Transfer,
     ValidateAddress,
@@ -67,6 +68,7 @@ impl RpcFields {
             RpcFields::Open => String::from("open_wallet"),
             RpcFields::Prepare => String::from("prepare_multisig"),
             RpcFields::SignMultisig => String::from("sign_multisig"),
+            RpcFields::SubmitMultisig => String::from("submit_multisig"),
             RpcFields::SweepAll => String::from("sweep_all"),
             RpcFields::Transfer => String::from("transfer"),
             RpcFields::ValidateAddress => String::from("validate_address"),
@@ -678,6 +680,37 @@ pub async fn sign_multisig(tx_data_hex: String) -> reqres::XmrRpcSignMultisigRes
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcSignMultisigResponse>().await;
             debug!("{} response: {:?}", RpcFields::SignMultisig.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_) => Default::default(),
+    }
+}
+
+/// Performs the xmr rpc 'submit_multisig' method
+pub async fn submit_multisig(tx_data_hex: String) -> reqres::XmrRpcSubmitMultisigResponse {
+    info!("executing {}", RpcFields::SubmitMultisig.value());
+    let client = reqwest::Client::new();
+    let host = get_rpc_host();
+    let params = reqres::XmrRpcSignMultisigParams { tx_data_hex };
+    let req = reqres::XmrRpcSignMultisigRequest {
+        jsonrpc: RpcFields::JsonRpcVersion.value(),
+        id: RpcFields::Id.value(),
+        method: RpcFields::SubmitMultisig.value(),
+        params,
+    };
+    let login: RpcLogin = get_rpc_creds();
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrRpcSubmitMultisigResponse>().await;
+            debug!("{} response: {:?}", RpcFields::SubmitMultisig.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
