@@ -119,6 +119,7 @@ pub fn start_daemon() {
     let blockchain_dir = get_blockchain_dir();
     let bin_dir = get_monero_location();
     let release_env = utils::get_release_env();
+    let tx_proxy = utils::get_i2p_http_proxy();
     if release_env == utils::ReleaseEnvironment::Development {
         let args = ["--data-dir", &blockchain_dir, "--stagenet", "--detach"];
         let output = Command::new(format!("{}/monerod", bin_dir))
@@ -127,7 +128,7 @@ pub fn start_daemon() {
             .expect("monerod failed to start");
         debug!("{:?}", output.stdout);
     } else {
-        let args = ["--data-dir", &blockchain_dir, "--detach"];
+        let args = ["--data-dir", &blockchain_dir, "--detach", "--tx-proxy", &tx_proxy];
         let output = Command::new(format!("{}/monerod", bin_dir))
             .args(args)
             .spawn()
