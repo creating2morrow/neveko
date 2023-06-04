@@ -87,8 +87,13 @@ async fn find_tunnels() {
         debug!("creating http tunnel");
         create_http_proxy();
     }
-    if !has_tx_proxy_tunnel && !utils::is_using_remote_node() {
-        create_tx_proxy_tunnel();
+    let env = utils::get_release_env();
+    // only use tx proxy on mainnet
+    if env == utils::ReleaseEnvironment::Production {
+        if !has_tx_proxy_tunnel && !utils::is_using_remote_node() {
+            debug!("creating tx proxy tunnel");
+            create_tx_proxy_tunnel();
+        }
     }
 }
 
@@ -176,7 +181,7 @@ fn create_http_proxy() {
 /// This is the `dest` value of the app i2p tunnels
 ///
 /// in `tunnels-config.json`.
-/// 
+///
 /// `port` - the port of the tunnel (e.g. `utils::get_app_port()`)
 pub fn get_destination(port: Option<u16>) -> String {
     let file_path = format!(

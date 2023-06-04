@@ -98,7 +98,7 @@ pub async fn create_order(
     Custom(Status::Created, Json(m_order))
 }
 
-/// TODO: Customer order retreival. Must send `signature`
+/// TODO(c2m): Customer order retreival. Must send `signature`
 ///
 /// which is the order id signed by the wallet.
 ///
@@ -151,17 +151,14 @@ pub async fn rx_multisig_message(
 }
 
 /// Customer can request shipment after the wallet is funded
-/// 
+///
 /// with the amount of the order. The vendor will then request export
-/// 
+///
 /// multisig info, check balance and sanity check `unlock_time`.
 ///
 /// Protected: true
-#[post("/", data = "<message>")]
-pub async fn request_shipment(
-    _jwp: proof::PaymentProof,
-    message: Json<models::Message>,
-) -> Custom<Json<models::Message>> {
-    //validate_order_for_ship();
+#[post("/")]
+pub async fn request_shipment(_jwp: proof::PaymentProof) -> Custom<Json<models::Message>> {
+    order::validate_order_for_ship().await;
     Custom(Status::Ok, Json(Default::default()))
 }

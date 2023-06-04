@@ -153,9 +153,9 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
 /// decrypted for convenience sake. The client must determine which
 ///
 /// .b32.i2p address belongs to the vendor / mediator.
-/// 
+///
 /// The result should be a string that needs to be decomposed into a
-/// 
+///
 /// vector.
 /// ### Example
 ///

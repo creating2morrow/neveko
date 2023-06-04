@@ -23,8 +23,9 @@ async fn rocket() -> _ {
             "/order",
             routes![
                 controller::get_order,
-                controller::sign_and_submit_multisig, 
-                controller::update_order],
+                controller::sign_and_submit_multisig,
+                controller::update_order
+            ],
         )
         .mount("/orders", routes![controller::get_orders])
         .mount("/products", routes![controller::get_products])

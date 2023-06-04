@@ -1,8 +1,9 @@
 use crate::{
     args,
+    i2p,
     proof,
     reqres,
-    utils, i2p,
+    utils,
 };
 use clap::Parser;
 use diqwest::WithDigestAuth;
@@ -124,7 +125,7 @@ pub fn start_daemon() {
     let tx_proxy = format!("i2p,{}", utils::get_i2p_http_proxy());
     let port = get_daemon_port();
     let destination = i2p::get_destination(Some(port));
-    let anon_inbound = format!("{}:{},8", destination, port);
+    let anon_inbound = format!("{},127.0.0.1:{},8", destination, port);
     if release_env == utils::ReleaseEnvironment::Development {
         let args = ["--data-dir", &blockchain_dir, "--stagenet", "--detach"];
         let output = Command::new(format!("{}/monerod", bin_dir))
@@ -133,15 +134,16 @@ pub fn start_daemon() {
             .expect("monerod failed to start");
         debug!("{:?}", output.stdout);
     } else {
-        let args = ["
-            --data-dir", 
+        let args = [
+            "
+            --data-dir",
             &blockchain_dir,
             "--tx-proxy",
             &tx_proxy,
             "--anonymous-inbound",
             &anon_inbound,
             "--detach",
-            ];
+        ];
         let output = Command::new(format!("{}/monerod", bin_dir))
             .args(args)
             .spawn()
@@ -736,7 +738,9 @@ pub async fn submit_multisig(tx_data_hex: String) -> reqres::XmrRpcSubmitMultisi
         .await
     {
         Ok(response) => {
-            let res = response.json::<reqres::XmrRpcSubmitMultisigResponse>().await;
+            let res = response
+                .json::<reqres::XmrRpcSubmitMultisigResponse>()
+                .await;
             debug!("{} response: {:?}", RpcFields::SubmitMultisig.value(), res);
             match res {
                 Ok(res) => res,

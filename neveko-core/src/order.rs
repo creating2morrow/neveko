@@ -12,15 +12,12 @@ use log::{
 };
 use rocket::serde::json::Json;
 
-
 /*
   TODOs(c2m):
-    - API to validate payment and import multisig info
-    - API to upload gpg encrypted tracking number
-      release tracking (locker code?) when txset is released
-    - update order status
+    - API to validate payment and import multisig info, update to multisig complete
+    - API to upload gpg encrypted tracking number, update order to shipped
+      release tracking (locker code?) when txset is released, update to delivered
 */
-
 
 enum StatusType {
     _Delivered,
@@ -157,9 +154,10 @@ pub fn modify(o: Json<Order>) -> Order {
 /// Sign and submit multisig
 pub async fn sign_and_submit_multisig(
     orid: &String,
-    tx_data_hex: &String) -> reqres::XmrRpcSubmitMultisigResponse {
+    tx_data_hex: &String,
+) -> reqres::XmrRpcSubmitMultisigResponse {
     info!("signing and submitting multisig");
-    let r_sign: reqres::XmrRpcSignMultisigResponse = 
+    let r_sign: reqres::XmrRpcSignMultisigResponse =
         monero::sign_multisig(String::from(tx_data_hex)).await;
     let r_submit: reqres::XmrRpcSubmitMultisigResponse =
         monero::submit_multisig(r_sign.result.tx_data_hex).await;
@@ -167,4 +165,14 @@ pub async fn sign_and_submit_multisig(
         error!("unable to submit payment for order: {}", orid);
     }
     r_submit
+}
+
+pub async fn validate_order_for_ship() -> bool {
+    info!("validating order for shipment");
+    // import multisig info
+
+    // check balance and unlock_time
+
+    // update the order status to multisig complete
+    return false;
 }
