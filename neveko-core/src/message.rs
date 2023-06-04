@@ -22,6 +22,8 @@ pub const EXCHANGE_MSIG: &str = "exchange";
 pub const EXPORT_MSIG: &str = "export";
 pub const MAKE_MSIG: &str = "make";
 pub const PREPARE_MSIG: &str = "prepare";
+pub const SIGN_MSIG: &str = "sign";
+pub const VALID_MSIG_MSG_LENGTH: usize = 4;
 
 #[derive(PartialEq)]
 pub enum MessageType {
@@ -33,6 +35,16 @@ struct MultisigMessageData {
     info: String,
     sub_type: String,
     orid: String,
+}
+
+impl Default for MultisigMessageData {
+    fn default() -> Self {
+        MultisigMessageData {
+            info: utils::empty_string(),
+            sub_type: utils::empty_string(),
+            orid: utils::empty_string(),
+        }
+    }
 }
 
 /// Create a new message
@@ -50,7 +62,7 @@ pub async fn create(m: Json<Message>, jwp: String, m_type: MessageType) -> Messa
     let new_message = Message {
         mid: String::from(&f_mid),
         uid: String::from(&m.uid),
-        from: i2p::get_destination(),
+        from: i2p::get_destination(None),
         body: e_body,
         created,
         to: String::from(&m.to),
@@ -117,9 +129,14 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
     let decoded = String::from_utf8(bytes).unwrap_or(utils::empty_string());
     let values = decoded.split(":");
     let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    if v.len() != VALID_MSIG_MSG_LENGTH {
+        return Default::default();
+    }
     let sub_type: String = v.remove(0);
     let orid: String = v.remove(0);
-    let info: String = v.remove(0);
+    let customer_info: String = v.remove(0);
+    let mediator_info: String = v.remove(0);
+    let info = format!("{}:{}", customer_info, mediator_info);
     bytes = Vec::new();
     debug!("zero decryption bytes: {:?}", bytes);
     MultisigMessageData {
@@ -136,7 +153,10 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
 /// decrypted for convenience sake. The client must determine which
 ///
 /// .b32.i2p address belongs to the vendor / mediator.
-///
+/// 
+/// The result should be a string that needs to be decomposed into a
+/// 
+/// vector.
 /// ### Example
 ///
 /// ```rust
@@ -144,7 +164,9 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
 /// use neveko_core::db;
 /// let s = db::Interface::open();
 /// let key = "prepare-o123-test.b32.i2p";
-/// db::Interface::read(&s.env, &s.handle, &key);
+/// let info_str = db::Interface::read(&s.env, &s.handle, &key);
+/// let info_split = info_str.split(":");
+/// let mut v_info: Vec<String> = info_split.map(|s| String::from(s)).collect();
 /// ```
 pub async fn rx_multisig(m: Json<Message>) {
     // make sure the message isn't something strange
@@ -157,7 +179,7 @@ pub async fn rx_multisig(m: Json<Message>) {
     if !is_in_contact_list {
         return;
     }
-    let f_mid: String = format!("m{}", utils::generate_rnd());
+    let f_mid: String = format!("msig{}", utils::generate_rnd());
     let new_message = Message {
         mid: String::from(&f_mid),
         uid: String::from("rx"),
@@ -176,6 +198,7 @@ pub async fn rx_multisig(m: Json<Message>) {
         &data.sub_type, &data.orid
     );
     // lookup msig message data by {type}-{order id}-{contact .b32.i2p address}
+    // store info as {customer_info}:{mediator_info}
     let msig_key = format!("{}-{}-{}", &data.sub_type, &data.orid, &m.from);
     db::Interface::async_write(&s.env, &s.handle, &msig_key, &data.info).await;
 }
@@ -428,7 +451,7 @@ fn validate_message(j: &Json<Message>) -> bool {
     info!("validating message: {}", &j.mid);
     j.mid.len() < utils::string_limit()
         && j.body.len() < utils::message_limit()
-        && j.to == i2p::get_destination()
+        && j.to == i2p::get_destination(None)
         && j.uid.len() < utils::string_limit()
 }
 

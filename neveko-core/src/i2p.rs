@@ -1,5 +1,6 @@
 use crate::{
     args,
+    monero,
     utils,
 };
 use clap::Parser;
@@ -72,7 +73,9 @@ async fn find_tunnels() {
     debug!("i2p tunnels: {}", contents);
     let has_app_tunnel = contents.contains(&format!("{}", app_port));
     let proxy_port = get_i2p_proxy_port();
+    let tx_proxy_port = monero::get_daemon_port();
     let has_http_tunnel = contents.contains(&proxy_port);
+    let has_tx_proxy_tunnel = contents.contains(&format!("{}", &tx_proxy_port));
     if !has_app_tunnel || !has_http_tunnel {
         tokio::time::sleep(Duration::new(120, 0)).await;
     }
@@ -83,6 +86,9 @@ async fn find_tunnels() {
     if !has_http_tunnel {
         debug!("creating http tunnel");
         create_http_proxy();
+    }
+    if !has_tx_proxy_tunnel && !utils::is_using_remote_node() {
+        create_tx_proxy_tunnel();
     }
 }
 
@@ -129,6 +135,22 @@ fn create_tunnel() {
     debug!("{:?}", output.stdout);
 }
 
+/// Create an i2p tunnel for the monero tx proxy
+fn create_tx_proxy_tunnel() {
+    info!("creating monerod tx proxy tunnel");
+    let args = args::Args::parse();
+    let path = args.i2p_zero_dir;
+    let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
+        .args([
+            "server.create",
+            "127.0.0.1",
+            &format!("{}", monero::get_daemon_port()),
+        ])
+        .spawn()
+        .expect("i2p-zero failed to create a tunnel");
+    debug!("{:?}", output.stdout);
+}
+
 /// Extract i2p port from command line arg
 fn get_i2p_proxy_port() -> String {
     let proxy_host = utils::get_i2p_http_proxy();
@@ -151,10 +173,12 @@ fn create_http_proxy() {
     debug!("{:?}", output.stdout);
 }
 
-/// This is the `dest` value of the app i2p tunnel
+/// This is the `dest` value of the app i2p tunnels
 ///
 /// in `tunnels-config.json`.
-pub fn get_destination() -> String {
+/// 
+/// `port` - the port of the tunnel (e.g. `utils::get_app_port()`)
+pub fn get_destination(port: Option<u16>) -> String {
     let file_path = format!(
         "/home/{}/.i2p-zero/config/tunnels.json",
         env::var("USER").unwrap_or(String::from("user"))
@@ -170,7 +194,7 @@ pub fn get_destination() -> String {
         let mut destination: String = utils::empty_string();
         let tunnels: Vec<Tunnel> = j.tunnels;
         for tunnel in tunnels {
-            if tunnel.port == format!("{}", utils::get_app_port()) {
+            if tunnel.port == format!("{}", port.unwrap_or(utils::get_app_port())) {
                 destination = tunnel.dest.unwrap_or(utils::empty_string());
             }
         }

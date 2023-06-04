@@ -24,7 +24,7 @@ pub fn find_key() -> Result<String, Box<dyn Error>> {
     let mode = KeyListMode::LOCAL;
     let mut ctx = Context::from_protocol(proto)?;
     ctx.set_key_list_mode(mode)?;
-    let name = i2p::get_destination();
+    let name = i2p::get_destination(None);
     let mut keys = ctx.find_keys([&name])?;
     let mut k: String = utils::empty_string();
     for key in keys.by_ref().filter_map(|x| x.ok()) {
@@ -56,7 +56,7 @@ pub fn export_key() -> Result<Vec<u8>, Box<dyn Error>> {
     info!("exporting public key");
     let mut ctx = Context::from_protocol(Protocol::OpenPgp)?;
     ctx.set_armor(true);
-    let name = i2p::get_destination();
+    let name = i2p::get_destination(None);
     let keys = {
         let mut key_iter = ctx.find_keys([&name])?;
         let keys: Vec<_> = key_iter.by_ref().collect::<Result<_, _>>()?;
@@ -132,7 +132,7 @@ pub fn decrypt(mid: &String, body: &Vec<u8>) -> Result<Vec<u8>, Box<dyn Error>> 
 }
 
 pub fn write_gen_batch() -> Result<(), Box<dyn Error>> {
-    let name = i2p::get_destination();
+    let name = i2p::get_destination(None);
     let data = format!(
         "%no-protection
         Key-Type: RSA
@@ -168,7 +168,7 @@ pub fn sign_key(key: &str) -> Result<(), Box<dyn Error>> {
     let key_to_sign = k2s_ctx
         .get_key(k)
         .map_err(|e| format!("no key matched given key-id: {:?}", e))?;
-    let name = Some(i2p::get_destination());
+    let name = Some(i2p::get_destination(None));
     if let Some(app_key) = name {
         let key = k2s_ctx
             .get_secret_key(app_key)

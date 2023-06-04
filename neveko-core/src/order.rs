@@ -15,7 +15,9 @@ use rocket::serde::json::Json;
 
 /*
   TODOs(c2m):
-    - API to valid payment and import multisig info
+    - API to validate payment and import multisig info
+    - API to upload gpg encrypted tracking number
+      release tracking (locker code?) when txset is released
     - update order status
 */
 
@@ -156,12 +158,12 @@ pub fn modify(o: Json<Order>) -> Order {
 pub async fn sign_and_submit_multisig(
     orid: &String,
     tx_data_hex: &String) -> reqres::XmrRpcSubmitMultisigResponse {
-    info!("signin and submitting multisig");
+    info!("signing and submitting multisig");
     let r_sign: reqres::XmrRpcSignMultisigResponse = 
         monero::sign_multisig(String::from(tx_data_hex)).await;
     let r_submit: reqres::XmrRpcSubmitMultisigResponse =
         monero::submit_multisig(r_sign.result.tx_data_hex).await;
-    if r_submit.result.tx_hash_list.len() == 0 {
+    if r_submit.result.tx_hash_list.is_empty() {
         error!("unable to submit payment for order: {}", orid);
     }
     r_submit

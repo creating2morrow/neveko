@@ -781,7 +781,7 @@ fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: Stri
         mid: utils::empty_string(),
         uid: utils::empty_string(),
         created: 0,
-        from: i2p::get_destination(),
+        from: i2p::get_destination(None),
     };
     let j_message = utils::message_to_json(&m);
     tokio::spawn(async move {

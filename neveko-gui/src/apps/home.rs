@@ -297,7 +297,7 @@ impl eframe::App for HomeApp {
             ui.horizontal(|ui| {
                 self.logo_i2p.show(ui);
                 ui.horizontal(|ui| {
-                    let i2p_address = i2p::get_destination();
+                    let i2p_address = i2p::get_destination(None);
                     ui.label(format!("- status: {}\n- address: {}", str_i2p_status, i2p_address));
                 });
             });

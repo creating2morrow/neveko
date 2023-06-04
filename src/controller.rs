@@ -79,7 +79,7 @@ pub async fn gen_jwp(proof: Json<proof::TxProof>) -> Custom<Json<reqres::Jwp>> {
 
 /// Get all products
 ///
-/// Protected: false
+/// Protected: true
 #[get("/products")]
 pub async fn get_products(_jwp: proof::PaymentProof) -> Custom<Json<Vec<models::Product>>> {
     let m_products: Vec<models::Product> = product::find_all();
@@ -147,5 +147,21 @@ pub async fn rx_multisig_message(
     message: Json<models::Message>,
 ) -> Custom<Json<models::Message>> {
     message::rx_multisig(message).await;
+    Custom(Status::Ok, Json(Default::default()))
+}
+
+/// Customer can request shipment after the wallet is funded
+/// 
+/// with the amount of the order. The vendor will then request export
+/// 
+/// multisig info, check balance and sanity check `unlock_time`.
+///
+/// Protected: true
+#[post("/", data = "<message>")]
+pub async fn request_shipment(
+    _jwp: proof::PaymentProof,
+    message: Json<models::Message>,
+) -> Custom<Json<models::Message>> {
+    //validate_order_for_ship();
     Custom(Status::Ok, Json(Default::default()))
 }

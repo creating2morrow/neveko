@@ -113,7 +113,7 @@ pub async fn share() -> Contact {
     let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
     monero::close_wallet(&wallet_name, &wallet_password).await;
     let gpg_key = gpg::export_key().unwrap_or(Vec::new());
-    let i2p_address = i2p::get_destination();
+    let i2p_address = i2p::get_destination(None);
     let xmr_address = m_address.result.address;
     Contact {
         cid: utils::empty_string(),

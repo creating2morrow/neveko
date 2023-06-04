@@ -2,7 +2,7 @@ use crate::{
     args,
     proof,
     reqres,
-    utils,
+    utils, i2p,
 };
 use clap::Parser;
 use diqwest::WithDigestAuth;
@@ -111,6 +111,8 @@ impl LockTimeLimit {
     }
 }
 
+// TODO(c2m): make inbound connections for i2p tx proxy configurable
+
 /// Start monerod from the -`-monero-location` flag
 ///
 /// default: /home/$USER/monero-xxx-xxx
@@ -119,7 +121,10 @@ pub fn start_daemon() {
     let blockchain_dir = get_blockchain_dir();
     let bin_dir = get_monero_location();
     let release_env = utils::get_release_env();
-    let tx_proxy = utils::get_i2p_http_proxy();
+    let tx_proxy = format!("i2p,{}", utils::get_i2p_http_proxy());
+    let port = get_daemon_port();
+    let destination = i2p::get_destination(Some(port));
+    let anon_inbound = format!("{}:{},8", destination, port);
     if release_env == utils::ReleaseEnvironment::Development {
         let args = ["--data-dir", &blockchain_dir, "--stagenet", "--detach"];
         let output = Command::new(format!("{}/monerod", bin_dir))
@@ -128,7 +133,15 @@ pub fn start_daemon() {
             .expect("monerod failed to start");
         debug!("{:?}", output.stdout);
     } else {
-        let args = ["--data-dir", &blockchain_dir, "--detach", "--tx-proxy", &tx_proxy];
+        let args = ["
+            --data-dir", 
+            &blockchain_dir,
+            "--tx-proxy",
+            &tx_proxy,
+            "--anonymous-inbound",
+            &anon_inbound,
+            "--detach",
+            ];
         let output = Command::new(format!("{}/monerod", bin_dir))
             .args(args)
             .spawn()
@@ -198,6 +211,19 @@ fn get_rpc_port() -> String {
     let port = v.remove(2);
     debug!("monero-wallet-rpc port: {}", port);
     port
+}
+
+pub fn get_daemon_port() -> u16 {
+    let args = args::Args::parse();
+    let rpc = String::from(args.monero_rpc_daemon);
+    let values = rpc.split(":");
+    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    let port = v.remove(2);
+    debug!("monerod port: {}", port);
+    match port.parse::<u16>() {
+        Ok(p) => p,
+        Err(_) => 0,
+    }
 }
 
 /// Get monero rpc host from command line argument
