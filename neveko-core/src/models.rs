@@ -236,8 +236,8 @@ pub struct Product {
     pub image: Vec<u8>,
     pub in_stock: bool,
     pub name: String,
-    pub price: u64,
-    pub qty: u64,
+    pub price: u128,
+    pub qty: u128,
 }
 
 impl Default for Product {
@@ -272,11 +272,11 @@ impl Product {
             Err(_) => false,
         };
         let name = v.remove(0);
-        let price = match v.remove(0).parse::<u64>() {
+        let price = match v.remove(0).parse::<u128>() {
             Ok(p) => p,
             Err(_) => 0,
         };
-        let qty = match v.remove(0).parse::<u64>() {
+        let qty = match v.remove(0).parse::<u128>() {
             Ok(q) => q,
             Err(_) => 0,
         };
@@ -331,7 +331,7 @@ pub struct Order {
     /// This is the final destination for the payment
     pub subaddress: String,
     pub status: String,
-    pub quantity: u64,
+    pub quantity: u128,
     pub vend_kex_1: String,
     pub vend_kex_2: String,
     pub vend_kex_3: String,
@@ -445,7 +445,7 @@ impl Order {
         };
         let subaddress = v.remove(0);
         let status = v.remove(0);
-        let quantity = match v.remove(0).parse::<u64>() {
+        let quantity = match v.remove(0).parse::<u128>() {
             Ok(d) => d,
             Err(_) => 0,
         };

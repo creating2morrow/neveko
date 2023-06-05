@@ -16,11 +16,14 @@ async fn rocket() -> _ {
     env_logger::init();
     utils::start_up().await;
     rocket::custom(&config)
-        .register("/", catchers![
-            controller::internal_error,
-            controller::not_found,
-            controller::payment_required
-        ])
+        .register(
+            "/",
+            catchers![
+                controller::internal_error,
+                controller::not_found,
+                controller::payment_required
+            ],
+        )
         .mount("/multisig/info", routes![controller::get_multisig_info])
         .mount("/invoice", routes![controller::gen_invoice])
         .mount("/message/rx", routes![controller::rx_message])
@@ -34,6 +37,12 @@ async fn rocket() -> _ {
         .mount("/xmr/rpc", routes![controller::get_version])
         .mount(
             "/market",
-            routes![controller::create_order, controller::get_products, controller::create_dispute],
+            routes![
+                controller::create_order,
+                controller::create_dispute,
+                controller::get_products,
+                controller::finalize_order,
+                controller::request_shipment,
+            ],
         )
 }

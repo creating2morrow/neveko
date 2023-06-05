@@ -1,10 +1,14 @@
 use crate::{
     contact,
     db,
+    gpg,
+    i2p,
+    message,
     models::*,
     monero,
+    product,
     reqres,
-    utils, product, gpg, i2p,
+    utils,
 };
 use log::{
     debug,
@@ -13,13 +17,8 @@ use log::{
 };
 use rocket::serde::json::Json;
 
-/*
-  TODOs(c2m):
-    - release tracking (locker code?) when txset is released, update to delivered
-*/
-
 enum StatusType {
-    _Delivered,
+    Delivered,
     MultisigMissing,
     MulitsigComplete,
     Shipped,
@@ -28,7 +27,7 @@ enum StatusType {
 impl StatusType {
     pub fn value(&self) -> String {
         match *self {
-            StatusType::_Delivered => String::from("Delivered"),
+            StatusType::Delivered => String::from("Delivered"),
             StatusType::MultisigMissing => String::from("MultisigMissing"),
             StatusType::MulitsigComplete => String::from("MulitsigComplete"),
             StatusType::Shipped => String::from("Shipped"),
@@ -195,7 +194,7 @@ pub async fn secure_retrieval(orid: &String, signature: &String) -> Order {
 }
 
 /// Check for import multisig info, validate block time and that the
-/// 
+///
 /// order wallet has been funded properly. Update the order to multisig complete
 pub async fn validate_order_for_ship(orid: &String) -> bool {
     info!("validating order for shipment");
@@ -226,14 +225,15 @@ pub async fn validate_order_for_ship(orid: &String) -> bool {
     ready_to_ship
 }
 
-/// Write encrypted delivery info to lmdb. Once the customer releases the signed txset
-/// 
-/// they will have access to this information (tracking number, locker code, etc.)
+/// Write encrypted delivery info to lmdb. Once the customer releases the signed
+/// txset
+///
+/// they will have access to this information (tracking number, locker code,
+/// etc.)
 pub async fn upload_delivery_info(orid: &String, delivery_info: &Vec<u8>) {
     info!("uploading delivery info");
     let name = i2p::get_destination(None);
-    let e_delivery_info: Vec<u8> = gpg::encrypt(name, &delivery_info)
-        .unwrap_or(Vec::new());
+    let e_delivery_info: Vec<u8> = gpg::encrypt(name, &delivery_info).unwrap_or(Vec::new());
     if e_delivery_info.is_empty() {
         error!("unable to encrypt delivery info");
     }
@@ -247,4 +247,43 @@ pub async fn upload_delivery_info(orid: &String, delivery_info: &Vec<u8>) {
     m_order.status = StatusType::Shipped.value();
     db::Interface::async_delete(&s.env, &s.handle, &m_order.orid).await;
     db::Interface::async_write(&s.env, &s.handle, &m_order.orid, &Order::to_db(&m_order)).await;
+}
+
+/// The vendor will first search for a encrypted multisig message in the form
+///  
+/// txset-{order id}-{.b32.i2p}
+pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
+    info!("finalizing order");
+    let mut m_order: Order = find(orid);
+    let s = db::Interface::async_open().await;
+    let key = format!("{}-{}-{}", message::TXSET_MSIG, orid, &m_order.cid);
+    let txset = db::Interface::async_read(&s.env, &s.handle, &key).await;
+    // describe transer to check amount, address and unlock_time
+    let r_describe: reqres::XmrRpcDescribeTransferResponse =
+        monero::describe_transfer(&txset).await;
+    let m_product: Product = product::find(&m_order.pid);
+    let total: u128 = m_product.price * m_order.quantity;
+    let description: &reqres::TransferDescription = &r_describe.result.desc[0];
+    let is_valid_payment: bool = description.amount_out + description.fee >= total
+        && description.unlock_time < monero::LockTimeLimit::Blocks.value();
+    if !is_valid_payment {
+        return Default::default();
+    }
+    let r_submit: reqres::XmrRpcSubmitMultisigResponse =
+        sign_and_submit_multisig(orid, &txset).await;
+    if r_submit.result.tx_hash_list.is_empty() {
+        return Default::default();
+    }
+    // lookup delivery info
+    let delivery_key = format!("delivery-{}", orid);
+    let r_delivery_info: String = db::Interface::async_read(&s.env, &s.handle, &delivery_key).await;
+    let delivery_info: Vec<u8> = hex::decode(r_delivery_info).unwrap_or(Vec::new());
+    // update the order
+    m_order.status = StatusType::Delivered.value();
+    db::Interface::async_delete(&s.env, &s.handle, &m_order.orid).await;
+    db::Interface::async_write(&s.env, &s.handle, &m_order.orid, &Order::to_db(&m_order)).await;
+    reqres::FinalizeOrderResponse {
+        orid: String::from(orid),
+        delivery_info,
+    }
 }

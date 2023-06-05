@@ -123,6 +123,11 @@ pub struct XmrRpcTransferParams {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcDescribeTransferParams {
+    pub multisig_txset: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcSweepAllParams {
     pub address: String,
 }
@@ -277,6 +282,14 @@ pub struct XmrRpcTransfrerRequest {
     pub id: String,
     pub method: String,
     pub params: XmrRpcTransferParams,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcDescribeTransfrerRequest {
+    pub jsonrpc: String,
+    pub id: String,
+    pub method: String,
+    pub params: XmrRpcDescribeTransferParams,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -457,6 +470,25 @@ pub struct XmrRpcTranferResult {
     pub tx_key: String,
     pub tx_metadata: String,
     pub unsigned_txset: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct TransferDescription {
+    pub amount_in: u128,
+    pub amount_out: u128,
+    pub recepients: Vec<Destination>,
+    pub change_address: String,
+    pub change_amount: u128,
+    pub fee: u128,
+    pub ring_size: u64,
+    pub unlock_time: u64,
+    pub dummy_outputs: u64,
+    pub extra: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcDescribeTranferResult {
+    pub desc: Vec<TransferDescription>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -996,6 +1028,19 @@ impl Default for XmrRpcTransferResponse {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct XmrRpcDescribeTransferResponse {
+    pub result: XmrRpcDescribeTranferResult,
+}
+
+impl Default for XmrRpcDescribeTransferResponse {
+    fn default() -> Self {
+        XmrRpcDescribeTransferResponse {
+            result: XmrRpcDescribeTranferResult { desc: Vec::new() },
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
 pub struct XmrRpcSweepAllResponse {
     pub result: XmrRpcSweepAllResult,
 }
@@ -1110,7 +1155,7 @@ pub struct OrderRequest {
     pub cid: String,
     pub pid: String,
     pub ship_address: Vec<u8>,
-    pub quantity: u64,
+    pub quantity: u128,
 }
 
 impl Default for OrderRequest {
@@ -1159,6 +1204,24 @@ impl Default for SignAndSubmitRequest {
         SignAndSubmitRequest {
             orid: utils::empty_string(),
             txset: utils::empty_string(),
+        }
+    }
+}
+
+/// Response for the order finalization
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct FinalizeOrderResponse {
+    pub orid: String,
+    /// This is encrypted by the vendors NEVEKO gpg key
+    pub delivery_info: Vec<u8>,
+}
+
+impl Default for FinalizeOrderResponse {
+    fn default() -> Self {
+        FinalizeOrderResponse {
+            orid: utils::empty_string(),
+            delivery_info: Vec::new(),
         }
     }
 }

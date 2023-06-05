@@ -23,6 +23,7 @@ pub const EXPORT_MSIG: &str = "export";
 pub const MAKE_MSIG: &str = "make";
 pub const PREPARE_MSIG: &str = "prepare";
 pub const SIGN_MSIG: &str = "sign";
+pub const TXSET_MSIG: &str = "txset";
 pub const VALID_MSIG_MSG_LENGTH: usize = 4;
 
 #[derive(PartialEq)]
@@ -129,14 +130,22 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
     let decoded = String::from_utf8(bytes).unwrap_or(utils::empty_string());
     let values = decoded.split(":");
     let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
-    if v.len() != VALID_MSIG_MSG_LENGTH {
+    let sub_type: String = v.remove(0);
+    let valid_length = if sub_type == TXSET_MSIG {
+        VALID_MSIG_MSG_LENGTH - 2
+    } else {
+        VALID_MSIG_MSG_LENGTH - 1
+    };
+    if v.len() != valid_length {
         return Default::default();
     }
-    let sub_type: String = v.remove(0);
     let orid: String = v.remove(0);
     let customer_info: String = v.remove(0);
-    let mediator_info: String = v.remove(0);
-    let info = format!("{}:{}", customer_info, mediator_info);
+    let mut info = String::from(&customer_info);
+    if sub_type != TXSET_MSIG {
+        let mediator_info: String = v.remove(0);
+        info = format!("{}:{}", customer_info, mediator_info);
+    }
     bytes = Vec::new();
     debug!("zero decryption bytes: {:?}", bytes);
     MultisigMessageData {

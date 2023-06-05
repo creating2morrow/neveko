@@ -1,9 +1,10 @@
 use rocket::{
+    catch,
     get,
     http::Status,
     post,
     response::status::Custom,
-    serde::json::Json, catch,
+    serde::json::Json,
 };
 
 use neveko_core::*;
@@ -157,7 +158,31 @@ pub async fn rx_multisig_message(
 ///
 /// Protected: true
 #[post("/<orid>")]
-pub async fn request_shipment(orid: String, _jwp: proof::PaymentProof) -> Custom<Json<models::Message>> {
+pub async fn request_shipment(
+    orid: String,
+    _jwp: proof::PaymentProof,
+) -> Custom<Json<models::Message>> {
+    let is_ready: bool = order::validate_order_for_ship(&orid).await;
+    if !is_ready {
+        return Custom(Status::BadRequest, Json(Default::default()));
+    }
+    Custom(Status::Ok, Json(Default::default()))
+}
+
+/// Send tx_data_hex, which is the output from signing
+///
+/// a multisig transaction from the order wallet to the
+///
+/// vendor's subaddress. After that the vendor will submit the
+///
+/// transaction and return the encrypted delivery information.
+///
+/// Protected: true
+#[post("/<orid>")]
+pub async fn finalize_order(
+    orid: String,
+    _jwp: proof::PaymentProof,
+) -> Custom<Json<reqres::FinalizeOrderResponse>> {
     let is_ready: bool = order::validate_order_for_ship(&orid).await;
     if !is_ready {
         return Custom(Status::BadRequest, Json(Default::default()));
@@ -174,7 +199,6 @@ pub async fn create_dispute(
     let m_dispute: models::Dispute = dispute::create(dispute);
     Custom(Status::Ok, Json(m_dispute))
 }
-
 
 // Catchers
 //----------------------------------------------------------------

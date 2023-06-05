@@ -29,6 +29,7 @@ enum RpcFields {
     Close,
     CreateAddress,
     CreateWallet,
+    DescribeTransfer,
     ExchangeMultisigKeys,
     Export,
     GetTxProof,
@@ -57,6 +58,7 @@ impl RpcFields {
             RpcFields::Close => String::from("close_wallet"),
             RpcFields::CreateAddress => String::from("create_address"),
             RpcFields::CreateWallet => String::from("create_wallet"),
+            RpcFields::DescribeTransfer => String::from("describe_transfer"),
             RpcFields::ExchangeMultisigKeys => String::from("exchange_multisig_keys"),
             RpcFields::Export => String::from("export_multisig_info"),
             RpcFields::GetTxProof => String::from("get_tx_proof"),
@@ -931,6 +933,45 @@ pub async fn transfer(d: reqres::Destination) -> reqres::XmrRpcTransferResponse 
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcTransferResponse>().await;
             debug!("{} response: {:?}", RpcFields::Transfer.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_) => Default::default(),
+    }
+}
+
+/// Performs the xmr rpc 'describe_transfer' method
+pub async fn describe_transfer(multisig_txset: &String) -> reqres::XmrRpcDescribeTransferResponse {
+    info!("executing {}", RpcFields::DescribeTransfer.value());
+    let client = reqwest::Client::new();
+    let host = get_rpc_host();
+    let params: reqres::XmrRpcDescribeTransferParams = reqres::XmrRpcDescribeTransferParams {
+        multisig_txset: String::from(multisig_txset),
+    };
+    let req = reqres::XmrRpcDescribeTransfrerRequest {
+        jsonrpc: RpcFields::JsonRpcVersion.value(),
+        id: RpcFields::Id.value(),
+        method: RpcFields::DescribeTransfer.value(),
+        params,
+    };
+    let login: RpcLogin = get_rpc_creds();
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
+        Ok(response) => {
+            let res = response
+                .json::<reqres::XmrRpcDescribeTransferResponse>()
+                .await;
+            debug!(
+                "{} response: {:?}",
+                RpcFields::DescribeTransfer.value(),
+                res
+            );
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
