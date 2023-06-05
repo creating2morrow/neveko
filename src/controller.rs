@@ -157,7 +157,7 @@ pub async fn rx_multisig_message(
 /// multisig info, check balance and sanity check `unlock_time`.
 ///
 /// Protected: true
-#[post("/<orid>")]
+#[post("/ship/<orid>")]
 pub async fn request_shipment(
     orid: String,
     _jwp: proof::PaymentProof,
@@ -178,7 +178,7 @@ pub async fn request_shipment(
 /// transaction and return the encrypted delivery information.
 ///
 /// Protected: true
-#[post("/<orid>")]
+#[post("/finalize/<orid>")]
 pub async fn finalize_order(
     orid: String,
     _jwp: proof::PaymentProof,
