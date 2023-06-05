@@ -368,7 +368,7 @@ pub struct SubAddressInfo {
     pub label: String,
     pub num_unspent_outputs: u64,
     pub time_to_unlock: u128,
-    pub blocks_to_unlock: u128,
+    pub blocks_to_unlock: u64,
 }
 
 #[derive(Deserialize, Debug)]
@@ -391,7 +391,7 @@ pub struct XmrRpcBalanceResult {
     pub unlocked_balance: u128,
     pub multisig_import_needed: bool,
     pub time_to_unlock: u128,
-    pub blocks_to_unlock: u128,
+    pub blocks_to_unlock: u64,
     pub per_subaddress: Vec<SubAddressInfo>,
 }
 

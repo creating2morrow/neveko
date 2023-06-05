@@ -52,7 +52,7 @@ pub async fn get_order(orid: String, _token: auth::BearerToken) -> Custom<Json<m
     Custom(Status::Ok, Json(m_order))
 }
 
-/// Get a order by passing id
+/// Get all orders
 #[get("/")]
 pub async fn get_orders(_token: auth::BearerToken) -> Custom<Json<Vec<models::Order>>> {
     let m_orders: Vec<models::Order> = order::find_all();
@@ -86,7 +86,7 @@ pub async fn get_dispute(_token: auth::BearerToken, did: String) -> Custom<Json<
     Custom(Status::Ok, Json(m_dispute))
 }
 
-/// Create a dispute
+/// Sign and submit multisig
 #[post("/sign/submit", data = "<r_data>")]
 pub async fn sign_and_submit_multisig(
     r_data: Json<reqres::SignAndSubmitRequest>,

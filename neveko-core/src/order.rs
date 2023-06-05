@@ -4,7 +4,7 @@ use crate::{
     models::*,
     monero,
     reqres,
-    utils,
+    utils, product, gpg, i2p,
 };
 use log::{
     debug,
@@ -15,16 +15,14 @@ use rocket::serde::json::Json;
 
 /*
   TODOs(c2m):
-    - API to validate payment and import multisig info, update to multisig complete
-    - API to upload gpg encrypted tracking number, update order to shipped
     - release tracking (locker code?) when txset is released, update to delivered
 */
 
 enum StatusType {
     _Delivered,
     MultisigMissing,
-    _MulitsigComplete,
-    _Shipped,
+    MulitsigComplete,
+    Shipped,
 }
 
 impl StatusType {
@@ -32,8 +30,8 @@ impl StatusType {
         match *self {
             StatusType::_Delivered => String::from("Delivered"),
             StatusType::MultisigMissing => String::from("MultisigMissing"),
-            StatusType::_MulitsigComplete => String::from("MulitsigComplete"),
-            StatusType::_Shipped => String::from("Shipped"),
+            StatusType::MulitsigComplete => String::from("MulitsigComplete"),
+            StatusType::Shipped => String::from("Shipped"),
         }
     }
 }
@@ -175,7 +173,7 @@ pub async fn sign_and_submit_multisig(
 /// that the mediator can see order id for disputes without being able to access
 ///
 /// the details of said order.
-pub async fn retrieve_order(orid: &String, signature: &String) -> Order {
+pub async fn secure_retrieval(orid: &String, signature: &String) -> Order {
     // get customer address for NEVEKO NOT order wallet
     let m_order: Order = find(&orid);
     let mut xmr_address: String = String::new();
@@ -183,6 +181,7 @@ pub async fn retrieve_order(orid: &String, signature: &String) -> Order {
     for customer in a_customers {
         if customer.i2p_address == m_order.cid {
             xmr_address = customer.xmr_address;
+            break;
         }
     }
     // send address, orid and signature to verify()
@@ -195,12 +194,57 @@ pub async fn retrieve_order(orid: &String, signature: &String) -> Order {
     m_order
 }
 
-pub async fn validate_order_for_ship() -> bool {
+/// Check for import multisig info, validate block time and that the
+/// 
+/// order wallet has been funded properly. Update the order to multisig complete
+pub async fn validate_order_for_ship(orid: &String) -> bool {
     info!("validating order for shipment");
+    let mut m_order: Order = find(orid);
+    let m_product: Product = product::find(&m_order.pid);
+    let price = m_product.price;
+    let total = price * m_order.quantity;
     // import multisig info
-
+    let s = db::Interface::open();
+    let key = format!("export-{}-{}", orid, &m_order.cid);
+    let info_str = db::Interface::async_read(&s.env, &s.handle, &key).await;
+    let info_split = info_str.split(":");
+    let v_info: Vec<String> = info_split.map(|s| String::from(s)).collect();
+    let wallet_password = utils::empty_string();
+    monero::open_wallet(&orid, &wallet_password).await;
+    let r_import = monero::import_multisig_info(v_info).await;
     // check balance and unlock_time
-
+    let r_balance = monero::get_balance().await;
     // update the order status to multisig complete
-    return false;
+    let ready_to_ship: bool = r_import.result.n_outputs > 0
+        && r_balance.result.balance >= total as u128
+        && r_balance.result.blocks_to_unlock < monero::LockTimeLimit::Blocks.value();
+    if ready_to_ship {
+        m_order.status = StatusType::MulitsigComplete.value();
+        db::Interface::async_delete(&s.env, &s.handle, &m_order.orid).await;
+        db::Interface::async_write(&s.env, &s.handle, &m_order.orid, &Order::to_db(&m_order)).await;
+    }
+    ready_to_ship
+}
+
+/// Write encrypted delivery info to lmdb. Once the customer releases the signed txset
+/// 
+/// they will have access to this information (tracking number, locker code, etc.)
+pub async fn upload_delivery_info(orid: &String, delivery_info: &Vec<u8>) {
+    info!("uploading delivery info");
+    let name = i2p::get_destination(None);
+    let e_delivery_info: Vec<u8> = gpg::encrypt(name, &delivery_info)
+        .unwrap_or(Vec::new());
+    if e_delivery_info.is_empty() {
+        error!("unable to encrypt delivery info");
+    }
+    // write delivery info {delivery}-{order id}
+    let s = db::Interface::async_open().await;
+    let k = format!("delivery-{}", orid);
+    let data = hex::encode(e_delivery_info);
+    db::Interface::async_write(&s.env, &s.handle, &k, &data).await;
+    // update the order
+    let mut m_order: Order = find(orid);
+    m_order.status = StatusType::Shipped.value();
+    db::Interface::async_delete(&s.env, &s.handle, &m_order.orid).await;
+    db::Interface::async_write(&s.env, &s.handle, &m_order.orid, &Order::to_db(&m_order)).await;
 }

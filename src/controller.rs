@@ -3,7 +3,7 @@ use rocket::{
     http::Status,
     post,
     response::status::Custom,
-    serde::json::Json,
+    serde::json::Json, catch,
 };
 
 use neveko_core::*;
@@ -109,7 +109,7 @@ pub async fn retrieve_order(
     signature: String,
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Order>> {
-    let m_order = order::retrieve_order(&orid, &signature).await;
+    let m_order = order::secure_retrieval(&orid, &signature).await;
     if m_order.cid == utils::empty_string() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
@@ -156,8 +156,55 @@ pub async fn rx_multisig_message(
 /// multisig info, check balance and sanity check `unlock_time`.
 ///
 /// Protected: true
-#[post("/")]
-pub async fn request_shipment(_jwp: proof::PaymentProof) -> Custom<Json<models::Message>> {
-    order::validate_order_for_ship().await;
+#[post("/<orid>")]
+pub async fn request_shipment(orid: String, _jwp: proof::PaymentProof) -> Custom<Json<models::Message>> {
+    let is_ready: bool = order::validate_order_for_ship(&orid).await;
+    if !is_ready {
+        return Custom(Status::BadRequest, Json(Default::default()));
+    }
     Custom(Status::Ok, Json(Default::default()))
+}
+
+/// Create a dispute (customer)
+#[post("/create", data = "<dispute>")]
+pub async fn create_dispute(
+    dispute: Json<models::Dispute>,
+    _token: auth::BearerToken,
+) -> Custom<Json<models::Dispute>> {
+    let m_dispute: models::Dispute = dispute::create(dispute);
+    Custom(Status::Ok, Json(m_dispute))
+}
+
+
+// Catchers
+//----------------------------------------------------------------
+
+#[catch(402)]
+pub fn payment_required() -> Custom<Json<reqres::ErrorResponse>> {
+    Custom(
+        Status::PaymentRequired,
+        Json(reqres::ErrorResponse {
+            error: String::from("Payment required"),
+        }),
+    )
+}
+
+#[catch(404)]
+pub fn not_found() -> Custom<Json<reqres::ErrorResponse>> {
+    Custom(
+        Status::NotFound,
+        Json(reqres::ErrorResponse {
+            error: String::from("Resource does not exist"),
+        }),
+    )
+}
+
+#[catch(500)]
+pub fn internal_error() -> Custom<Json<reqres::ErrorResponse>> {
+    Custom(
+        Status::InternalServerError,
+        Json(reqres::ErrorResponse {
+            error: String::from("Internal server error"),
+        }),
+    )
 }

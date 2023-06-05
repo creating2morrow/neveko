@@ -236,8 +236,8 @@ pub struct Product {
     pub image: Vec<u8>,
     pub in_stock: bool,
     pub name: String,
-    pub price: i64,
-    pub qty: i64,
+    pub price: u64,
+    pub qty: u64,
 }
 
 impl Default for Product {
@@ -272,11 +272,11 @@ impl Product {
             Err(_) => false,
         };
         let name = v.remove(0);
-        let price = match v.remove(0).parse::<i64>() {
+        let price = match v.remove(0).parse::<u64>() {
             Ok(p) => p,
             Err(_) => 0,
         };
-        let qty = match v.remove(0).parse::<i64>() {
+        let qty = match v.remove(0).parse::<u64>() {
             Ok(q) => q,
             Err(_) => 0,
         };

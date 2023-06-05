@@ -12,7 +12,7 @@ pub const LOCK_SCREEN_TIMEOUT_SECS: u64 = 60 * 5;
 /// interval to search for credential on initial gui load
 pub const CRED_CHECK_INTERVAL: u64 = 5;
 /// monero estimated block time in seconds
-pub const BLOCK_TIME_IN_SECS_EST: u128 = 0x78;
+pub const BLOCK_TIME_IN_SECS_EST: u64 = 0x78;
 /// time to wait before giving up on adding a contact
 pub const ADD_CONTACT_TIMEOUT_SECS: u64 = 0x5A;
 /// time to wait before giving up on neveko core
