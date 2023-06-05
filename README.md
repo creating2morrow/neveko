@@ -5,7 +5,7 @@ NEVidebla-EKOnomia (invisible economy)
 [![cargo-build](https://github.com/creating2morrow/neveko/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/creating2morrow/neveko/actions/workflows/rust.yml)
 [![cargo-audit](https://github.com/creating2morrow/neveko/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/creating2morrow/neveko/actions/workflows/audit.yml)
 
-### gpg and i2p made simple for end-to-end encrypted, secure marketplace, messaging and more
+### gpg and i2p made simple for E2EE marketplace, messaging and more
 
 ## About
 

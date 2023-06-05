@@ -101,8 +101,13 @@ pub async fn verify_login(aid: String, uid: String, signature: String) -> Author
         return create(&address);
     }
     let data: String = String::from(&f_auth.rnd);
-    let sig_address: String =
+    let is_valid_sig: bool =
         monero::verify(String::from(&address), data, String::from(&signature)).await;
+    let sig_address: String = if is_valid_sig {
+        String::from(&address)
+    } else {
+        utils::ApplicationErrors::LoginError.value()
+    };
     if sig_address == utils::ApplicationErrors::LoginError.value() {
         error!("signature validation failed");
         monero::close_wallet(&wallet_name, &wallet_password).await;
@@ -155,8 +160,13 @@ async fn verify_access(address: &String, signature: &String) -> bool {
     }
     // verify signature on the data if not expired
     let data = f_auth.rnd;
-    let sig_address: String =
+    let is_valid_sig: bool =
         monero::verify(String::from(address), data, String::from(signature)).await;
+    let sig_address: String = if is_valid_sig {
+        String::from(address)
+    } else {
+        utils::ApplicationErrors::LoginError.value()
+    };
     if sig_address == utils::ApplicationErrors::LoginError.value() {
         debug!("signing failed");
         return false;

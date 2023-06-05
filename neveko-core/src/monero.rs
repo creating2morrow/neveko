@@ -135,8 +135,7 @@ pub fn start_daemon() {
         debug!("{:?}", output.stdout);
     } else {
         let args = [
-            "
-            --data-dir",
+            "--data-dir",
             &blockchain_dir,
             "--tx-proxy",
             &tx_proxy,
@@ -302,7 +301,7 @@ pub async fn check_rpc_connection() -> () {
 }
 
 /// Performs the xmr rpc 'verify' method
-pub async fn verify(address: String, data: String, signature: String) -> String {
+pub async fn verify(address: String, data: String, signature: String) -> bool {
     info!("executing {}", RpcFields::Verify.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
@@ -330,15 +329,15 @@ pub async fn verify(address: String, data: String, signature: String) -> String 
             match res {
                 Ok(res) => {
                     if res.result.good {
-                        req.params.address
+                        true
                     } else {
-                        utils::ApplicationErrors::LoginError.value()
+                        false
                     }
                 }
-                _ => utils::ApplicationErrors::LoginError.value(),
+                _ => false,
             }
         }
-        Err(_e) => utils::ApplicationErrors::LoginError.value(),
+        Err(_e) => false,
     }
 }
 

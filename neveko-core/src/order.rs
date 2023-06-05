@@ -1,4 +1,5 @@
 use crate::{
+    contact,
     db,
     models::*,
     monero,
@@ -16,7 +17,7 @@ use rocket::serde::json::Json;
   TODOs(c2m):
     - API to validate payment and import multisig info, update to multisig complete
     - API to upload gpg encrypted tracking number, update order to shipped
-      release tracking (locker code?) when txset is released, update to delivered
+    - release tracking (locker code?) when txset is released, update to delivered
 */
 
 enum StatusType {
@@ -165,6 +166,33 @@ pub async fn sign_and_submit_multisig(
         error!("unable to submit payment for order: {}", orid);
     }
     r_submit
+}
+
+/// In order for the order (...ha) to only be accessed by the customer
+///
+/// they must sign the order id with their NEVEKO wallet instance. This means
+///
+/// that the mediator can see order id for disputes without being able to access
+///
+/// the details of said order.
+pub async fn retrieve_order(orid: &String, signature: &String) -> Order {
+    // get customer address for NEVEKO NOT order wallet
+    let m_order: Order = find(&orid);
+    let mut xmr_address: String = String::new();
+    let a_customers: Vec<Contact> = contact::find_all();
+    for customer in a_customers {
+        if customer.i2p_address == m_order.cid {
+            xmr_address = customer.xmr_address;
+        }
+    }
+    // send address, orid and signature to verify()
+    let id: String = String::from(&m_order.orid);
+    let sig: String = String::from(signature);
+    let is_valid_signature = monero::verify(xmr_address, id, sig).await;
+    if !is_valid_signature {
+        return Default::default();
+    }
+    m_order
 }
 
 pub async fn validate_order_for_ship() -> bool {

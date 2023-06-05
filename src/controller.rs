@@ -98,22 +98,21 @@ pub async fn create_order(
     Custom(Status::Created, Json(m_order))
 }
 
-/// TODO(c2m): Customer order retreival. Must send `signature`
+/// Customer order retreival. Must send `signature`
 ///
-/// which is the order id signed by the wallet.
+/// which is the order id signed by the NEVEKO wallet.
 ///
 /// Protected: true
-#[get("/order/retrieve/<orid>/<_signature>")]
+#[get("/order/retrieve/<orid>/<signature>")]
 pub async fn retrieve_order(
     orid: String,
-    _signature: String,
+    signature: String,
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Order>> {
-    // get customer address
-
-    // send address, orid and signature to verify()
-
-    let m_order: models::Order = order::find(&orid);
+    let m_order = order::retrieve_order(&orid, &signature).await;
+    if m_order.cid == utils::empty_string() {
+        return Custom(Status::BadRequest, Json(Default::default()));
+    }
     Custom(Status::Created, Json(m_order))
 }
 
