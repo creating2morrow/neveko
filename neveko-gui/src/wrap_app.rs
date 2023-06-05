@@ -7,8 +7,6 @@ use std::sync::mpsc::{
     Sender,
 };
 
-// TODO(c2m): gui marketplace integration
-
 // ----------------------------------------------------------------------------
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -18,6 +16,7 @@ enum Anchor {
     Home,
     AddressBook,
     MailBox,
+    Market,
     Settings,
     Wallet,
 }
@@ -57,6 +56,7 @@ pub struct State {
     lock_timer: u64,
     login: crate::login::LoginApp,
     mailbox: crate::apps::MailBoxApp,
+    market: crate::apps::MarketApp,
     selected_anchor: Anchor,
     settings: crate::apps::SettingsApp,
     wallet: crate::apps::WalletApp,
@@ -89,6 +89,7 @@ impl Default for State {
             lock_timer_tx,
             login: Default::default(),
             mailbox: Default::default(),
+            market: Default::default(),
             selected_anchor: Default::default(),
             settings: Default::default(),
             wallet: Default::default(),
@@ -131,6 +132,11 @@ impl WrapApp {
                 "Mailbox",
                 Anchor::MailBox,
                 &mut self.state.mailbox as &mut dyn eframe::App,
+            ),
+            (
+                "Market",
+                Anchor::Market,
+                &mut self.state.market as &mut dyn eframe::App,
             ),
             (
                 "Wallet",

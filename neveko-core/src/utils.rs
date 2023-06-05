@@ -1,5 +1,6 @@
 use crate::{
     args,
+    contact,
     db,
     gpg,
     i2p,
@@ -655,6 +656,20 @@ pub async fn can_transfer(invoice: u128) -> bool {
     debug!("balance: {}", balance.result.unlocked_balance);
     debug!("fee + invoice = {}", invoice + fee);
     balance.result.unlocked_balance > (fee + invoice)
+}
+
+/// Gui toggle for vendor mode
+pub fn toggle_vendor_enabled() {
+    let off: &str = "0";
+    let on: &str = "1";
+    let vendor_env = std::env::var(contact::NEVEKO_VENDOR_ENABLED).unwrap_or(String::from(off));
+    if vendor_env == off {
+        info!("neveko vendor mode enabled");
+        std::env::set_var(contact::NEVEKO_VENDOR_ENABLED, on);
+    } else {
+        info!("neveko vendor mode disabled");
+        std::env::set_var(contact::NEVEKO_VENDOR_ENABLED, off);
+    }
 }
 
 // Tests
