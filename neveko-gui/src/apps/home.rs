@@ -273,11 +273,12 @@ impl eframe::App for HomeApp {
         //----------------------------------------------------------------------------------------------
         egui::CentralPanel::default().show(ctx, |ui| {
             if !self.is_updated {
-                send_ver_req(self.xmr_rpc_ver_tx.clone(), ctx.clone());
-                send_address_req(self.xmr_address_tx.clone(), ctx.clone());
-                send_balance_req(self.xmr_balance_tx.clone(), ctx.clone());
-                send_i2p_status_req(self.i2p_status_tx.clone(), ctx.clone());
-                send_xmrd_get_info_req(self.xmrd_get_info_tx.clone(), ctx.clone());
+                if !self.is_init {
+                    send_ver_req(self.xmr_rpc_ver_tx.clone(), ctx.clone());
+                    send_wallet_req(self.xmr_address_tx.clone(), self.xmr_balance_tx.clone(), ctx.clone());
+                    send_i2p_status_req(self.i2p_status_tx.clone(), ctx.clone());
+                    send_xmrd_get_info_req(self.xmrd_get_info_tx.clone(), ctx.clone());
+                }
                 self.is_updated = true;
                 let is_initializing = self.is_init;
                 send_reset_refresh(self.can_refresh_tx.clone(), ctx.clone(), is_initializing);
@@ -362,28 +363,20 @@ fn send_ver_req(tx: Sender<reqres::XmrRpcVersionResponse>, ctx: egui::Context) {
     });
 }
 
-fn send_address_req(tx: Sender<reqres::XmrRpcAddressResponse>, ctx: egui::Context) {
+fn send_wallet_req(
+    address_tx: Sender<reqres::XmrRpcAddressResponse>,
+    balance_tx: Sender<reqres::XmrRpcBalanceResponse>,
+    ctx: egui::Context) {
     tokio::spawn(async move {
         let wallet_name = String::from(neveko_core::APP_NAME);
         let wallet_password =
             std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
         monero::open_wallet(&wallet_name, &wallet_password).await;
         let address: reqres::XmrRpcAddressResponse = monero::get_address().await;
-        monero::close_wallet(&wallet_name, &wallet_password).await;
-        let _ = tx.send(address);
-        ctx.request_repaint();
-    });
-}
-
-fn send_balance_req(tx: Sender<reqres::XmrRpcBalanceResponse>, ctx: egui::Context) {
-    tokio::spawn(async move {
-        let wallet_name = String::from(neveko_core::APP_NAME);
-        let wallet_password =
-            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
-        monero::open_wallet(&wallet_name, &wallet_password).await;
         let balance: reqres::XmrRpcBalanceResponse = monero::get_balance().await;
         monero::close_wallet(&wallet_name, &wallet_password).await;
-        let _ = tx.send(balance);
+        let _ = address_tx.send(address);
+        let _ = balance_tx.send(balance);
         ctx.request_repaint();
     });
 }
