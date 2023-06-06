@@ -41,7 +41,7 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     let wallet_name = String::from(crate::APP_NAME);
     let wallet_password =
         std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
-    monero::close_wallet(&wallet_name, &wallet_password).await;
+    monero::open_wallet(&wallet_name, &wallet_password).await;
     let ts = chrono::offset::Utc::now().timestamp();
     let orid: String = format!("O{}", utils::generate_rnd());
     let r_subaddress = monero::create_address().await;
@@ -186,7 +186,10 @@ pub async fn secure_retrieval(orid: &String, signature: &String) -> Order {
     // send address, orid and signature to verify()
     let id: String = String::from(&m_order.orid);
     let sig: String = String::from(signature);
+    let wallet_password = utils::empty_string();
+    monero::open_wallet(&orid, &wallet_password).await;
     let is_valid_signature = monero::verify(xmr_address, id, sig).await;
+    monero::close_wallet(&orid, &wallet_password).await;
     if !is_valid_signature {
         return Default::default();
     }
@@ -213,6 +216,7 @@ pub async fn validate_order_for_ship(orid: &String) -> bool {
     let r_import = monero::import_multisig_info(v_info).await;
     // check balance and unlock_time
     let r_balance = monero::get_balance().await;
+    monero::close_wallet(&orid, &wallet_password).await;
     // update the order status to multisig complete
     let ready_to_ship: bool = r_import.result.n_outputs > 0
         && r_balance.result.balance >= total as u128
@@ -259,6 +263,8 @@ pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
     let key = format!("{}-{}-{}", message::TXSET_MSIG, orid, &m_order.cid);
     let txset = db::Interface::async_read(&s.env, &s.handle, &key).await;
     // describe transer to check amount, address and unlock_time
+    let wallet_password = utils::empty_string();
+    monero::open_wallet(&orid, &wallet_password).await;
     let r_describe: reqres::XmrRpcDescribeTransferResponse =
         monero::describe_transfer(&txset).await;
     let m_product: Product = product::find(&m_order.pid);
@@ -271,6 +277,7 @@ pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
     }
     let r_submit: reqres::XmrRpcSubmitMultisigResponse =
         sign_and_submit_multisig(orid, &txset).await;
+    monero::close_wallet(&orid, &wallet_password).await;
     if r_submit.result.tx_hash_list.is_empty() {
         return Default::default();
     }

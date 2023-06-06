@@ -300,6 +300,7 @@ async fn gen_app_wallet(password: &String) {
             }
         }
     }
+    monero::close_wallet(&filename, password).await;
 }
 
 /// Secret keys for signing internal/external auth tokens

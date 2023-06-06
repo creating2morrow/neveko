@@ -14,6 +14,15 @@ use log::{
 };
 use std::process::Command;
 
+use lazy_static::lazy_static;
+use std::sync::Mutex;
+
+// global variable
+lazy_static! {
+    /// used to avoid multisig wallet collision
+    static ref IS_WALLET_BUSY: Mutex<bool> = Mutex::new(false);
+}
+
 /// Current xmr ring size updated here.
 const RING_SIZE: u32 = 0x10;
 
@@ -384,8 +393,35 @@ pub async fn create_wallet(filename: &String, password: &String) -> bool {
     }
 }
 
+/// Set the wallet lock to true during operations to avoid collisons
+///
+/// on different types of wallet (e.g. order versus NEVEKO instance).
+///
+/// The open functionality will break on `false` if busy.
+fn update_wallet_lock(filename: &String, closing: bool) -> bool {
+    let is_busy: bool = match IS_WALLET_BUSY.lock() {
+        Ok(m) => *m,
+        Err(_) => false,
+    };
+    if is_busy && !closing {
+        debug!("wallet {} is busy", filename);
+        return false;
+    }
+    if !closing {
+        *IS_WALLET_BUSY.lock().unwrap() = true;
+        return true;
+    } else {
+        *IS_WALLET_BUSY.lock().unwrap() = false;
+        return true;
+    }
+}
+
 /// Performs the xmr rpc 'open_wallet' method
 pub async fn open_wallet(filename: &String, password: &String) -> bool {
+    let updated = update_wallet_lock(filename, false);
+    if !updated {
+        return updated;
+    }
     info!("executing {}", RpcFields::Open.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
@@ -399,7 +435,6 @@ pub async fn open_wallet(filename: &String, password: &String) -> bool {
         method: RpcFields::Open.value(),
         params,
     };
-    debug!("open request: {:?}", req);
     let login: RpcLogin = get_rpc_creds();
     match client
         .post(host)
@@ -427,6 +462,10 @@ pub async fn open_wallet(filename: &String, password: &String) -> bool {
 
 /// Performs the xmr rpc 'close_wallet' method
 pub async fn close_wallet(filename: &String, password: &String) -> bool {
+    let updated = update_wallet_lock(filename, true);
+    if !updated {
+        return updated;
+    }
     info!("executing {}", RpcFields::Close.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();

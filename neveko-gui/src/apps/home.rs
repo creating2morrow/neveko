@@ -366,7 +366,8 @@ fn send_ver_req(tx: Sender<reqres::XmrRpcVersionResponse>, ctx: egui::Context) {
 fn send_wallet_req(
     address_tx: Sender<reqres::XmrRpcAddressResponse>,
     balance_tx: Sender<reqres::XmrRpcBalanceResponse>,
-    ctx: egui::Context) {
+    ctx: egui::Context,
+) {
     tokio::spawn(async move {
         let wallet_name = String::from(neveko_core::APP_NAME);
         let wallet_password =
