@@ -229,6 +229,20 @@ pub fn message_to_json(m: &models::Message) -> Json<models::Message> {
     Json(r_message)
 }
 
+/// convert product to json so only core module does the work
+pub fn product_to_json(m: &models::Product) -> Json<models::Product> {
+    let r_message: models::Product = models::Product {
+        pid: String::from(&m.pid),
+        description: String::from(&m.description),
+        image: m.image.iter().cloned().collect(),
+        in_stock: m.in_stock,
+        name: String::from(&m.name),
+        price: m.price, 
+        qty: m.qty,
+    };
+    Json(r_message)
+}
+
 /// Instead of putting `String::from("")`
 pub fn empty_string() -> String {
     String::from("")
@@ -248,7 +262,7 @@ pub const fn message_limit() -> usize {
 }
 
 pub const fn image_limit() -> usize {
-    2048
+    9999
 }
 
 /// Generate application gpg keys at startup if none exist
@@ -660,16 +674,18 @@ pub async fn can_transfer(invoice: u128) -> bool {
 }
 
 /// Gui toggle for vendor mode
-pub fn toggle_vendor_enabled() {
+pub fn toggle_vendor_enabled() -> bool {
     let off: &str = "0";
     let on: &str = "1";
     let vendor_env = std::env::var(contact::NEVEKO_VENDOR_ENABLED).unwrap_or(String::from(off));
     if vendor_env == off {
         info!("neveko vendor mode enabled");
         std::env::set_var(contact::NEVEKO_VENDOR_ENABLED, on);
+        return true;
     } else {
         info!("neveko vendor mode disabled");
         std::env::set_var(contact::NEVEKO_VENDOR_ENABLED, off);
+        return false;
     }
 }
 

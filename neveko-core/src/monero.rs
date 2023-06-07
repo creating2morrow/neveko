@@ -401,7 +401,7 @@ pub async fn create_wallet(filename: &String, password: &String) -> bool {
 fn update_wallet_lock(filename: &String, closing: bool) -> bool {
     let is_busy: bool = match IS_WALLET_BUSY.lock() {
         Ok(m) => *m,
-        Err(_) => false,
+        Err(_) => true,
     };
     if is_busy && !closing {
         debug!("wallet {} is busy", filename);
