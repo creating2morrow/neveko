@@ -27,37 +27,6 @@ impl Default for Compose {
     }
 }
 
-/// Struct for the contact status window
-struct Status {
-    /// UNIX timestamp of expiration as string
-    exp: String,
-    /// human readable date of expiration as string
-    h_exp: String,
-    /// i2p address of current status check
-    i2p: String,
-    /// JSON Web Proof of current status check
-    jwp: String,
-    /// Alias for contact
-    nick: String,
-    signed_key: bool,
-    /// transaction proof signature of current status check
-    txp: String,
-}
-
-impl Default for Status {
-    fn default() -> Self {
-        Status {
-            exp: utils::empty_string(),
-            h_exp: utils::empty_string(),
-            i2p: utils::empty_string(),
-            jwp: utils::empty_string(),
-            nick: String::from("anon"),
-            signed_key: false,
-            txp: utils::empty_string(),
-        }
-    }
-}
-
 /// The AddressBookApp unfornuately does more than that.
 ///
 /// Herein lies the logic for filtering contacts, generating JWPs,
@@ -101,7 +70,7 @@ pub struct AddressBookApp {
     payment_tx: Sender<bool>,
     payment_rx: Receiver<bool>,
     showing_status: bool,
-    status: Status,
+    status: utils::ContactStatus,
     send_message_tx: Sender<bool>,
     send_message_rx: Receiver<bool>,
     s_contact: models::Contact,
@@ -359,7 +328,7 @@ impl eframe::App for AddressBookApp {
                 if !self.status.signed_key {
                     if ui.button("Sign Key").clicked() {
                         contact::trust_gpg(self.status.i2p.clone());
-                        write_gui_db(
+                        utils::write_gui_db(
                             String::from("gui-signed-key"),
                             self.status.i2p.clone(),
                             String::from("1"),
@@ -371,9 +340,9 @@ impl eframe::App for AddressBookApp {
                     && self.status.jwp == utils::empty_string();
                 if self.status.jwp != utils::empty_string() || failed_to_prove {
                     if ui.button("Clear stale JWP").clicked() {
-                        clear_gui_db(String::from("gui-txp"), self.status.i2p.clone());
-                        clear_gui_db(String::from("gui-jwp"), self.status.i2p.clone());
-                        clear_gui_db(String::from("gui-exp"), self.status.i2p.clone());
+                        utils::clear_gui_db(String::from("gui-txp"), self.status.i2p.clone());
+                        utils::clear_gui_db(String::from("gui-jwp"), self.status.i2p.clone());
+                        utils::clear_gui_db(String::from("gui-exp"), self.status.i2p.clone());
                         self.showing_status = false;
                     }
                 }
@@ -538,7 +507,7 @@ impl eframe::App for AddressBookApp {
                                 });
                                 row.col(|ui| {
                                     if ui.button("Check Status").clicked() {
-                                        let nick_db = search_gui_db(
+                                        let nick_db = utils::search_gui_db(
                                             String::from("gui-nick"),
                                             String::from(&c.i2p_address),
                                         );
@@ -550,16 +519,16 @@ impl eframe::App for AddressBookApp {
                                         self.status.nick = nick;
                                         self.status.i2p = String::from(&c.i2p_address);
                                         // get the txp
-                                        self.status.txp = search_gui_db(
+                                        self.status.txp = utils::search_gui_db(
                                             String::from("gui-txp"),
                                             String::from(&c.i2p_address),
                                         );
                                         // get the jwp
-                                        self.status.jwp = search_gui_db(
+                                        self.status.jwp = utils::search_gui_db(
                                             String::from("gui-jwp"),
                                             String::from(&c.i2p_address),
                                         );
-                                        let r_exp = search_gui_db(
+                                        let r_exp = utils::search_gui_db(
                                             String::from("gui-exp"),
                                             String::from(&c.i2p_address),
                                         );
@@ -642,24 +611,6 @@ fn add_contact_timeout(tx: Sender<bool>, ctx: egui::Context) {
     });
 }
 
-fn search_gui_db(f: String, data: String) -> String {
-    let s = db::Interface::open();
-    let k = format!("{}-{}", f, data);
-    db::Interface::read(&s.env, &s.handle, &k)
-}
-
-fn write_gui_db(f: String, key: String, data: String) {
-    let s = db::Interface::open();
-    let k = format!("{}-{}", f, key);
-    db::Interface::write(&s.env, &s.handle, &k, &data);
-}
-
-fn clear_gui_db(f: String, key: String) {
-    let s = db::Interface::open();
-    let k = format!("{}-{}", f, key);
-    db::Interface::delete(&s.env, &s.handle, &k);
-}
-
 fn send_invoice_req(tx: Sender<reqres::Invoice>, ctx: egui::Context, contact: String) {
     log::debug!("async send_invoice_req");
     tokio::spawn(async move {
@@ -682,9 +633,9 @@ fn send_payment_req(
 ) {
     log::debug!("async send_payment_req");
     log::debug!("cleaning stale jwp values");
-    clear_gui_db(String::from("gui-txp"), String::from(&contact));
-    clear_gui_db(String::from("gui-jwp"), String::from(&contact));
-    clear_gui_db(String::from("gui-exp"), String::from(&contact));
+    utils::clear_gui_db(String::from("gui-txp"), String::from(&contact));
+    utils::clear_gui_db(String::from("gui-jwp"), String::from(&contact));
+    utils::clear_gui_db(String::from("gui-exp"), String::from(&contact));
     let mut retry_count = 1;
     tokio::spawn(async move {
         let ptxp_address = String::from(&d.address);
@@ -733,7 +684,7 @@ fn send_payment_req(
             .await;
             retry_count += 1;
         }
-        write_gui_db(
+        utils::write_gui_db(
             String::from("gui-txp"),
             String::from(&contact),
             String::from(&ftxp.signature),
@@ -747,7 +698,7 @@ fn send_payment_req(
         // if we made it this far we can now request a JWP from our friend
         match proof::prove_payment(String::from(&contact), &ftxp).await {
             Ok(result) => {
-                write_gui_db(
+                utils::write_gui_db(
                     String::from("gui-jwp"),
                     String::from(&contact),
                     String::from(&result.jwp),
@@ -757,7 +708,7 @@ fn send_payment_req(
                 // subtract 120 seconds since we had to wait for one confirmation
                 let grace: i64 = seconds - BLOCK_TIME_IN_SECS_EST as i64;
                 let unix: i64 = chrono::offset::Utc::now().timestamp() + grace;
-                write_gui_db(
+                utils::write_gui_db(
                     String::from("gui-exp"),
                     String::from(&contact),
                     format!("{}", unix),
@@ -796,14 +747,14 @@ fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: Stri
 }
 
 fn check_signed_key(contact: String) -> bool {
-    let v = search_gui_db(String::from("gui-signed-key"), contact);
+    let v = utils::search_gui_db(String::from("gui-signed-key"), contact);
     v != utils::empty_string()
 }
 
 fn change_nick_req(contact: String, nick: String) {
     log::debug!("change nick");
-    clear_gui_db(String::from("gui-nick"), String::from(&contact));
-    write_gui_db(String::from("gui-nick"), String::from(&contact), nick);
+    utils::clear_gui_db(String::from("gui-nick"), String::from(&contact));
+    utils::write_gui_db(String::from("gui-nick"), String::from(&contact), nick);
 }
 
 fn send_can_transfer_req(tx: Sender<bool>, ctx: egui::Context, invoice: u128) {

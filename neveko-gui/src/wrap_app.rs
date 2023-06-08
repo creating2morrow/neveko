@@ -90,7 +90,7 @@ impl Default for State {
             login: Default::default(),
             mailbox: Default::default(),
             market: Default::default(),
-            selected_anchor: Default::default(),
+            selected_anchor: Anchor::Home,
             settings: Default::default(),
             wallet: Default::default(),
             // async notifications

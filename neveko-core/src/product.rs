@@ -10,6 +10,7 @@ use log::{
     info,
 };
 use rocket::serde::json::Json;
+use std::error::Error;
 
 /// Create a new product
 pub fn create(d: Json<Product>) -> Product {
@@ -101,4 +102,33 @@ fn validate_product(p: &Json<Product>) -> bool {
         && p.description.len() < utils::string_limit()
         && p.name.len() < utils::string_limit()
         && p.image.len() < utils::image_limit()
+}
+
+/// Send the request to vendor for the products available
+pub async fn get_vendor_products(
+    contact: String,
+    jwp: String,
+) -> Result<Vec<Product>, Box<dyn Error>> {
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    match client?
+        .get(format!("http://{}/market/products", contact))
+        .header("proof", jwp)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<Vec<Product>>().await;
+            debug!("get vendor products response: {:?}", res);
+            match res {
+                Ok(r) => Ok(r),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(e) => {
+            error!("failed to fetch products due to: {:?}", e);
+            Ok(Default::default())
+        }
+    }
 }

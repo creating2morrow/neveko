@@ -21,6 +21,38 @@ use rand_core::RngCore;
 use rocket::serde::json::Json;
 use std::time::Duration;
 
+/// Struct for the vendor / contact status window
+pub struct ContactStatus {
+    /// UNIX timestamp of expiration as string
+    pub exp: String,
+    /// human readable date of expiration as string
+    pub h_exp: String,
+    /// i2p address of current status check
+    pub i2p: String,
+    /// JSON Web Proof of current status check
+    pub jwp: String,
+    /// Alias for contact
+    pub nick: String,
+    /// Must sign key for contacts befor messages can be sent
+    pub signed_key: bool,
+    /// transaction proof signature of current status check
+    pub txp: String,
+}
+
+impl Default for ContactStatus {
+    fn default() -> Self {
+        ContactStatus {
+            exp: utils::empty_string(),
+            h_exp: utils::empty_string(),
+            i2p: utils::empty_string(),
+            jwp: utils::empty_string(),
+            nick: String::from("anon"),
+            signed_key: false,
+            txp: utils::empty_string(),
+        }
+    }
+}
+
 /// Enum for selecting hash validation
 #[derive(PartialEq)]
 enum ExternalSoftware {
@@ -696,6 +728,24 @@ pub fn toggle_vendor_enabled() -> bool {
         );
         return false;
     }
+}
+
+pub fn search_gui_db(f: String, data: String) -> String {
+    let s = db::Interface::open();
+    let k = format!("{}-{}", f, data);
+    db::Interface::read(&s.env, &s.handle, &k)
+}
+
+pub fn write_gui_db(f: String, key: String, data: String) {
+    let s = db::Interface::open();
+    let k = format!("{}-{}", f, key);
+    db::Interface::write(&s.env, &s.handle, &k, &data);
+}
+
+pub fn clear_gui_db(f: String, key: String) {
+    let s = db::Interface::open();
+    let k = format!("{}-{}", f, key);
+    db::Interface::delete(&s.env, &s.handle, &k);
 }
 
 // Tests

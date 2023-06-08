@@ -5,12 +5,22 @@ use std::sync::mpsc::{
 };
 
 pub struct MarketApp {
+    contact_info_tx: Sender<models::Contact>,
+    contact_info_rx: Receiver<models::Contact>,
+    find_vendor: String,
+    get_vendor_products_tx: Sender<Vec<models::Product>>,
+    get_vendor_products_rx: Receiver<Vec<models::Product>>,
+    is_ordering: bool,
+    is_pinging: bool,
     is_product_image_set: bool,
     is_showing_products: bool,
     is_showing_product_image: bool,
     is_showing_product_update: bool,
     is_showing_orders: bool,
+    is_showing_vendor_status: bool,
+    is_showing_vendors: bool,
     is_vendor_enabled: bool,
+    is_window_shopping: bool,
     orders: Vec<models::Order>,
     product_image: egui_extras::RetainedImage,
     products: Vec<models::Product>,
@@ -22,6 +32,10 @@ pub struct MarketApp {
     new_product_qty: String,
     _refresh_on_delete_product_tx: Sender<bool>,
     _refresh_on_delete_product_rx: Receiver<bool>,
+    s_contact: models::Contact,
+    showing_vendor_status: bool,
+    vendor_status: utils::ContactStatus,
+    vendors: Vec<models::Contact>,
 }
 
 impl Default for MarketApp {
@@ -32,13 +46,25 @@ impl Default for MarketApp {
         let s = db::Interface::open();
         let r = db::Interface::read(&s.env, &s.handle, contact::NEVEKO_VENDOR_ENABLED);
         let is_vendor_enabled = r == contact::NEVEKO_VENDOR_MODE_ON;
+        let (contact_info_tx, contact_info_rx) = std::sync::mpsc::channel();
+        let (get_vendor_products_tx, get_vendor_products_rx) = std::sync::mpsc::channel();
         MarketApp {
+            contact_info_rx,
+            contact_info_tx,
+            find_vendor: utils::empty_string(),
+            get_vendor_products_rx,
+            get_vendor_products_tx,
+            is_ordering: false,
+            is_pinging: false,
             is_product_image_set: false,
             is_showing_orders: false,
             is_showing_products: false,
             is_showing_product_image: false,
             is_showing_product_update: false,
+            is_showing_vendor_status: false,
+            is_showing_vendors: false,
             is_vendor_enabled,
+            is_window_shopping: false,
             orders: Vec::new(),
             product_image: egui_extras::RetainedImage::from_image_bytes(
                 "qr.png",
@@ -54,6 +80,10 @@ impl Default for MarketApp {
             new_product_qty: utils::empty_string(),
             _refresh_on_delete_product_tx,
             _refresh_on_delete_product_rx,
+            s_contact: Default::default(),
+            showing_vendor_status: false,
+            vendor_status: Default::default(),
+            vendors: Vec::new(),
         }
     }
 }
@@ -62,6 +92,188 @@ impl eframe::App for MarketApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Hook into async channel threads
         //-----------------------------------------------------------------------------------
+        if let Ok(contact_info) = self.contact_info_rx.try_recv() {
+            self.s_contact = contact_info;
+            if self.s_contact.xmr_address != utils::empty_string() {
+                self.is_pinging = false;
+            }
+        }
+        if let Ok(vendor_products) = self.get_vendor_products_rx.try_recv() {
+            self.products = vendor_products;
+        }
+
+        // TODO(c2m): create order form
+
+        // View vendors
+        //-----------------------------------------------------------------------------------
+        let mut is_showing_vendors = self.is_showing_vendors;
+        egui::Window::new("Vendors")
+            .open(&mut is_showing_vendors)
+            .vscroll(true)
+            .show(&ctx, |ui| {
+                // Vendor filter
+                //-----------------------------------------------------------------------------------
+                ui.heading("\nFind Vendor");
+                ui.label("\n");
+                ui.horizontal(|ui| {
+                    let find_vendor_label = ui.label("filter vendors: ");
+                    ui.text_edit_singleline(&mut self.find_vendor)
+                        .labelled_by(find_vendor_label.id);
+                });
+                ui.label("\n");
+                use egui_extras::{
+                    Column,
+                    TableBuilder,
+                };
+                let table = TableBuilder::new(ui)
+                    .striped(true)
+                    .resizable(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::remainder())
+                    .min_scrolled_height(0.0);
+
+                table
+                    .header(20.0, |mut header| {
+                        header.col(|ui| {
+                            ui.strong("Nickname");
+                        });
+                        header.col(|ui| {
+                            ui.strong(".b32.i2p");
+                        });
+                        header.col(|ui| {
+                            ui.strong("");
+                        });
+                        header.col(|ui| {
+                            ui.strong("");
+                        });
+                    })
+                    .body(|mut body| {
+                        for v in &self.vendors {
+                            if v.i2p_address.contains(&self.find_vendor) && v.is_vendor {
+                                let row_height = 20.0;
+                                body.row(row_height, |mut row| {
+                                    row.col(|ui| {
+                                        ui.label("vendor");
+                                    });
+                                    row.col(|ui| {
+                                        ui.label(format!("{}", v.i2p_address));
+                                    });
+                                    row.col(|ui| {
+                                        if ui.button("Check Status").clicked() {
+                                            let nick_db = utils::search_gui_db(
+                                                String::from("gui-nick"),
+                                                String::from(&v.i2p_address),
+                                            );
+                                            let nick = if nick_db == utils::empty_string() {
+                                                String::from("anon")
+                                            } else {
+                                                nick_db
+                                            };
+                                            self.vendor_status.nick = nick;
+                                            self.vendor_status.i2p = String::from(&v.i2p_address);
+                                            // get the txp
+                                            self.vendor_status.txp = utils::search_gui_db(
+                                                String::from("gui-txp"),
+                                                String::from(&v.i2p_address),
+                                            );
+                                            // get the jwp
+                                            self.vendor_status.jwp = utils::search_gui_db(
+                                                String::from("gui-jwp"),
+                                                String::from(&v.i2p_address),
+                                            );
+                                            let r_exp = utils::search_gui_db(
+                                                String::from("gui-exp"),
+                                                String::from(&v.i2p_address),
+                                            );
+                                            self.vendor_status.exp = r_exp;
+                                            let expire = match self.vendor_status.exp.parse::<i64>()
+                                            {
+                                                Ok(n) => n,
+                                                Err(_e) => 0,
+                                            };
+                                            self.vendor_status.h_exp =
+                                                chrono::NaiveDateTime::from_timestamp_opt(
+                                                    expire, 0,
+                                                )
+                                                .unwrap()
+                                                .to_string();
+                                            // MESSAGES WON'T BE SENT UNTIL KEY IS SIGNED AND
+                                            // TRUSTED!
+                                            self.vendor_status.signed_key =
+                                                check_signed_key(self.vendor_status.i2p.clone());
+                                            send_contact_info_req(
+                                                self.contact_info_tx.clone(),
+                                                ctx.clone(),
+                                                self.vendor_status.i2p.clone(),
+                                            );
+                                            self.showing_vendor_status = true;
+                                            self.is_pinging = true;
+                                        }
+                                    });
+                                    row.col(|ui| {
+                                        let now = chrono::offset::Utc::now().timestamp();
+                                        let expire = match self.vendor_status.exp.parse::<i64>() {
+                                            Ok(n) => n,
+                                            Err(_e) => 0,
+                                        };
+                                        if now < expire
+                                            && self.vendor_status.signed_key
+                                            && self.vendor_status.jwp != utils::empty_string()
+                                            && v.i2p_address == self.vendor_status.i2p
+                                        {
+                                            if ui.button("View Products").clicked() {
+                                                send_products_from_vendor_req(
+                                                    self.get_vendor_products_tx.clone(),
+                                                    ctx.clone(),
+                                                    self.vendor_status.i2p.clone(),
+                                                    self.vendor_status.jwp.clone(),
+                                                );
+                                                self.is_window_shopping = true;
+                                                self.is_showing_products = true;
+                                            }
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                    });
+                if ui.button("Exit").clicked() {
+                    self.is_showing_vendors = false;
+                }
+            });
+
+        // Vendor status window
+        //-----------------------------------------------------------------------------------
+        let mut is_showing_vendor_status = self.is_showing_vendor_status;
+        egui::Window::new(&self.vendor_status.i2p)
+            .open(&mut is_showing_vendor_status)
+            .vscroll(true)
+            .title_bar(false)
+            .id(egui::Id::new(self.vendor_status.i2p.clone()))
+            .show(&ctx, |ui| {
+                if self.is_pinging {
+                    ui.add(egui::Spinner::new());
+                    ui.label("pinging...");
+                }
+                let status = if self.s_contact.xmr_address != utils::empty_string() {
+                    "online"
+                } else {
+                    "offline"
+                };
+                ui.label(format!("status: {}", status));
+                ui.label(format!("nick: {}", self.vendor_status.nick));
+                ui.label(format!("tx proof: {}", self.vendor_status.txp));
+                ui.label(format!("jwp: {}", self.vendor_status.jwp));
+                ui.label(format!("expiration: {}", self.vendor_status.h_exp));
+                ui.label(format!("signed key: {}", self.vendor_status.signed_key));
+                if ui.button("Exit").clicked() {
+                    self.is_showing_vendor_status = false;
+                }
+            });
 
         // Product image window
         //-----------------------------------------------------------------------------------
@@ -80,6 +292,8 @@ impl eframe::App for MarketApp {
                             .unwrap();
                 }
             });
+
+        // Vendor specific
 
         // Update Product window
         //-----------------------------------------------------------------------------------
@@ -159,10 +373,9 @@ impl eframe::App for MarketApp {
                 }
             });
 
-        // Products window
+        // Vendor Products Management window
         //-----------------------------------------------------------------------------------
         let mut is_showing_products = self.is_showing_products;
-        let mut is_showing_orders = self.is_showing_orders;
         egui::Window::new("Products")
             .open(&mut is_showing_products)
             .vscroll(true)
@@ -258,13 +471,20 @@ impl eframe::App for MarketApp {
                                 row.col(|ui| {
                                     ui.style_mut().wrap = Some(false);
                                     ui.horizontal(|ui| {
-                                        if ui.button("Update").clicked() {
-                                            self.product_update_pid = p.pid.clone();
-                                            self.new_product_desc = p.description.clone();
-                                            self.new_product_name = p.name.clone();
-                                            self.new_product_price = format!("{}", p.price);
-                                            self.new_product_qty = format!("{}", p.qty);
-                                            self.is_showing_product_update = true;
+                                        if !self.is_window_shopping {
+                                            if ui.button("Update").clicked() {
+                                                self.product_update_pid = p.pid.clone();
+                                                self.new_product_desc = p.description.clone();
+                                                self.new_product_name = p.name.clone();
+                                                self.new_product_price = format!("{}", p.price);
+                                                self.new_product_qty = format!("{}", p.qty);
+                                                self.is_showing_product_update = true;
+                                            }
+                                        } else {
+                                            if ui.button("Create Order").clicked() {
+                                                self.product_update_pid = p.pid.clone();
+                                                self.is_ordering = true;
+                                            }
                                         }
                                     });
                                 });
@@ -278,6 +498,7 @@ impl eframe::App for MarketApp {
 
         // TODO(c2m): Orders window
         //-----------------------------------------------------------------------------------
+        let mut is_showing_orders = self.is_showing_orders;
         egui::Window::new("Orders")
             .open(&mut is_showing_orders)
             .vscroll(true)
@@ -343,6 +564,10 @@ impl eframe::App for MarketApp {
                     });
             });
 
+        // End Vendor specific
+
+        // Market Dashboard Main window
+        //-----------------------------------------------------------------------------------
         egui::CentralPanel::default().show(ctx, |ui| {
             if ui.button("Refresh").clicked() {
                 self.products = product::find_all();
@@ -360,7 +585,7 @@ impl eframe::App for MarketApp {
                 }
             });
             if ui.button("View Vendors").clicked() {
-                // TODO(c2m):
+                self.is_showing_vendors = true;
             }
             ui.label("\n");
             if ui.button("View Orders").clicked() {
@@ -437,11 +662,49 @@ impl eframe::App for MarketApp {
     }
 }
 
-fn _refresh_on_delete_product_req(tx: Sender<bool>, ctx: egui::Context) {
+fn _refresh_on_delete_product_req(_tx: Sender<bool>, _ctx: egui::Context) {
     tokio::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         log::error!("refreshing products....");
-        let _ = tx.send(true);
-        ctx.request_repaint();
+        todo!();
+        // let _ = tx.send(true);
+        // ctx.request_repaint();
+    });
+}
+
+//------------------------------------------------------------------------------
+fn send_contact_info_req(tx: Sender<models::Contact>, ctx: egui::Context, contact: String) {
+    log::debug!("async send_contact_info_req");
+    tokio::spawn(async move {
+        match contact::add_contact_request(contact).await {
+            Ok(contact) => {
+                let _ = tx.send(contact);
+                ctx.request_repaint();
+            }
+            _ => log::debug!("failed to request invoice"),
+        }
+    });
+}
+
+fn check_signed_key(contact: String) -> bool {
+    let v = utils::search_gui_db(String::from("gui-signed-key"), contact);
+    v != utils::empty_string()
+}
+
+fn send_products_from_vendor_req(
+    tx: Sender<Vec<models::Product>>,
+    ctx: egui::Context,
+    contact: String,
+    jwp: String,
+) {
+    log::debug!("fetching products for vendor: {}", contact);
+    tokio::spawn(async move {
+        let result = product::get_vendor_products(contact, jwp).await;
+        if result.is_ok() {
+            let products: Vec<models::Product> = result.unwrap();
+            log::info!("retreived {:?} products", products);
+            let _ = tx.send(products);
+            ctx.request_repaint();
+        }
     });
 }
