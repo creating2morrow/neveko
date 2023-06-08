@@ -29,15 +29,22 @@ impl Default for MarketApp {
         let (_refresh_on_delete_product_tx, _refresh_on_delete_product_rx) =
             std::sync::mpsc::channel();
         let read_product_image = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
+        let s = db::Interface::open();
+        let r = db::Interface::read(&s.env, &s.handle, contact::NEVEKO_VENDOR_ENABLED);
+        let is_vendor_enabled = r == contact::NEVEKO_VENDOR_MODE_ON;
         MarketApp {
             is_product_image_set: false,
             is_showing_orders: false,
             is_showing_products: false,
             is_showing_product_image: false,
             is_showing_product_update: false,
-            is_vendor_enabled: false,
+            is_vendor_enabled,
             orders: Vec::new(),
-            product_image: egui_extras::RetainedImage::from_image_bytes("qr.png", &read_product_image).unwrap(),
+            product_image: egui_extras::RetainedImage::from_image_bytes(
+                "qr.png",
+                &read_product_image,
+            )
+            .unwrap(),
             products: Vec::new(),
             product_update_pid: utils::empty_string(),
             new_product_image: utils::empty_string(),
@@ -68,10 +75,12 @@ impl eframe::App for MarketApp {
                     self.is_showing_product_image = false;
                     self.is_product_image_set = false;
                     let read_product_image = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
-                    self.product_image = egui_extras::RetainedImage::from_image_bytes("qr.png", &read_product_image).unwrap();
+                    self.product_image =
+                        egui_extras::RetainedImage::from_image_bytes("qr.png", &read_product_image)
+                            .unwrap();
                 }
             });
-        
+
         // Update Product window
         //-----------------------------------------------------------------------------------
         let mut is_showing_product_update = self.is_showing_product_update;
@@ -123,10 +132,10 @@ impl eframe::App for MarketApp {
                     };
                     let product: models::Product = models::Product {
                         pid: self.product_update_pid.clone(),
-                        description: self.new_product_desc.clone(), 
+                        description: self.new_product_desc.clone(),
                         image,
                         in_stock: qty > 0,
-                        name: self.new_product_name.clone(), 
+                        name: self.new_product_name.clone(),
                         price,
                         qty,
                     };
@@ -218,20 +227,28 @@ impl eframe::App for MarketApp {
                                             self.is_showing_product_image = true;
                                             let file_path = format!(
                                                 "/home/{}/.neveko/{}.jpeg",
-                                                std::env::var("USER").unwrap_or(String::from("user")),
+                                                std::env::var("USER")
+                                                    .unwrap_or(String::from("user")),
                                                 p.pid
                                             );
-                                            // For the sake of brevity product list doesn't have image bytes, get them
+                                            // For the sake of brevity product list doesn't have
+                                            // image bytes, get them
                                             let i_product = product::find(&p.pid);
                                             match std::fs::write(&file_path, &i_product.image) {
                                                 Ok(w) => w,
-                                                Err(_) => log::error!("failed to write product image")
+                                                Err(_) => {
+                                                    log::error!("failed to write product image")
+                                                }
                                             };
                                             self.is_product_image_set = true;
-                                            let contents = std::fs::read(&file_path).unwrap_or(Vec::new());
+                                            let contents =
+                                                std::fs::read(&file_path).unwrap_or(Vec::new());
                                             if !i_product.image.is_empty() {
                                                 self.product_image =
-                                                egui_extras::RetainedImage::from_image_bytes(file_path, &contents).unwrap();
+                                                    egui_extras::RetainedImage::from_image_bytes(
+                                                        file_path, &contents,
+                                                    )
+                                                    .unwrap();
                                             }
                                             self.is_product_image_set = true;
                                             ctx.request_repaint();
@@ -242,21 +259,21 @@ impl eframe::App for MarketApp {
                                     ui.style_mut().wrap = Some(false);
                                     ui.horizontal(|ui| {
                                         if ui.button("Update").clicked() {
-                                          self.product_update_pid = p.pid.clone();
-                                          self.new_product_desc = p.description.clone();
-                                          self.new_product_name = p.name.clone();
-                                          self.new_product_price = format!("{}", p.price);
-                                          self.new_product_qty = format!("{}", p.qty);
-                                          self.is_showing_product_update = true;
+                                            self.product_update_pid = p.pid.clone();
+                                            self.new_product_desc = p.description.clone();
+                                            self.new_product_name = p.name.clone();
+                                            self.new_product_price = format!("{}", p.price);
+                                            self.new_product_qty = format!("{}", p.qty);
+                                            self.is_showing_product_update = true;
                                         }
                                     });
                                 });
                             });
                         }
                     });
-                    if ui.button("Exit").clicked() {
-                        self.is_showing_products = false;
-                    }
+                if ui.button("Exit").clicked() {
+                    self.is_showing_products = false;
+                }
             });
 
         // TODO(c2m): Orders window
@@ -343,11 +360,11 @@ impl eframe::App for MarketApp {
                 }
             });
             if ui.button("View Vendors").clicked() {
-                    
+                // TODO(c2m):
             }
             ui.label("\n");
             if ui.button("View Orders").clicked() {
-                    
+                // TODO(c2m):
             }
             if self.is_vendor_enabled {
                 ui.label("\n");
@@ -395,10 +412,10 @@ impl eframe::App for MarketApp {
                     };
                     let product: models::Product = models::Product {
                         pid: utils::empty_string(),
-                        description: self.new_product_desc.clone(), 
+                        description: self.new_product_desc.clone(),
                         image,
                         in_stock: qty > 0,
-                        name: self.new_product_name.clone(), 
+                        name: self.new_product_name.clone(),
                         price,
                         qty,
                     };

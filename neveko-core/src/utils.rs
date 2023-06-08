@@ -237,7 +237,7 @@ pub fn product_to_json(m: &models::Product) -> Json<models::Product> {
         image: m.image.iter().cloned().collect(),
         in_stock: m.in_stock,
         name: String::from(&m.name),
-        price: m.price, 
+        price: m.price,
         qty: m.qty,
     };
     Json(r_message)
@@ -675,16 +675,25 @@ pub async fn can_transfer(invoice: u128) -> bool {
 
 /// Gui toggle for vendor mode
 pub fn toggle_vendor_enabled() -> bool {
-    let off: &str = "0";
-    let on: &str = "1";
-    let vendor_env = std::env::var(contact::NEVEKO_VENDOR_ENABLED).unwrap_or(String::from(off));
-    if vendor_env == off {
+    let s = db::Interface::open();
+    let r = db::Interface::read(&s.env, &s.handle, contact::NEVEKO_VENDOR_ENABLED);
+    if r != contact::NEVEKO_VENDOR_MODE_ON {
         info!("neveko vendor mode enabled");
-        std::env::set_var(contact::NEVEKO_VENDOR_ENABLED, on);
+        db::Interface::write(
+            &s.env,
+            &s.handle,
+            contact::NEVEKO_VENDOR_ENABLED,
+            contact::NEVEKO_VENDOR_MODE_ON,
+        );
         return true;
     } else {
         info!("neveko vendor mode disabled");
-        std::env::set_var(contact::NEVEKO_VENDOR_ENABLED, off);
+        db::Interface::write(
+            &s.env,
+            &s.handle,
+            contact::NEVEKO_VENDOR_ENABLED,
+            contact::NEVEKO_VENDOR_MODE_OFF,
+        );
         return false;
     }
 }

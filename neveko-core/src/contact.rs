@@ -18,6 +18,8 @@ use std::error::Error;
 
 /// Environment variable for activating vendor functionality
 pub const NEVEKO_VENDOR_ENABLED: &str = "NEVEKO_VENDOR_ENABLED";
+pub const NEVEKO_VENDOR_MODE_OFF: &str = "0";
+pub const NEVEKO_VENDOR_MODE_ON: &str = "1";
 
 /// Create a new contact
 pub async fn create(c: &Json<Contact>) -> Contact {
@@ -104,8 +106,9 @@ async fn validate_contact(j: &Json<Contact>) -> bool {
 
 /// Send our information
 pub async fn share() -> Contact {
-    let vendor_env = std::env::var(NEVEKO_VENDOR_ENABLED).unwrap_or(String::from("0"));
-    let is_vendor = vendor_env == String::from("1");
+    let s = db::Interface::async_open().await;
+    let r = db::Interface::async_read(&s.env, &s.handle, NEVEKO_VENDOR_ENABLED).await;
+    let is_vendor = r == NEVEKO_VENDOR_MODE_ON;
     let wallet_name = String::from(crate::APP_NAME);
     let wallet_password =
         std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
