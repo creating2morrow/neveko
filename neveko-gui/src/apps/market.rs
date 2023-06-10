@@ -10,6 +10,8 @@ pub struct MarketApp {
     find_vendor: String,
     get_vendor_products_tx: Sender<Vec<models::Product>>,
     get_vendor_products_rx: Receiver<Vec<models::Product>>,
+    get_vendor_product_tx: Sender<models::Product>,
+    get_vendor_product_rx: Receiver<models::Product>,
     is_ordering: bool,
     is_pinging: bool,
     is_product_image_set: bool,
@@ -22,6 +24,7 @@ pub struct MarketApp {
     is_vendor_enabled: bool,
     is_window_shopping: bool,
     orders: Vec<models::Order>,
+    product_from_vendor: models::Product,
     product_image: egui_extras::RetainedImage,
     products: Vec<models::Product>,
     product_update_pid: String,
@@ -48,12 +51,15 @@ impl Default for MarketApp {
         let is_vendor_enabled = r == contact::NEVEKO_VENDOR_MODE_ON;
         let (contact_info_tx, contact_info_rx) = std::sync::mpsc::channel();
         let (get_vendor_products_tx, get_vendor_products_rx) = std::sync::mpsc::channel();
+        let (get_vendor_product_tx, get_vendor_product_rx) = std::sync::mpsc::channel();
         MarketApp {
             contact_info_rx,
             contact_info_tx,
             find_vendor: utils::empty_string(),
             get_vendor_products_rx,
             get_vendor_products_tx,
+            get_vendor_product_rx,
+            get_vendor_product_tx,
             is_ordering: false,
             is_pinging: false,
             is_product_image_set: false,
@@ -66,6 +72,7 @@ impl Default for MarketApp {
             is_vendor_enabled,
             is_window_shopping: false,
             orders: Vec::new(),
+            product_from_vendor: Default::default(),
             product_image: egui_extras::RetainedImage::from_image_bytes(
                 "qr.png",
                 &read_product_image,
@@ -100,6 +107,9 @@ impl eframe::App for MarketApp {
         }
         if let Ok(vendor_products) = self.get_vendor_products_rx.try_recv() {
             self.products = vendor_products;
+        }
+        if let Ok(vendor_product) = self.get_vendor_product_rx.try_recv() {
+            self.product_from_vendor = vendor_product;
         }
 
         // TODO(c2m): create order form
@@ -293,6 +303,167 @@ impl eframe::App for MarketApp {
                 }
             });
 
+        // Products Management window
+        //-----------------------------------------------------------------------------------
+        let mut is_showing_products = self.is_showing_products;
+        egui::Window::new("Products")
+            .open(&mut is_showing_products)
+            .vscroll(true)
+            .show(&ctx, |ui| {
+                use egui_extras::{
+                    Column,
+                    TableBuilder,
+                };
+
+                let table = TableBuilder::new(ui)
+                    .striped(true)
+                    .resizable(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::remainder())
+                    .min_scrolled_height(0.0);
+
+                table
+                    .header(20.0, |mut header| {
+                        header.col(|ui| {
+                            ui.strong("Name");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Description");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Price");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Quantity");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Image");
+                        });
+                        header.col(|ui| {
+                            ui.strong("");
+                        });
+                    })
+                    .body(|mut body| {
+                        for p in &self.products {
+                            let row_height = 20.0;
+                            body.row(row_height, |mut row| {
+                                row.col(|ui| {
+                                    ui.label(format!("{}", p.name));
+                                });
+                                row.col(|ui| {
+                                    ui.label(format!("{}", p.description));
+                                });
+                                row.col(|ui| {
+                                    ui.label(format!("{}", p.price));
+                                });
+                                row.col(|ui| {
+                                    ui.label(format!("{}", p.qty));
+                                });
+                                row.col(|ui| {
+                                    if ui.button("View").clicked() {
+                                        if !self.is_product_image_set {
+                                            self.is_showing_product_image = true;
+                                            let file_path = format!(
+                                                "/home/{}/.neveko/{}.jpeg",
+                                                std::env::var("USER")
+                                                    .unwrap_or(String::from("user")),
+                                                p.pid
+                                            );
+                                            // For the sake of brevity product list doesn't have
+                                            // image bytes, get them
+                                            let mut i_product = product::find(&p.pid);
+                                            // only pull image from vendor when we want to view
+                                            if self.is_window_shopping {
+                                                send_product_from_vendor_req(
+                                                    self.get_vendor_product_tx.clone(),
+                                                    ctx.clone(),
+                                                    self.vendor_status.i2p.clone(),
+                                                    self.vendor_status.jwp.clone(),
+                                                    String::from(&p.pid),
+                                                );
+                                                let e_product: models::Product = models::Product {
+                                                    pid: self.product_from_vendor.pid.clone(),
+                                                    description: self
+                                                        .product_from_vendor
+                                                        .description
+                                                        .clone(),
+                                                    image: self
+                                                        .product_from_vendor
+                                                        .image
+                                                        .iter()
+                                                        .cloned()
+                                                        .collect(),
+                                                    in_stock: self.product_from_vendor.in_stock,
+                                                    name: self.product_from_vendor.name.clone(),
+                                                    price: self.product_from_vendor.price,
+                                                    qty: self.product_from_vendor.qty,
+                                                };
+                                                i_product = e_product;
+                                            }
+                                            match std::fs::write(&file_path, &i_product.image) {
+                                                Ok(w) => w,
+                                                Err(_) => {
+                                                    log::error!("failed to write product image")
+                                                }
+                                            };
+                                            self.is_product_image_set = true;
+                                            let contents =
+                                                std::fs::read(&file_path).unwrap_or(Vec::new());
+                                            if !i_product.image.is_empty() {
+                                                // this image should uwrap if vendor image bytes are
+                                                // bad
+                                                let default_img = std::fs::read("./assets/qr.png")
+                                                    .unwrap_or(Vec::new());
+                                                let default_r_img =
+                                                    egui_extras::RetainedImage::from_image_bytes(
+                                                        "qr.png",
+                                                        &default_img,
+                                                    )
+                                                    .unwrap();
+                                                self.product_image =
+                                                    egui_extras::RetainedImage::from_image_bytes(
+                                                        file_path, &contents,
+                                                    )
+                                                    .unwrap_or(default_r_img);
+                                            }
+                                            self.is_product_image_set = true;
+                                            ctx.request_repaint();
+                                        }
+                                    }
+                                });
+                                row.col(|ui| {
+                                    ui.style_mut().wrap = Some(false);
+                                    ui.horizontal(|ui| {
+                                        if !self.is_window_shopping {
+                                            if ui.button("Update").clicked() {
+                                                self.product_update_pid = p.pid.clone();
+                                                self.new_product_desc = p.description.clone();
+                                                self.new_product_name = p.name.clone();
+                                                self.new_product_price = format!("{}", p.price);
+                                                self.new_product_qty = format!("{}", p.qty);
+                                                self.is_showing_product_update = true;
+                                            }
+                                        } else {
+                                            if ui.button("Create Order").clicked() {
+                                                self.product_update_pid = p.pid.clone();
+                                                self.is_ordering = true;
+                                            }
+                                        }
+                                    });
+                                });
+                            });
+                        }
+                    });
+                if ui.button("Exit").clicked() {
+                    self.is_showing_products = false;
+                }
+            });
+
         // Vendor specific
 
         // Update Product window
@@ -370,129 +541,6 @@ impl eframe::App for MarketApp {
                     self.new_product_qty = utils::empty_string();
                     self.new_product_image = utils::empty_string();
                     self.is_showing_product_update = false;
-                }
-            });
-
-        // Vendor Products Management window
-        //-----------------------------------------------------------------------------------
-        let mut is_showing_products = self.is_showing_products;
-        egui::Window::new("Products")
-            .open(&mut is_showing_products)
-            .vscroll(true)
-            .show(&ctx, |ui| {
-                use egui_extras::{
-                    Column,
-                    TableBuilder,
-                };
-
-                let table = TableBuilder::new(ui)
-                    .striped(true)
-                    .resizable(true)
-                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                    .column(Column::auto())
-                    .column(Column::auto())
-                    .column(Column::auto())
-                    .column(Column::auto())
-                    .column(Column::auto())
-                    .column(Column::remainder())
-                    .min_scrolled_height(0.0);
-
-                table
-                    .header(20.0, |mut header| {
-                        header.col(|ui| {
-                            ui.strong("Name");
-                        });
-                        header.col(|ui| {
-                            ui.strong("Description");
-                        });
-                        header.col(|ui| {
-                            ui.strong("Price");
-                        });
-                        header.col(|ui| {
-                            ui.strong("Quantity");
-                        });
-                        header.col(|ui| {
-                            ui.strong("Image");
-                        });
-                        header.col(|ui| {
-                            ui.strong("");
-                        });
-                    })
-                    .body(|mut body| {
-                        for p in &self.products {
-                            let row_height = 20.0;
-                            body.row(row_height, |mut row| {
-                                row.col(|ui| {
-                                    ui.label(format!("{}", p.name));
-                                });
-                                row.col(|ui| {
-                                    ui.label(format!("{}", p.description));
-                                });
-                                row.col(|ui| {
-                                    ui.label(format!("{}", p.price));
-                                });
-                                row.col(|ui| {
-                                    ui.label(format!("{}", p.qty));
-                                });
-                                row.col(|ui| {
-                                    if ui.button("View").clicked() {
-                                        if !self.is_product_image_set {
-                                            self.is_showing_product_image = true;
-                                            let file_path = format!(
-                                                "/home/{}/.neveko/{}.jpeg",
-                                                std::env::var("USER")
-                                                    .unwrap_or(String::from("user")),
-                                                p.pid
-                                            );
-                                            // For the sake of brevity product list doesn't have
-                                            // image bytes, get them
-                                            let i_product = product::find(&p.pid);
-                                            match std::fs::write(&file_path, &i_product.image) {
-                                                Ok(w) => w,
-                                                Err(_) => {
-                                                    log::error!("failed to write product image")
-                                                }
-                                            };
-                                            self.is_product_image_set = true;
-                                            let contents =
-                                                std::fs::read(&file_path).unwrap_or(Vec::new());
-                                            if !i_product.image.is_empty() {
-                                                self.product_image =
-                                                    egui_extras::RetainedImage::from_image_bytes(
-                                                        file_path, &contents,
-                                                    )
-                                                    .unwrap();
-                                            }
-                                            self.is_product_image_set = true;
-                                            ctx.request_repaint();
-                                        }
-                                    }
-                                });
-                                row.col(|ui| {
-                                    ui.style_mut().wrap = Some(false);
-                                    ui.horizontal(|ui| {
-                                        if !self.is_window_shopping {
-                                            if ui.button("Update").clicked() {
-                                                self.product_update_pid = p.pid.clone();
-                                                self.new_product_desc = p.description.clone();
-                                                self.new_product_name = p.name.clone();
-                                                self.new_product_price = format!("{}", p.price);
-                                                self.new_product_qty = format!("{}", p.qty);
-                                                self.is_showing_product_update = true;
-                                            }
-                                        } else {
-                                            if ui.button("Create Order").clicked() {
-                                                self.product_update_pid = p.pid.clone();
-                                                self.is_ordering = true;
-                                            }
-                                        }
-                                    });
-                                });
-                            });
-                        }
-                    });
-                if ui.button("Exit").clicked() {
-                    self.is_showing_products = false;
                 }
             });
 
@@ -672,7 +720,6 @@ fn _refresh_on_delete_product_req(_tx: Sender<bool>, _ctx: egui::Context) {
     });
 }
 
-//------------------------------------------------------------------------------
 fn send_contact_info_req(tx: Sender<models::Contact>, ctx: egui::Context, contact: String) {
     log::debug!("async send_contact_info_req");
     tokio::spawn(async move {
@@ -702,8 +749,27 @@ fn send_products_from_vendor_req(
         let result = product::get_vendor_products(contact, jwp).await;
         if result.is_ok() {
             let products: Vec<models::Product> = result.unwrap();
-            log::info!("retreived {:?} products", products);
+            log::info!("retreived {:?} products", products.len());
             let _ = tx.send(products);
+            ctx.request_repaint();
+        }
+    });
+}
+
+fn send_product_from_vendor_req(
+    tx: Sender<models::Product>,
+    ctx: egui::Context,
+    contact: String,
+    jwp: String,
+    pid: String,
+) {
+    log::debug!("fetching product {} from vendor: {}", &pid, contact);
+    tokio::spawn(async move {
+        let result = product::get_vendor_product(contact, jwp, pid).await;
+        if result.is_ok() {
+            let product: models::Product = result.unwrap();
+            log::info!("retreived product {}", &product.pid);
+            let _ = tx.send(product);
             ctx.request_repaint();
         }
     });

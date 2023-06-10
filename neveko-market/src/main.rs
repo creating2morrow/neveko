@@ -31,6 +31,10 @@ async fn rocket() -> _ {
         .mount("/products", routes![controller::get_products])
         .mount(
             "/product",
-            routes![controller::create_product, controller::update_product],
+            routes![
+                controller::get_product,
+                controller::create_product,
+                controller::update_product
+            ],
         )
 }

@@ -132,3 +132,33 @@ pub async fn get_vendor_products(
         }
     }
 }
+
+/// Send the request to vendor a single product
+pub async fn get_vendor_product(
+    contact: String,
+    jwp: String,
+    pid: String,
+) -> Result<Product, Box<dyn Error>> {
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    match client?
+        .get(format!("http://{}/market/product/{}", contact, pid))
+        .header("proof", jwp)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<Product>().await;
+            debug!("get vendor product response: {:?}", res);
+            match res {
+                Ok(r) => Ok(r),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(e) => {
+            error!("failed to fetch product due to: {:?}", e);
+            Ok(Default::default())
+        }
+    }
+}

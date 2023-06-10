@@ -78,6 +78,13 @@ pub async fn gen_jwp(proof: Json<proof::TxProof>) -> Custom<Json<reqres::Jwp>> {
 // NEVEKO Market APIs
 //-----------------------------------------------
 
+/// Get a product by passing id
+#[get("/<pid>")]
+pub async fn get_product(pid: String, _jwp: proof::PaymentProof) -> Custom<Json<models::Product>> {
+    let m_product: models::Product = product::find(&pid);
+    Custom(Status::Ok, Json(m_product))
+}
+
 /// Get all products
 ///
 /// Protected: true
