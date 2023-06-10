@@ -211,7 +211,7 @@ impl eframe::App for AddressBookApp {
             .show(&ctx, |ui| {
                 if self.is_loading {
                     ui.add(egui::Spinner::new());
-                    ui.label("sending neveko...");
+                    ui.label("sending message...");
                 }
                 ui.horizontal(|ui| ui.label(format!("to: {}", self.status.i2p)));
                 ui.horizontal(|ui| {
@@ -252,7 +252,7 @@ impl eframe::App for AddressBookApp {
             .show(&ctx, |ui| {
                 if self.is_loading {
                     ui.add(egui::Spinner::new());
-                    ui.label("creating jwp may take a few minutes...");
+                    ui.label("creating jwp. please wait...");
                 }
                 if self.is_estimating_fee {
                     ui.add(egui::Spinner::new());
@@ -636,7 +636,6 @@ fn send_payment_req(
     utils::clear_gui_db(String::from("gui-txp"), String::from(&contact));
     utils::clear_gui_db(String::from("gui-jwp"), String::from(&contact));
     utils::clear_gui_db(String::from("gui-exp"), String::from(&contact));
-    let mut retry_count = 1;
     tokio::spawn(async move {
         let ptxp_address = String::from(&d.address);
         let ftxp_address = String::from(&d.address);
@@ -669,21 +668,6 @@ fn send_payment_req(
             message: utils::empty_string(),
             signature: get_txp.result.signature,
         };
-        // we will poll for 6 minutes MAX because jwp cannot be created without at least ONE conf
-        loop {
-            if retry_count > 3 {
-                break;
-            }
-            let check_txp: reqres::XmrRpcCheckTxProofResponse = monero::check_tx_proof(&ftxp).await;
-            if check_txp.result.good && check_txp.result.confirmations > 0 {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_secs(
-                BLOCK_TIME_IN_SECS_EST as u64,
-            ))
-            .await;
-            retry_count += 1;
-        }
         utils::write_gui_db(
             String::from("gui-txp"),
             String::from(&contact),
@@ -696,6 +680,11 @@ fn send_payment_req(
         );
         monero::close_wallet(&wallet_name, &wallet_password).await;
         // if we made it this far we can now request a JWP from our friend
+        // wait a bit for the tx to propogate
+        tokio::time::sleep(std::time::Duration::from_secs(
+            crate::BLOCK_TIME_IN_SECS_EST,
+        ))
+        .await;
         match proof::prove_payment(String::from(&contact), &ftxp).await {
             Ok(result) => {
                 utils::write_gui_db(

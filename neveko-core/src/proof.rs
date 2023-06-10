@@ -78,7 +78,7 @@ pub async fn create_invoice() -> reqres::Invoice {
 ///
 /// necessary to verify the payment. Confirmations cannot
 ///
-/// be zero or above some specified threshold. Setting higher
+/// be above some specified threshold. Setting higher
 ///
 /// payment values and lower confirmations works as a spam
 ///
@@ -218,15 +218,7 @@ impl<'r> FromRequest<'r> for PaymentProof {
                             message: String::from(message),
                             signature: String::from(signature),
                         };
-                        // TODO(c2m): remove this validation since it was done
-                        //           on JWP creation?
                         let c_txp = validate_proof(&txp).await;
-                        if c_txp.confirmations == 0 {
-                            return Outcome::Failure((
-                                Status::PaymentRequired,
-                                PaymentProofError::Invalid,
-                            ));
-                        }
                         // verify expiration
                         let expire = utils::get_conf_threshold();
                         // TODO(c2m): offline verification from created and expire fields
@@ -267,7 +259,6 @@ async fn validate_proof(txp: &TxProof) -> TxProof {
     let cth = utils::get_conf_threshold();
     let pth = utils::get_payment_threshold();
     let lgtm = p.result.good
-        && !p.result.in_pool
         && unlock_time < monero::LockTimeLimit::Blocks.value()
         && p.result.confirmations < cth
         && p.result.received >= pth;

@@ -38,7 +38,10 @@ impl eframe::App for LoginApp {
             ui.horizontal(|ui| {
                 ui.label("credential: \t");
                 let mut show_password = self.is_not_showing_password;
-                ui.add(egui::TextEdit::singleline(&mut self.credential).password(self.is_not_showing_password));
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.credential)
+                        .password(self.is_not_showing_password),
+                );
                 if ui.checkbox(&mut show_password, "show password").changed() {
                     self.is_not_showing_password = !self.is_not_showing_password;
                 }
