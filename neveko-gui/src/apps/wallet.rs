@@ -98,6 +98,10 @@ impl eframe::App for WalletApp {
                     ctx.request_repaint();
                 }
                 self.qr.show(ui);
+                let address_label = ui.label("copy: \t");
+                ui.text_edit_singleline(&mut self.s_xmr_address)
+                    .labelled_by(address_label.id);
+                ui.label("\n");
                 if ui.button("Exit").clicked() {
                     self.is_showing_qr = false;
                 }

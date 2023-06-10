@@ -2,7 +2,9 @@
 #![forbid(unsafe_code)]
 
 use eframe::egui;
+use image::Luma;
 use neveko_core::*;
+use qrcode::QrCode;
 use std::{
     sync::mpsc::{
         Receiver,
@@ -23,8 +25,10 @@ pub struct HomeApp {
     is_editing_connections: bool,
     is_init: bool,
     is_installing: bool,
+    is_qr_set: bool,
     is_loading: bool,
     is_timeout: bool,
+    is_showing_qr: bool,
     is_updated: bool,
     // Sender/Receiver for async notifications.
     i2p_status_tx: Sender<i2p::ProxyStatus>,
@@ -39,6 +43,7 @@ pub struct HomeApp {
     xmr_rpc_ver_rx: Receiver<reqres::XmrRpcVersionResponse>,
     can_refresh_tx: Sender<bool>,
     can_refresh_rx: Receiver<bool>,
+    pub qr: egui_extras::RetainedImage,
     // application state set
     s_xmr_address: reqres::XmrRpcAddressResponse,
     s_xmr_balance: reqres::XmrRpcBalanceResponse,
@@ -61,6 +66,8 @@ impl Default for HomeApp {
         let is_init = true;
         let is_installing = false;
         let is_loading = false;
+        let is_qr_set = false;
+        let is_showing_qr = false;
         let is_timeout = false;
         let is_updated = false;
         let (core_timeout_tx, core_timeout_rx) = std::sync::mpsc::channel();
@@ -71,6 +78,7 @@ impl Default for HomeApp {
         let (can_refresh_tx, can_refresh_rx) = std::sync::mpsc::channel();
         let (i2p_status_tx, i2p_status_rx) = std::sync::mpsc::channel();
         let (installation_tx, installation_rx) = std::sync::mpsc::channel();
+        let contents = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
         let s_xmr_rpc_ver = Default::default();
         let s_xmr_address = Default::default();
         let s_xmr_balance = Default::default();
@@ -96,6 +104,8 @@ impl Default for HomeApp {
             is_init,
             is_installing,
             is_loading,
+            is_qr_set,
+            is_showing_qr,
             is_timeout,
             is_updated,
             xmrd_get_info_tx,
@@ -110,6 +120,7 @@ impl Default for HomeApp {
             i2p_status_rx,
             can_refresh_rx,
             can_refresh_tx,
+            qr: egui_extras::RetainedImage::from_image_bytes("qr.png", &contents).unwrap(),
             // state of self defaults
             s_xmr_address,
             s_xmr_balance,
@@ -160,6 +171,38 @@ impl eframe::App for HomeApp {
                 self.is_installing = false;
             }
         }
+
+        // I2P Address QR
+        //-----------------------------------------------------------------------------------
+        let mut is_showing_qr = self.is_showing_qr;
+        egui::Window::new("")
+            .open(&mut is_showing_qr)
+            .vscroll(true)
+            .show(ctx, |ui| {
+                let mut i2p_address = i2p::get_destination(None);
+                if !self.is_qr_set && i2p_address != utils::empty_string() {
+                    let code = QrCode::new(&i2p_address).unwrap();
+                    let image = code.render::<Luma<u8>>().build();
+                    let file_path = format!(
+                        "/home/{}/.neveko/i2p-qr.png",
+                        std::env::var("USER").unwrap_or(String::from("user"))
+                    );
+                    image.save(&file_path).unwrap();
+                    self.is_qr_set = true;
+                    let contents = std::fs::read(&file_path).unwrap_or(Vec::new());
+                    self.qr = egui_extras::RetainedImage::from_image_bytes("i2p-qr.png", &contents)
+                        .unwrap();
+                    ctx.request_repaint();
+                }
+                self.qr.show(ui);
+                let address_label = ui.label("copy: \t");
+                ui.text_edit_singleline(&mut i2p_address)
+                    .labelled_by(address_label.id);
+                ui.label("\n");
+                if ui.button("Exit").clicked() {
+                    self.is_showing_qr = false;
+                }
+            });
 
         // Installation Error window
         //-----------------------------------------------------------------------------------
@@ -301,6 +344,11 @@ impl eframe::App for HomeApp {
                     let i2p_address = i2p::get_destination(None);
                     ui.label(format!("- status: {}\n- address: {}", str_i2p_status, i2p_address));
                 });
+            });
+            ui.horizontal(|ui| {
+                if ui.button("Show QR").clicked() {
+                    self.is_showing_qr = true;
+                }
             });
             ui.label("____________________________________________________________________\n");
             ui.label("\n\n");

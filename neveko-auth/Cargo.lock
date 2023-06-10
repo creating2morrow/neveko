@@ -1209,6 +1209,7 @@ dependencies = [
  "hex",
  "hmac",
  "jwt",
+ "lazy_static 1.4.0",
  "lmdb-rs",
  "log 0.4.17",
  "rand",

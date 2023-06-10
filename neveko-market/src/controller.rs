@@ -99,4 +99,13 @@ pub async fn sign_and_submit_multisig(
     }
     Custom(Status::Ok, Json(Default::default()))
 }
+
+/// toggle vendor mode
+#[get("/")]
+pub async fn toggle_vendor_mode(
+    _token: auth::BearerToken,
+) -> Custom<Json<reqres::VendorModeResponse>> {
+    let mode = utils::toggle_vendor_enabled();
+    Custom(Status::Ok, Json(reqres::VendorModeResponse { mode }))
+}
 // END JSON APIs

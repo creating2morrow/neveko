@@ -1225,3 +1225,16 @@ impl Default for FinalizeOrderResponse {
         }
     }
 }
+
+/// Response for the vendor mode
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct VendorModeResponse {
+    pub mode: bool,
+}
+
+impl Default for VendorModeResponse {
+    fn default() -> Self {
+        VendorModeResponse { mode: false }
+    }
+}

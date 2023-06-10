@@ -212,7 +212,7 @@ pub fn get_app_contact_port() -> u16 {
     args.contact_port
 }
 
-/// app message port
+/// app market port
 pub fn get_app_market_port() -> u16 {
     let args = args::Args::parse();
     args.marketplace_port
@@ -417,7 +417,7 @@ fn start_micro_servers() {
         .expect("failed to start contact server");
     debug!("{:?}", c_output.stdout);
     info!("starting marketplace admin server");
-    let mut market_path = "neveko-contact/target/debug/neveko_market";
+    let mut market_path = "neveko-market/target/debug/neveko_market";
     if env == ReleaseEnvironment::Production {
         market_path = "neveko_market";
     }

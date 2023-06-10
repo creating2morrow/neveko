@@ -37,4 +37,5 @@ async fn rocket() -> _ {
                 controller::update_product
             ],
         )
+        .mount("/vendor/mode", routes![controller::toggle_vendor_mode])
 }
