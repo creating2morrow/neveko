@@ -9,15 +9,18 @@ use sha2::{
 pub struct LoginApp {
     pub credential: String,
     pub is_cred_generated: bool,
+    pub is_not_showing_password: bool,
 }
 
 impl Default for LoginApp {
     fn default() -> Self {
         let credential = utils::empty_string();
         let is_cred_generated = false;
+        let is_not_showing_password = true;
         LoginApp {
             credential,
             is_cred_generated,
+            is_not_showing_password,
         }
     }
 }
@@ -33,12 +36,17 @@ impl eframe::App for LoginApp {
             ui.label("it will not be displayed again after logging in");
             ui.label("use this or set your own secure password.");
             ui.horizontal(|ui| {
-                let cred_label = ui.label("credential: \t");
-                ui.text_edit_singleline(&mut self.credential)
-                    .labelled_by(cred_label.id);
+                ui.label("credential: \t");
+                let mut show_password = self.is_not_showing_password;
+                ui.add(egui::TextEdit::singleline(&mut self.credential).password(self.is_not_showing_password));
+                if ui.checkbox(&mut show_password, "show password").changed() {
+                    self.is_not_showing_password = !self.is_not_showing_password;
+                }
             });
             if ui.button("Login").clicked() {
-                // TODO(c2m): security / encryption, for now only the hash of auth put in lmdb
+                // temporarily set the password to user environment and clear with screenlock
+                // we set it here for the initial launch of neveko
+                std::env::set_var(neveko_core::MONERO_WALLET_PASSWORD, self.credential.clone());
                 let k = CREDENTIAL_KEY;
                 let mut hasher = Sha512::new();
                 hasher.update(self.credential.clone());

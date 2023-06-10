@@ -222,6 +222,8 @@ impl eframe::App for WrapApp {
 
     #[cfg(feature = "glow")]
     fn on_exit(&mut self, _gl: Option<&glow::Context>) {
+        // sanity check that wallet password is no longer in user environment
+        std::env::set_var(neveko_core::MONERO_WALLET_PASSWORD, "");
         utils::kill_child_processes(false);
     }
 }
@@ -297,18 +299,6 @@ impl WrapApp {
             ctx.request_repaint();
         });
     }
-
-    /*
-       TODO(c2m): SECURITY!:
-       Ok, so this here is by far the greatest security loophole.
-       An attacker could reset the credential in the db to any value,
-       besides setting the wallet password on initial load, better change
-       the key for storing the random 32 byte credential to be some strong
-       user entry and then reset wallet password with that. But anyways if
-       someone has access to the machine it sucks because neveko gpg key
-       doesn't have a passphrase.
-    */
-
     /// Validate that a credential was set by the user;
     fn check_credential_key(&mut self, tx: Sender<bool>, ctx: egui::Context) {
         tokio::spawn(async move {

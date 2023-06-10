@@ -45,6 +45,8 @@ impl LockScreenApp {
         self.is_locked
     }
     pub fn set_lock(&mut self) {
+        // clear wallet password from user environment on screen lock
+        std::env::set_var(neveko_core::MONERO_WALLET_PASSWORD, "");
         self.is_locked = true
     }
 }
@@ -58,6 +60,7 @@ impl eframe::App for LockScreenApp {
                 ui.add(egui::TextEdit::singleline(&mut self.lock_screen.credential).password(true));
             });
             if ui.button("Login").clicked() {
+                std::env::set_var(neveko_core::MONERO_WALLET_PASSWORD, self.lock_screen.credential.clone());
                 // Get the credential hash from lmdb
                 let s = db::Interface::open();
                 let r = db::Interface::read(&s.env, &s.handle, CREDENTIAL_KEY);
