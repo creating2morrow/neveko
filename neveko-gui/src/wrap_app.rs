@@ -224,7 +224,10 @@ impl eframe::App for WrapApp {
     fn on_exit(&mut self, _gl: Option<&glow::Context>) {
         // sanity check that wallet password is no longer in user environment
         std::env::set_var(neveko_core::MONERO_WALLET_PASSWORD, "");
-        utils::kill_child_processes(false);
+        let is_bg = std::env::var(crate::NEVEKO_DEV_BACKGROUND).unwrap_or(String::from("0"));
+        if is_bg != String::from("1") {
+            utils::kill_child_processes(false);
+        } 
     }
 }
 

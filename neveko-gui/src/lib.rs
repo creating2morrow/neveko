@@ -19,5 +19,6 @@ pub const ADD_CONTACT_TIMEOUT_SECS: u64 = 0x5A;
 pub const START_CORE_TIMEOUT_SECS: u64 = 0x79;
 /// bytes in a a GB for calculating space on home page
 pub const BYTES_IN_GB: u64 = 1000000000;
-
+/// Useful flag to keep services running in background
+pub const NEVEKO_DEV_BACKGROUND: &str = "NEVEKO_DEV_BACKGROUND";
 pub use wrap_app::WrapApp;
