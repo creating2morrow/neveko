@@ -21,6 +21,20 @@ pub const NEVEKO_VENDOR_ENABLED: &str = "NEVEKO_VENDOR_ENABLED";
 pub const NEVEKO_VENDOR_MODE_OFF: &str = "0";
 pub const NEVEKO_VENDOR_MODE_ON: &str = "1";
 
+pub enum Prune {
+    Full,
+    Pruned,
+}
+
+impl Prune {
+    pub fn value(&self) -> u32 {
+        match *self {
+            Prune::Full => 0,
+            Prune::Pruned => 1,
+        }
+    }
+}
+
 /// Create a new contact
 pub async fn create(c: &Json<Contact>) -> Contact {
     let f_cid: String = format!("c{}", utils::generate_rnd());

@@ -21,6 +21,8 @@ use rand_core::RngCore;
 use rocket::serde::json::Json;
 use std::time::Duration;
 
+const ESTIMATE_FEE_FAILURE: u128 = 0;
+
 /// Struct for the vendor / contact status window
 pub struct ContactStatus {
     /// UNIX timestamp of expiration as string
@@ -654,6 +656,7 @@ fn validate_installation_hash(sw: ExternalSoftware, filename: &String) -> bool {
 ///
 /// especially on stagenet.
 pub async fn estimate_fee() -> u128 {
+    // loop intializer
     let mut height: u64 = 0;
     let mut count: u64 = 1;
     let mut v_fee: Vec<u128> = Vec::new();
@@ -663,9 +666,9 @@ pub async fn estimate_fee() -> u128 {
             break;
         }
         let r_height = monero::get_height().await;
-        if r_height.height == 0 {
+        if r_height.height == ESTIMATE_FEE_FAILURE as u64 {
             error!("error fetching height");
-            return 0;
+            return ESTIMATE_FEE_FAILURE;
         }
         height = r_height.height - count;
         let block = monero::get_block(height).await;
@@ -702,6 +705,9 @@ pub async fn can_transfer(invoice: u128) -> bool {
     let balance = monero::get_balance().await;
     monero::close_wallet(&wallet_name, &wallet_password).await;
     let fee = estimate_fee().await;
+    if fee == ESTIMATE_FEE_FAILURE {
+        false;
+    }
     debug!("fee estimated to: {}", fee);
     debug!("balance: {}", balance.result.unlocked_balance);
     debug!("fee + invoice = {}", invoice + fee);

@@ -446,7 +446,13 @@ impl eframe::App for AddressBookApp {
                 if ui.button("Add").clicked() {
                     // Get the contacts information from the /share API
                     let contact = self.contact.clone();
-                    send_contact_info_req(self.contact_info_tx.clone(), ctx.clone(), contact, 0);
+                    let prune = contact::Prune::Full.value();
+                    send_contact_info_req(
+                        self.contact_info_tx.clone(),
+                        ctx.clone(),
+                        contact,
+                        prune,
+                    );
                     add_contact_timeout(self.contact_timeout_tx.clone(), ctx.clone());
                     self.is_adding = true;
                 }
@@ -544,11 +550,12 @@ impl eframe::App for AddressBookApp {
                                         // MESSAGES WON'T BE SENT UNTIL KEY IS SIGNED AND TRUSTED!
                                         self.status.signed_key =
                                             check_signed_key(self.status.i2p.clone());
+                                        let prune = contact::Prune::Pruned.value();
                                         send_contact_info_req(
                                             self.contact_info_tx.clone(),
                                             ctx.clone(),
                                             self.status.i2p.clone(),
-                                            1,
+                                            prune,
                                         );
                                         self.showing_status = true;
                                         self.is_pinging = true;

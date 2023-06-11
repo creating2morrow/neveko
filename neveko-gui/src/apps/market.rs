@@ -264,6 +264,7 @@ impl eframe::App for MarketApp {
                                                 self.contact_info_tx.clone(),
                                                 ctx.clone(),
                                                 self.vendor_status.i2p.clone(),
+                                                contact::Prune::Pruned.value(),
                                             );
                                             vendor_status_timeout(
                                                 self.contact_timeout_tx.clone(),
@@ -768,10 +769,15 @@ fn _refresh_on_delete_product_req(_tx: Sender<bool>, _ctx: egui::Context) {
     });
 }
 
-fn send_contact_info_req(tx: Sender<models::Contact>, ctx: egui::Context, contact: String) {
+fn send_contact_info_req(
+    tx: Sender<models::Contact>,
+    ctx: egui::Context,
+    contact: String,
+    prune: u32,
+) {
     log::debug!("async send_contact_info_req");
     tokio::spawn(async move {
-        match contact::add_contact_request(contact, 1).await {
+        match contact::add_contact_request(contact, prune).await {
             Ok(contact) => {
                 let _ = tx.send(contact);
                 ctx.request_repaint();

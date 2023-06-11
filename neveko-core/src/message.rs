@@ -329,7 +329,7 @@ async fn is_contact_online(contact: &String, jwp: String) -> Result<bool, Box<dy
             debug!("check is contact online by version response: {:?}", res);
             match res {
                 Ok(r) => {
-                    if r.result.version != 0 {
+                    if r.result.version != monero::INVALID_VERSION {
                         Ok(true)
                     } else {
                         Ok(false)
