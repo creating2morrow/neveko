@@ -446,7 +446,7 @@ impl eframe::App for AddressBookApp {
                 if ui.button("Add").clicked() {
                     // Get the contacts information from the /share API
                     let contact = self.contact.clone();
-                    send_contact_info_req(self.contact_info_tx.clone(), ctx.clone(), contact);
+                    send_contact_info_req(self.contact_info_tx.clone(), ctx.clone(), contact, 0);
                     add_contact_timeout(self.contact_timeout_tx.clone(), ctx.clone());
                     self.is_adding = true;
                 }
@@ -548,6 +548,7 @@ impl eframe::App for AddressBookApp {
                                             self.contact_info_tx.clone(),
                                             ctx.clone(),
                                             self.status.i2p.clone(),
+                                            1,
                                         );
                                         self.showing_status = true;
                                         self.is_pinging = true;
@@ -579,10 +580,15 @@ impl eframe::App for AddressBookApp {
 
 // Send asyc requests to neveko-core
 //------------------------------------------------------------------------------
-fn send_contact_info_req(tx: Sender<models::Contact>, ctx: egui::Context, contact: String) {
+fn send_contact_info_req(
+    tx: Sender<models::Contact>,
+    ctx: egui::Context,
+    contact: String,
+    prune: u32,
+) {
     log::debug!("async send_contact_info_req");
     tokio::spawn(async move {
-        match contact::add_contact_request(contact).await {
+        match contact::add_contact_request(contact, prune).await {
             Ok(contact) => {
                 let _ = tx.send(contact);
                 ctx.request_repaint();

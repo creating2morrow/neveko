@@ -29,6 +29,8 @@ pub struct ContactStatus {
     pub h_exp: String,
     /// i2p address of current status check
     pub i2p: String,
+    /// update vendor status of contact
+    pub is_vendor: bool,
     /// JSON Web Proof of current status check
     pub jwp: String,
     /// Alias for contact
@@ -45,6 +47,7 @@ impl Default for ContactStatus {
             exp: utils::empty_string(),
             h_exp: utils::empty_string(),
             i2p: utils::empty_string(),
+            is_vendor: false,
             jwp: utils::empty_string(),
             nick: String::from("anon"),
             signed_key: false,

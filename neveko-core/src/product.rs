@@ -82,6 +82,7 @@ pub fn find_all() -> Vec<Product> {
 
 /// Modify product
 pub fn modify(p: Json<Product>) -> Product {
+    // TODO(c2m): don't allow modification to products with un-delivered orders
     info!("modify product: {}", &p.pid);
     let f_prod: Product = find(&p.pid);
     if f_prod.pid == utils::empty_string() {
@@ -143,7 +144,7 @@ pub async fn get_vendor_product(
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
     match client?
-        .get(format!("http://{}/market/product/{}", contact, pid))
+        .get(format!("http://{}/market/{}", contact, pid))
         .header("proof", jwp)
         .send()
         .await

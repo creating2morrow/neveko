@@ -7,11 +7,14 @@ use std::sync::mpsc::{
 pub struct MarketApp {
     contact_info_tx: Sender<models::Contact>,
     contact_info_rx: Receiver<models::Contact>,
+    contact_timeout_tx: Sender<bool>,
+    contact_timeout_rx: Receiver<bool>,
     find_vendor: String,
     get_vendor_products_tx: Sender<Vec<models::Product>>,
     get_vendor_products_rx: Receiver<Vec<models::Product>>,
     get_vendor_product_tx: Sender<models::Product>,
     get_vendor_product_rx: Receiver<models::Product>,
+    is_loading: bool,
     is_ordering: bool,
     is_pinging: bool,
     is_product_image_set: bool,
@@ -21,6 +24,7 @@ pub struct MarketApp {
     is_showing_orders: bool,
     is_showing_vendor_status: bool,
     is_showing_vendors: bool,
+    is_timeout: bool,
     is_vendor_enabled: bool,
     is_window_shopping: bool,
     orders: Vec<models::Order>,
@@ -36,13 +40,13 @@ pub struct MarketApp {
     _refresh_on_delete_product_tx: Sender<bool>,
     _refresh_on_delete_product_rx: Receiver<bool>,
     s_contact: models::Contact,
-    showing_vendor_status: bool,
     vendor_status: utils::ContactStatus,
     vendors: Vec<models::Contact>,
 }
 
 impl Default for MarketApp {
     fn default() -> Self {
+        let (contact_timeout_tx, contact_timeout_rx) = std::sync::mpsc::channel();
         let (_refresh_on_delete_product_tx, _refresh_on_delete_product_rx) =
             std::sync::mpsc::channel();
         let read_product_image = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
@@ -55,11 +59,14 @@ impl Default for MarketApp {
         MarketApp {
             contact_info_rx,
             contact_info_tx,
+            contact_timeout_rx,
+            contact_timeout_tx,
             find_vendor: utils::empty_string(),
             get_vendor_products_rx,
             get_vendor_products_tx,
             get_vendor_product_rx,
             get_vendor_product_tx,
+            is_loading: false,
             is_ordering: false,
             is_pinging: false,
             is_product_image_set: false,
@@ -69,6 +76,7 @@ impl Default for MarketApp {
             is_showing_product_update: false,
             is_showing_vendor_status: false,
             is_showing_vendors: false,
+            is_timeout: false,
             is_vendor_enabled,
             is_window_shopping: false,
             orders: Vec::new(),
@@ -88,7 +96,6 @@ impl Default for MarketApp {
             _refresh_on_delete_product_tx,
             _refresh_on_delete_product_rx,
             s_contact: Default::default(),
-            showing_vendor_status: false,
             vendor_status: Default::default(),
             vendors: Vec::new(),
         }
@@ -99,17 +106,54 @@ impl eframe::App for MarketApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Hook into async channel threads
         //-----------------------------------------------------------------------------------
+
         if let Ok(contact_info) = self.contact_info_rx.try_recv() {
             self.s_contact = contact_info;
             if self.s_contact.xmr_address != utils::empty_string() {
                 self.is_pinging = false;
+                self.vendor_status.is_vendor = self.s_contact.is_vendor;
             }
         }
+
         if let Ok(vendor_products) = self.get_vendor_products_rx.try_recv() {
+            self.is_loading = false;
             self.products = vendor_products;
         }
+
         if let Ok(vendor_product) = self.get_vendor_product_rx.try_recv() {
+            self.is_loading = false;
+            if !vendor_product.image.is_empty() {
+                // only pull image from vendor when we want to view
+                let file_path = format!(
+                    "/home/{}/.neveko/{}.jpeg",
+                    std::env::var("USER").unwrap_or(String::from("user")),
+                    vendor_product.pid
+                );
+                if self.is_window_shopping {
+                    self.is_loading = true;
+                    let contents = std::fs::read(&file_path).unwrap_or(Vec::new());
+                    // this image should uwrap if vendor image bytes are
+                    // bad
+                    let default_img = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
+                    let default_r_img =
+                        egui_extras::RetainedImage::from_image_bytes("qr.png", &default_img)
+                            .unwrap();
+                    self.product_image =
+                        egui_extras::RetainedImage::from_image_bytes(file_path, &contents)
+                            .unwrap_or(default_r_img);
+                }
+            }
             self.product_from_vendor = vendor_product;
+            self.is_product_image_set = true;
+            self.is_showing_product_image = true;
+            self.is_loading = false;
+        }
+
+        if let Ok(timeout) = self.contact_timeout_rx.try_recv() {
+            self.is_timeout = true;
+            if timeout {
+                self.is_pinging = false;
+            }
         }
 
         // TODO(c2m): create order form
@@ -163,7 +207,7 @@ impl eframe::App for MarketApp {
                     })
                     .body(|mut body| {
                         for v in &self.vendors {
-                            if v.i2p_address.contains(&self.find_vendor) && v.is_vendor {
+                            if v.i2p_address.contains(&self.find_vendor) {
                                 let row_height = 20.0;
                                 body.row(row_height, |mut row| {
                                     row.col(|ui| {
@@ -195,6 +239,7 @@ impl eframe::App for MarketApp {
                                                 String::from("gui-jwp"),
                                                 String::from(&v.i2p_address),
                                             );
+                                            log::debug!("jwp: {}", self.vendor_status.jwp);
                                             let r_exp = utils::search_gui_db(
                                                 String::from("gui-exp"),
                                                 String::from(&v.i2p_address),
@@ -220,7 +265,11 @@ impl eframe::App for MarketApp {
                                                 ctx.clone(),
                                                 self.vendor_status.i2p.clone(),
                                             );
-                                            self.showing_vendor_status = true;
+                                            vendor_status_timeout(
+                                                self.contact_timeout_tx.clone(),
+                                                ctx.clone(),
+                                            );
+                                            self.is_showing_vendor_status = true;
                                             self.is_pinging = true;
                                         }
                                     });
@@ -234,8 +283,10 @@ impl eframe::App for MarketApp {
                                             && self.vendor_status.signed_key
                                             && self.vendor_status.jwp != utils::empty_string()
                                             && v.i2p_address == self.vendor_status.i2p
+                                            && self.vendor_status.is_vendor
                                         {
                                             if ui.button("View Products").clicked() {
+                                                self.is_loading = true;
                                                 send_products_from_vendor_req(
                                                     self.get_vendor_products_tx.clone(),
                                                     ctx.clone(),
@@ -244,6 +295,7 @@ impl eframe::App for MarketApp {
                                                 );
                                                 self.is_window_shopping = true;
                                                 self.is_showing_products = true;
+                                                self.is_showing_vendors = false;
                                             }
                                         }
                                     });
@@ -274,7 +326,13 @@ impl eframe::App for MarketApp {
                 } else {
                     "offline"
                 };
+                let mode = if self.vendor_status.is_vendor {
+                    "enabled "
+                } else {
+                    "disabled"
+                };
                 ui.label(format!("status: {}", status));
+                ui.label(format!("vendor mode: {}", mode));
                 ui.label(format!("nick: {}", self.vendor_status.nick));
                 ui.label(format!("tx proof: {}", self.vendor_status.txp));
                 ui.label(format!("jwp: {}", self.vendor_status.jwp));
@@ -314,7 +372,10 @@ impl eframe::App for MarketApp {
                     Column,
                     TableBuilder,
                 };
-
+                if self.is_loading {
+                    ui.add(egui::Spinner::new());
+                    ui.label("loading...");
+                }
                 let table = TableBuilder::new(ui)
                     .striped(true)
                     .resizable(true)
@@ -367,7 +428,6 @@ impl eframe::App for MarketApp {
                                 row.col(|ui| {
                                     if ui.button("View").clicked() {
                                         if !self.is_product_image_set {
-                                            self.is_showing_product_image = true;
                                             let file_path = format!(
                                                 "/home/{}/.neveko/{}.jpeg",
                                                 std::env::var("USER")
@@ -376,9 +436,8 @@ impl eframe::App for MarketApp {
                                             );
                                             // For the sake of brevity product list doesn't have
                                             // image bytes, get them
-                                            let mut i_product = product::find(&p.pid);
-                                            // only pull image from vendor when we want to view
                                             if self.is_window_shopping {
+                                                self.is_loading = true;
                                                 send_product_from_vendor_req(
                                                     self.get_vendor_product_tx.clone(),
                                                     ctx.clone(),
@@ -386,52 +445,38 @@ impl eframe::App for MarketApp {
                                                     self.vendor_status.jwp.clone(),
                                                     String::from(&p.pid),
                                                 );
-                                                let e_product: models::Product = models::Product {
-                                                    pid: self.product_from_vendor.pid.clone(),
-                                                    description: self
-                                                        .product_from_vendor
-                                                        .description
-                                                        .clone(),
-                                                    image: self
-                                                        .product_from_vendor
-                                                        .image
-                                                        .iter()
-                                                        .cloned()
-                                                        .collect(),
-                                                    in_stock: self.product_from_vendor.in_stock,
-                                                    name: self.product_from_vendor.name.clone(),
-                                                    price: self.product_from_vendor.price,
-                                                    qty: self.product_from_vendor.qty,
+                                            } else {
+                                                let i_product = product::find(&p.pid);
+                                                match std::fs::write(&file_path, &i_product.image) {
+                                                    Ok(w) => w,
+                                                    Err(_) => {
+                                                        log::error!("failed to write product image")
+                                                    }
                                                 };
-                                                i_product = e_product;
-                                            }
-                                            match std::fs::write(&file_path, &i_product.image) {
-                                                Ok(w) => w,
-                                                Err(_) => {
-                                                    log::error!("failed to write product image")
-                                                }
-                                            };
-                                            self.is_product_image_set = true;
-                                            let contents =
+                                                let contents =
                                                 std::fs::read(&file_path).unwrap_or(Vec::new());
-                                            if !i_product.image.is_empty() {
-                                                // this image should uwrap if vendor image bytes are
-                                                // bad
-                                                let default_img = std::fs::read("./assets/qr.png")
-                                                    .unwrap_or(Vec::new());
-                                                let default_r_img =
-                                                    egui_extras::RetainedImage::from_image_bytes(
-                                                        "qr.png",
-                                                        &default_img,
-                                                    )
-                                                    .unwrap();
-                                                self.product_image =
-                                                    egui_extras::RetainedImage::from_image_bytes(
-                                                        file_path, &contents,
-                                                    )
-                                                    .unwrap_or(default_r_img);
+                                                if !i_product.image.is_empty() {
+                                                    // this image should uwrap if vendor image bytes are
+                                                    // bad
+                                                    let default_img = std::fs::read("./assets/qr.png")
+                                                        .unwrap_or(Vec::new());
+                                                    let default_r_img =
+                                                        egui_extras::RetainedImage::from_image_bytes(
+                                                            "qr.png",
+                                                            &default_img,
+                                                        )
+                                                        .unwrap();
+                                                    self.product_image =
+                                                        egui_extras::RetainedImage::from_image_bytes(
+                                                            file_path, &contents,
+                                                        )
+                                                        .unwrap_or(default_r_img);
+                                                }
                                             }
-                                            self.is_product_image_set = true;
+                                            if !self.is_window_shopping {
+                                                self.is_product_image_set = true;
+                                                self.is_showing_product_image = true;
+                                            }
                                             ctx.request_repaint();
                                         }
                                     }
@@ -633,6 +678,8 @@ impl eframe::App for MarketApp {
                 }
             });
             if ui.button("View Vendors").clicked() {
+                // assume all contacts are vendors until updated status check
+                self.vendors = contact::find_all();
                 self.is_showing_vendors = true;
             }
             ui.label("\n");
@@ -704,6 +751,7 @@ impl eframe::App for MarketApp {
                 if ui.button("View Products").clicked() {
                     self.products = product::find_all();
                     self.is_showing_products = true;
+                    self.is_showing_vendors = false;
                 }
             }
         });
@@ -723,7 +771,7 @@ fn _refresh_on_delete_product_req(_tx: Sender<bool>, _ctx: egui::Context) {
 fn send_contact_info_req(tx: Sender<models::Contact>, ctx: egui::Context, contact: String) {
     log::debug!("async send_contact_info_req");
     tokio::spawn(async move {
-        match contact::add_contact_request(contact).await {
+        match contact::add_contact_request(contact, 1).await {
             Ok(contact) => {
                 let _ = tx.send(contact);
                 ctx.request_repaint();
@@ -772,5 +820,17 @@ fn send_product_from_vendor_req(
             let _ = tx.send(product);
             ctx.request_repaint();
         }
+    });
+}
+
+fn vendor_status_timeout(tx: Sender<bool>, ctx: egui::Context) {
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(
+            crate::ADD_CONTACT_TIMEOUT_SECS,
+        ))
+        .await;
+        log::error!("vendor status timeout");
+        let _ = tx.send(true);
+        ctx.request_repaint();
     });
 }

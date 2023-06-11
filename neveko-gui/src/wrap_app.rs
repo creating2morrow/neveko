@@ -227,7 +227,7 @@ impl eframe::App for WrapApp {
         let is_bg = std::env::var(crate::NEVEKO_DEV_BACKGROUND).unwrap_or(String::from("0"));
         if is_bg != String::from("1") {
             utils::kill_child_processes(false);
-        } 
+        }
     }
 }
 

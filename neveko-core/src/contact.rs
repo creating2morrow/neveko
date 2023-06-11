@@ -175,14 +175,16 @@ pub async fn request_invoice(contact: String) -> Result<reqres::Invoice, Box<dyn
     }
 }
 
-/// Send the request to contact to add them
-pub async fn add_contact_request(contact: String) -> Result<Contact, Box<dyn Error>> {
+/// Send the request to contact to add them. Set the prune arg to 1
+///
+/// for gpg key removal.
+pub async fn add_contact_request(contact: String, prune: u32) -> Result<Contact, Box<dyn Error>> {
     // TODO(c2m): Error handling for http 402 status
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
     match client?
-        .get(format!("http://{}/share", contact))
+        .get(format!("http://{}/share/{}", contact, prune))
         .send()
         .await
     {
