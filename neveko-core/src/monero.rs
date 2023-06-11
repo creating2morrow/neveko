@@ -17,6 +17,8 @@ use std::process::Command;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
+pub const INVALID_VERSION: u32 = 0;
+
 // global variable
 lazy_static! {
     /// used to avoid multisig wallet collision
@@ -29,6 +31,29 @@ const RING_SIZE: u32 = 0x10;
 struct RpcLogin {
     username: String,
     credential: String,
+}
+
+pub enum TransactionType {
+    Failed,
+    In,
+    Out,
+    Pending,
+    Pool,
+}
+
+impl TransactionType {
+    pub fn value(&self) -> String {
+        match *self {
+            Self::Failed => String::from("failed"),
+            Self::In => String::from("In"),
+            Self::Out => String::from("Out"),
+            Self::Pending => String::from("Pending"),
+            Self::Pool => String::from("Pool"),
+        }
+    }
+    pub fn propogated(tx_type: String) -> bool {
+        tx_type == Self::In.value() || tx_type == Self::Pool.value()
+    }
 }
 
 enum RpcFields {
@@ -306,7 +331,7 @@ pub async fn get_version() -> reqres::XmrRpcVersionResponse {
 /// Helper function for checking xmr rpc online during app startup
 pub async fn check_rpc_connection() -> () {
     let res: reqres::XmrRpcVersionResponse = get_version().await;
-    if res.result.version == 0 {
+    if res.result.version == INVALID_VERSION {
         error!("failed to connect to monero-wallet-rpc");
     }
 }

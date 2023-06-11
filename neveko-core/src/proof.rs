@@ -87,7 +87,8 @@ pub async fn create_jwp(proof: &TxProof) -> String {
     info!("creating jwp");
     // validate the proof
     let c_txp: TxProof = validate_proof(proof).await;
-    if c_txp.confirmations == 0 {
+    if c_txp.hash == utils::empty_string() {
+        error!("invalid transaction proof");
         return utils::empty_string();
     }
     let jwp_secret_key = utils::get_jwp_secret_key();
@@ -255,6 +256,11 @@ async fn validate_proof(txp: &TxProof) -> TxProof {
     // verify unlock time isn't something funky (e.g. > 20)
     let tx: reqres::XmrRpcGetTxByIdResponse = monero::get_transfer_by_txid(&txp.hash).await;
     let unlock_time = tx.result.transfer.unlock_time;
+    let tx_type = tx.result.transfer.r#type;
+    let propgated = monero::TransactionType::propogated(tx_type);
+    if !propgated {
+        return Default::default();
+    }
     let p = monero::check_tx_proof(txp).await;
     let cth = utils::get_conf_threshold();
     let pth = utils::get_payment_threshold();
