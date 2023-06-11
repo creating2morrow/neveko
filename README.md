@@ -5,6 +5,8 @@ NEVidebla-EKOnomia (invisible economy)
 [![cargo-build](https://github.com/creating2morrow/neveko/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/creating2morrow/neveko/actions/workflows/rust.yml)
 [![cargo-audit](https://github.com/creating2morrow/neveko/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/creating2morrow/neveko/actions/workflows/audit.yml)
 
+![home](./assets/home.png)
+
 ### gpg and i2p made simple for E2EE marketplace, messaging and more
 
 ## About
@@ -90,3 +92,8 @@ most of the complex logic stays in neveko-core, exported from [lib.rs](./neveko-
 ## Manual
 
 [the manual](./docs/man.md)
+
+## Donations
+
+This is just a hobby project but if anything here is useful donations are much appreciated!
+No need to send xmr, donating time is fine. Just test code if you can and open issues. Thanks!

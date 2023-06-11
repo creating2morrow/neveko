@@ -1,5 +1,7 @@
 # neveko-market
 
+![market](../assets/vendor.png)
+
 ## High-Level Order Lifecycle
 
 * vendor adds a new product with description and price
