@@ -30,6 +30,8 @@
 
 ### Create JWP
 
+![create_jwp](../assets/create_jwp.png)
+
 * getting started the app will automatically generate an account and associated monero PRIMARY address. Only use it here to maintain privacy
 * deposit some stagenet monero in your xmr account (address at top of gui screen)
 * once unlocked neveko xmr balance will display
