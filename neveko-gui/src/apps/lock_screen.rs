@@ -5,9 +5,6 @@ use sha2::{
     Sha512,
 };
 
-/// TODO(c2m): Create a more secure locking mechanism
-///
-/// is there a way to trigger system screen lock on the machine???
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]

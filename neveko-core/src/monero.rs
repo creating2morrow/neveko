@@ -45,10 +45,10 @@ impl TransactionType {
     pub fn value(&self) -> String {
         match *self {
             Self::Failed => String::from("failed"),
-            Self::In => String::from("In"),
-            Self::Out => String::from("Out"),
-            Self::Pending => String::from("Pending"),
-            Self::Pool => String::from("Pool"),
+            Self::In => String::from("in"),
+            Self::Out => String::from("out"),
+            Self::Pending => String::from("pending"),
+            Self::Pool => String::from("pool"),
         }
     }
     pub fn propogated(tx_type: String) -> bool {

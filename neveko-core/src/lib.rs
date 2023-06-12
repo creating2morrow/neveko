@@ -19,7 +19,6 @@ pub const APP_NAME: &str = "neveko";
 pub const NEVEKO_JWP_SECRET_KEY: &str = "NEVEKO_JWP_SECRET_KEY";
 pub const NEVEKO_JWT_SECRET_KEY: &str = "NEVEKO_JWT_SECRET_KEY";
 
-// TODO(c2m): better handling of setting initial wallet password
 /// Environment variable for injecting wallet password
 pub const MONERO_WALLET_PASSWORD: &str = "MONERO_WALLET_PASSWORD";
 

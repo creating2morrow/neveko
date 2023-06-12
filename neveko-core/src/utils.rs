@@ -716,6 +716,7 @@ pub async fn can_transfer(invoice: u128) -> bool {
 
 /// Gui toggle for vendor mode
 pub fn toggle_vendor_enabled() -> bool {
+    // TODO(c2m): Dont toggle vendors with orders status != Delivered
     let s = db::Interface::open();
     let r = db::Interface::read(&s.env, &s.handle, contact::NEVEKO_VENDOR_ENABLED);
     if r != contact::NEVEKO_VENDOR_MODE_ON {

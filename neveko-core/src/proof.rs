@@ -117,7 +117,6 @@ pub async fn create_jwp(proof: &TxProof) -> String {
 
 /// Send transaction proof to contact for JWP generation
 pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp, Box<dyn Error>> {
-    // TODO(c2m): Error handling for http 402 status
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();

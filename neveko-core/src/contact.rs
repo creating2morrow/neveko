@@ -165,7 +165,6 @@ pub fn trust_gpg(key: String) {
 
 /// Get invoice for jwp creation
 pub async fn request_invoice(contact: String) -> Result<reqres::Invoice, Box<dyn Error>> {
-    // TODO(c2m): Error handling for http 402 status
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
@@ -193,7 +192,6 @@ pub async fn request_invoice(contact: String) -> Result<reqres::Invoice, Box<dyn
 ///
 /// for gpg key removal.
 pub async fn add_contact_request(contact: String, prune: u32) -> Result<Contact, Box<dyn Error>> {
-    // TODO(c2m): Error handling for http 402 status
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();

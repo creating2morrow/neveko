@@ -112,6 +112,15 @@ pub struct Destination {
     pub amount: u128,
 }
 
+impl Default for Destination {
+    fn default() -> Self {
+        Destination {
+            address: utils::empty_string(),
+            amount: 0,
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcTransferParams {
     pub destinations: Vec<Destination>,
@@ -438,7 +447,8 @@ pub struct Transfer {
     pub address: String,
     pub amount: u128,
     pub amounts: Vec<u128>,
-    pub confirmations: u64,
+    /// On zero conf this field is missing
+    pub confirmations: Option<u64>,
     pub double_spend_seen: bool,
     pub fee: u128,
     pub height: u64,
@@ -984,7 +994,7 @@ impl Default for XmrRpcGetTxByIdResponse {
                     address: utils::empty_string(),
                     amount: 0,
                     amounts: Vec::new(),
-                    confirmations: 0,
+                    confirmations: None,
                     double_spend_seen: false,
                     fee: 0,
                     height: 0,

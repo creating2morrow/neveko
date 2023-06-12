@@ -61,6 +61,7 @@ pub struct AddressBookApp {
     invoice_rx: Receiver<reqres::Invoice>,
     is_adding: bool,
     is_composing: bool,
+    is_approving_jwp: bool,
     is_estimating_fee: bool,
     is_pinging: bool,
     is_loading: bool,
@@ -110,6 +111,7 @@ impl Default for AddressBookApp {
             invoice_rx,
             is_adding: false,
             is_composing: false,
+            is_approving_jwp: false,
             is_estimating_fee: false,
             is_loading: false,
             is_message_sent: false,
@@ -275,8 +277,10 @@ impl eframe::App for AddressBookApp {
                                 d,
                                 self.status.i2p.clone(),
                                 expire,
+                                false,
                             );
                             self.is_loading = true;
+                            self.is_approving_jwp = false;
                         }
                     }
                     if ui.button("Exit").clicked() {
@@ -295,9 +299,14 @@ impl eframe::App for AddressBookApp {
             .title_bar(false)
             .id(egui::Id::new(self.status.i2p.clone()))
             .show(&ctx, |ui| {
-                if self.is_pinging {
+                if self.is_pinging || self.is_loading {
+                    let spinner_text = if self.is_loading {
+                        "retrying payment proof... "
+                    } else {
+                        "pinging..."
+                    };
                     ui.add(egui::Spinner::new());
-                    ui.label("pinging...");
+                    ui.label(spinner_text);
                 }
                 let status = if self.s_contact.xmr_address != utils::empty_string() {
                     "online"
@@ -323,6 +332,7 @@ impl eframe::App for AddressBookApp {
                         );
                         self.approve_payment = true;
                         self.showing_status = false;
+                        self.is_approving_jwp = true;
                     }
                 }
                 if !self.status.signed_key {
@@ -346,6 +356,21 @@ impl eframe::App for AddressBookApp {
                         self.showing_status = false;
                     }
                 }
+                if self.status.txp != utils::empty_string()
+                    && self.status.jwp == utils::empty_string()
+                    && status == "online" {
+                        if ui.button("Prove Retry").clicked() {
+                            send_payment_req(
+                                self.payment_tx.clone(),
+                                ctx.clone(),
+                                Default::default(),
+                                self.status.i2p.clone(),
+                                expire as u64,
+                                true,
+                            );
+                            self.is_loading = true;
+                        }
+                    }
                 ui.horizontal(|ui| {
                     let nick_label = ui.label("nick: ");
                     ui.text_edit_singleline(&mut self.add_nick)
@@ -357,12 +382,16 @@ impl eframe::App for AddressBookApp {
                 }
                 if ui.button("Exit").clicked() {
                     self.showing_status = false;
+                    self.is_loading = false;
                 }
             });
 
         // Main panel for adding contacts
         //-----------------------------------------------------------------------------------
         egui::CentralPanel::default().show(ctx, |ui| {
+            if self.is_approving_jwp {
+                ui.add(egui::Spinner::new());
+            }
             ui.heading("Add Contact");
             ui.label(
                 "____________________________________________________________________________\n",
@@ -643,83 +672,142 @@ fn send_payment_req(
     d: reqres::Destination,
     contact: String,
     expire: u64,
+    retry: bool,
 ) {
     log::debug!("async send_payment_req");
     log::debug!("cleaning stale jwp values");
-    utils::clear_gui_db(String::from("gui-txp"), String::from(&contact));
-    utils::clear_gui_db(String::from("gui-jwp"), String::from(&contact));
-    utils::clear_gui_db(String::from("gui-exp"), String::from(&contact));
     tokio::spawn(async move {
-        let ptxp_address = String::from(&d.address);
-        let ftxp_address = String::from(&d.address);
-        log::debug!("sending {} piconero(s) to: {}", &d.amount, &d.address);
-        let wallet_name = String::from(neveko_core::APP_NAME);
-        let wallet_password =
-            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
-        monero::open_wallet(&wallet_name, &wallet_password).await;
-        let transfer: reqres::XmrRpcTransferResponse = monero::transfer(d).await;
-        // in order to keep the jwp creation process transparent to the user
-        // we will process all logic in one shot here.
+        if !retry {
+            utils::clear_gui_db(String::from("gui-txp"), String::from(&contact));
+            utils::clear_gui_db(String::from("gui-jwp"), String::from(&contact));
+            utils::clear_gui_db(String::from("gui-exp"), String::from(&contact));
+            let ptxp_address = String::from(&d.address);
+            let ftxp_address = String::from(&d.address);
+            log::debug!("sending {} piconero(s) to: {}", &d.amount, &d.address);
+            let wallet_name = String::from(neveko_core::APP_NAME);
+            let wallet_password =
+                std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+            monero::open_wallet(&wallet_name, &wallet_password).await;
+            let transfer: reqres::XmrRpcTransferResponse = monero::transfer(d).await;
+            // in order to keep the jwp creation process transparent to the user
+            // we will process all logic in one shot here.
 
-        // use the hash to create a PENDING transaction proof
-        let ptxp_hash = String::from(&transfer.result.tx_hash);
-        let ftxp_hash = String::from(&transfer.result.tx_hash);
-        let ptxp: proof::TxProof = proof::TxProof {
-            subaddress: ptxp_address,
-            confirmations: 0,
-            hash: ptxp_hash,
-            message: utils::empty_string(),
-            signature: utils::empty_string(),
-        };
-        log::debug!("creating transaction proof for: {}", &ptxp.hash);
-        let get_txp: reqres::XmrRpcGetTxProofResponse = monero::get_tx_proof(ptxp).await;
-        // use the signature to create the FINALIZED transaction proof
-        let ftxp: proof::TxProof = proof::TxProof {
-            subaddress: ftxp_address,
-            confirmations: 0,
-            hash: ftxp_hash,
-            message: utils::empty_string(),
-            signature: get_txp.result.signature,
-        };
-        utils::write_gui_db(
-            String::from("gui-txp"),
-            String::from(&contact),
-            String::from(&ftxp.signature),
-        );
-        log::debug!(
-            "proving payment to {} for: {}",
-            String::from(&contact),
-            &ftxp.hash
-        );
-        monero::close_wallet(&wallet_name, &wallet_password).await;
-        // if we made it this far we can now request a JWP from our friend
-        // wait a bit for the tx to propogate
-        tokio::time::sleep(std::time::Duration::from_secs(
-            crate::BLOCK_TIME_IN_SECS_EST,
-        ))
-        .await;
-        match proof::prove_payment(String::from(&contact), &ftxp).await {
-            Ok(result) => {
-                utils::write_gui_db(
-                    String::from("gui-jwp"),
-                    String::from(&contact),
-                    String::from(&result.jwp),
-                );
-                // this is just an estimate expiration but should suffice
-                let seconds: i64 = expire as i64 * 2 * 60;
-                // subtract 120 seconds since we had to wait for one confirmation
-                let grace: i64 = seconds - BLOCK_TIME_IN_SECS_EST as i64;
-                let unix: i64 = chrono::offset::Utc::now().timestamp() + grace;
-                utils::write_gui_db(
-                    String::from("gui-exp"),
-                    String::from(&contact),
-                    format!("{}", unix),
-                );
-                // TODO(c2m): edge case when proving payment fails to complete
-                //            case the payment proof data and set retry logic
-                ctx.request_repaint();
+            // use the hash to create a PENDING transaction proof
+            let ptxp_hash = String::from(&transfer.result.tx_hash);
+            let ftxp_hash = String::from(&transfer.result.tx_hash);
+            let ptxp: proof::TxProof = proof::TxProof {
+                subaddress: ptxp_address,
+                confirmations: 0,
+                hash: ptxp_hash,
+                message: utils::empty_string(),
+                signature: utils::empty_string(),
+            };
+            log::debug!("creating transaction proof for: {}", &ptxp.hash);
+            let get_txp: reqres::XmrRpcGetTxProofResponse = monero::get_tx_proof(ptxp).await;
+            // use the signature to create the FINALIZED transaction proof
+            let ftxp: proof::TxProof = proof::TxProof {
+                subaddress: ftxp_address,
+                confirmations: 0,
+                hash: ftxp_hash,
+                message: utils::empty_string(),
+                signature: get_txp.result.signature,
+            };
+            utils::write_gui_db(
+                String::from("gui-txp"),
+                String::from(&contact),
+                String::from(&ftxp.signature),
+            );
+            utils::write_gui_db(
+                String::from("gui-txp-hash"),
+                String::from(&contact),
+                String::from(&ftxp.hash),
+            );
+            utils::write_gui_db(
+                String::from("gui-txp-sig"),
+                String::from(&contact),
+                String::from(&ftxp.signature),
+            );
+            utils::write_gui_db(
+                String::from("gui-txp-subaddress"),
+                String::from(&contact),
+                String::from(&ftxp.subaddress),
+            );
+            log::debug!(
+                "proving payment to {} for: {}",
+                String::from(&contact),
+                &ftxp.hash
+            );
+            match proof::prove_payment(String::from(&contact), &ftxp).await {
+                Ok(result) => {
+                    utils::write_gui_db(
+                        String::from("gui-jwp"),
+                        String::from(&contact),
+                        String::from(&result.jwp),
+                    );
+                    // this is just an estimate expiration but should suffice
+                    let seconds: i64 = expire as i64 * 2 * 60;
+                    // subtract 120 seconds since we had to wait for one confirmation
+                    let grace: i64 = seconds - BLOCK_TIME_IN_SECS_EST as i64;
+                    let unix: i64 = chrono::offset::Utc::now().timestamp() + grace;
+                    utils::write_gui_db(
+                        String::from("gui-exp"),
+                        String::from(&contact),
+                        format!("{}", unix),
+                    );
+                    // TODO(c2m): edge case when proving payment fails to complete
+                    //            case the payment proof data and set retry logic
+                    ctx.request_repaint();
+                }
+                _ => log::error!("failed to obtain jwp"),
             }
-            _ => log::error!("failed to obtain jwp"),
+            monero::close_wallet(&wallet_name, &wallet_password).await;
+            // if we made it this far we can now request a JWP from our friend
+            // wait a bit for the tx to propogate
+            tokio::time::sleep(std::time::Duration::from_secs(
+                crate::BLOCK_TIME_IN_SECS_EST,
+            ))
+            .await;
+        }
+        if retry {
+            let k_hash = String::from("gui-txp-hash");
+            let k_sig = String::from("gui-txp-sig");
+            let k_subaddress = String::from("gui-txp-subaddress");
+            let hash = utils::search_gui_db(k_hash, String::from(&contact));
+            let signature = utils::search_gui_db(k_sig, String::from(&contact));
+            let subaddress = utils::search_gui_db(k_subaddress, String::from(&contact));
+            let ftxp: proof::TxProof = proof::TxProof {
+                subaddress,
+                confirmations: 0,
+                hash: String::from(&hash),
+                message: utils::empty_string(),
+                signature,
+            };
+            log::debug!(
+                "proving payment to {} for: {}",
+                String::from(&contact),
+                &ftxp.hash
+            );
+            match proof::prove_payment(String::from(&contact), &ftxp).await {
+                Ok(result) => {
+                    utils::write_gui_db(
+                        String::from("gui-jwp"),
+                        String::from(&contact),
+                        String::from(&result.jwp),
+                    );
+                    // this is just an estimate expiration but should suffice
+                    let seconds: i64 = expire as i64 * 2 * 60;
+                    // subtract 120 seconds since we had to wait for one confirmation
+                    let grace: i64 = seconds - BLOCK_TIME_IN_SECS_EST as i64;
+                    let unix: i64 = chrono::offset::Utc::now().timestamp() + grace;
+                    utils::write_gui_db(
+                        String::from("gui-exp"),
+                        String::from(&contact),
+                        format!("{}", unix),
+                    );
+                    ctx.request_repaint();
+                }
+                _ => log::error!("failed to obtain jwp"),
+            }
         }
         let _ = tx.send(true);
         ctx.request_repaint();

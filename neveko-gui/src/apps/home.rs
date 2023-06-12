@@ -365,7 +365,6 @@ impl eframe::App for HomeApp {
                     self.s_xmr_rpc_ver.result.version, address, unlocked_balance, locked_balance,
                     unlock_time, xmrd_info.nettype, xmrd_info.top_block_hash, xmrd_info.height, xmrd_info.synchronized,
                     db_size, free_space, xmrd_info.version));
-                    // TODO(c2m): pull in more xmr blockchain information?
             });
             ui.label("____________________________________________________________________\n");
             ui.label("\n");
