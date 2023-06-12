@@ -358,7 +358,8 @@ impl eframe::App for AddressBookApp {
                 }
                 if self.status.txp != utils::empty_string()
                     && self.status.jwp == utils::empty_string()
-                    && status == "online" {
+                    && status == "online"
+                {
                         if ui.button("Prove Retry").clicked() {
                             send_payment_req(
                                 self.payment_tx.clone(),
@@ -685,8 +686,8 @@ fn send_payment_req(
             let ftxp_address = String::from(&d.address);
             log::debug!("sending {} piconero(s) to: {}", &d.amount, &d.address);
             let wallet_name = String::from(neveko_core::APP_NAME);
-            let wallet_password =
-                std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+            let wallet_password = std::env::var(neveko_core::MONERO_WALLET_PASSWORD)
+                .unwrap_or(String::from("password"));
             monero::open_wallet(&wallet_name, &wallet_password).await;
             let transfer: reqres::XmrRpcTransferResponse = monero::transfer(d).await;
             // in order to keep the jwp creation process transparent to the user
@@ -746,9 +747,7 @@ fn send_payment_req(
                     );
                     // this is just an estimate expiration but should suffice
                     let seconds: i64 = expire as i64 * 2 * 60;
-                    // subtract 120 seconds since we had to wait for one confirmation
-                    let grace: i64 = seconds - BLOCK_TIME_IN_SECS_EST as i64;
-                    let unix: i64 = chrono::offset::Utc::now().timestamp() + grace;
+                    let unix: i64 = chrono::offset::Utc::now().timestamp() + seconds;
                     utils::write_gui_db(
                         String::from("gui-exp"),
                         String::from(&contact),
@@ -793,16 +792,6 @@ fn send_payment_req(
                         String::from("gui-jwp"),
                         String::from(&contact),
                         String::from(&result.jwp),
-                    );
-                    // this is just an estimate expiration but should suffice
-                    let seconds: i64 = expire as i64 * 2 * 60;
-                    // subtract 120 seconds since we had to wait for one confirmation
-                    let grace: i64 = seconds - BLOCK_TIME_IN_SECS_EST as i64;
-                    let unix: i64 = chrono::offset::Utc::now().timestamp() + grace;
-                    utils::write_gui_db(
-                        String::from("gui-exp"),
-                        String::from(&contact),
-                        format!("{}", unix),
                     );
                     ctx.request_repaint();
                 }
