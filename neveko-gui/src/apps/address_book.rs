@@ -6,7 +6,6 @@ use std::sync::mpsc::{
 
 use crate::{
     ADD_CONTACT_TIMEOUT_SECS,
-    BLOCK_TIME_IN_SECS_EST,
 };
 
 // TODO(c2m): better error handling with and error_tx/error_rx channel
@@ -705,6 +704,7 @@ fn send_payment_req(
             };
             log::debug!("creating transaction proof for: {}", &ptxp.hash);
             let get_txp: reqres::XmrRpcGetTxProofResponse = monero::get_tx_proof(ptxp).await;
+            // TODO(c2m): error handling on failed tx proof generation
             // use the signature to create the FINALIZED transaction proof
             let ftxp: proof::TxProof = proof::TxProof {
                 subaddress: ftxp_address,
