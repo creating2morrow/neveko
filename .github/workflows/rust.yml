@@ -3,6 +3,7 @@ name: cargo-build
 on:
   push:
     paths-ignore:
+      - 'assets/**'
       - 'docs/**'
       - 'scripts/**'
       - 'README.md'
