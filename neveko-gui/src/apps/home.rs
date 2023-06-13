@@ -261,11 +261,11 @@ impl eframe::App for HomeApp {
                     ui.text_edit_singleline(&mut self.connections.i2p_zero_dir)
                         .labelled_by(cm_i2p_dir_label.id);
                 });
-                let mut is_mainnet = self.connections.mainnet;
-                if ui.checkbox(&mut is_mainnet, "mainnet").changed() {
-                    self.connections.mainnet = !self.connections.mainnet;
-                    log::debug!("is mainnet: {}", self.connections.mainnet);
-                }
+                // let mut is_mainnet = self.connections.mainnet;
+                // if ui.checkbox(&mut is_mainnet, "mainnet").changed() {
+                //     self.connections.mainnet = !self.connections.mainnet;
+                //     log::debug!("is mainnet: {}", self.connections.mainnet);
+                // }
                 if ui.button("Start/Restart").clicked() {
                     self.is_editing_connections = false;
                     utils::kill_child_processes(true);

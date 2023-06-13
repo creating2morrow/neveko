@@ -4,9 +4,7 @@ use std::sync::mpsc::{
     Sender,
 };
 
-use crate::{
-    ADD_CONTACT_TIMEOUT_SECS,
-};
+use crate::ADD_CONTACT_TIMEOUT_SECS;
 
 // TODO(c2m): better error handling with and error_tx/error_rx channel
 //       hook into the error thread and show toast messages as required
@@ -359,18 +357,18 @@ impl eframe::App for AddressBookApp {
                     && self.status.jwp == utils::empty_string()
                     && status == "online"
                 {
-                        if ui.button("Prove Retry").clicked() {
-                            send_payment_req(
-                                self.payment_tx.clone(),
-                                ctx.clone(),
-                                Default::default(),
-                                self.status.i2p.clone(),
-                                expire as u64,
-                                true,
-                            );
-                            self.is_loading = true;
-                        }
+                    if ui.button("Prove Retry").clicked() {
+                        send_payment_req(
+                            self.payment_tx.clone(),
+                            ctx.clone(),
+                            Default::default(),
+                            self.status.i2p.clone(),
+                            expire as u64,
+                            true,
+                        );
+                        self.is_loading = true;
                     }
+                }
                 ui.horizontal(|ui| {
                     let nick_label = ui.label("nick: ");
                     ui.text_edit_singleline(&mut self.add_nick)
@@ -738,6 +736,12 @@ fn send_payment_req(
                 String::from(&contact),
                 &ftxp.hash
             );
+            // if we made it this far we can now request a JWP from our friend
+            // wait a bit for the tx to propogate
+            tokio::time::sleep(std::time::Duration::from_secs(
+                crate::PROPOGATION_TIME_IN_SECS_EST,
+            ))
+            .await;
             match proof::prove_payment(String::from(&contact), &ftxp).await {
                 Ok(result) => {
                     utils::write_gui_db(
@@ -760,12 +764,6 @@ fn send_payment_req(
                 _ => log::error!("failed to obtain jwp"),
             }
             monero::close_wallet(&wallet_name, &wallet_password).await;
-            // if we made it this far we can now request a JWP from our friend
-            // wait a bit for the tx to propogate
-            tokio::time::sleep(std::time::Duration::from_secs(
-                crate::BLOCK_TIME_IN_SECS_EST,
-            ))
-            .await;
         }
         if retry {
             let k_hash = String::from("gui-txp-hash");
