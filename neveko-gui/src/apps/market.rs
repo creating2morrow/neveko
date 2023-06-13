@@ -37,6 +37,10 @@ pub struct MarketApp {
     new_product_desc: String,
     new_product_price: String,
     new_product_qty: String,
+    new_order: models::Order,
+    new_order_price: u128,
+    new_order_quantity: String,
+    new_order_shipping_address: String,
     _refresh_on_delete_product_tx: Sender<bool>,
     _refresh_on_delete_product_rx: Receiver<bool>,
     s_contact: models::Contact,
@@ -79,6 +83,10 @@ impl Default for MarketApp {
             is_timeout: false,
             is_vendor_enabled,
             is_window_shopping: false,
+            new_order: Default::default(),
+            new_order_price: 0,
+            new_order_shipping_address: utils::empty_string(),
+            new_order_quantity: utils::empty_string(),
             orders: Vec::new(),
             product_from_vendor: Default::default(),
             product_image: egui_extras::RetainedImage::from_image_bytes(
@@ -156,7 +164,57 @@ impl eframe::App for MarketApp {
             }
         }
 
-        // TODO(c2m): create order form
+        // Customer Order Form
+        //-----------------------------------------------------------------------------------
+        let mut is_ordering = self.is_ordering;
+        egui::Window::new("Order Form")
+            .open(&mut is_ordering)
+            .vscroll(true)
+            .show(&ctx, |ui| {
+                ui.label(format!("cid: {}", self.new_order.cid));
+                ui.label(format!("pid: {}", self.new_order.pid));
+                ui.horizontal(|ui| {
+                    let shipping_name = ui.label("shipping address: ");
+                    ui.text_edit_singleline(&mut self.new_order_shipping_address)
+                        .labelled_by(shipping_name.id);
+                });
+                ui.horizontal(|ui| {
+                    let qty_name = ui.label("quantity: \t\t");
+                    ui.text_edit_singleline(&mut self.new_order_quantity)
+                        .labelled_by(qty_name.id);
+                });
+                ui.label(format!("price: {}", self.new_order_price));
+                if ui.button("Submit Order").clicked() {
+                    let qty = match self.new_order_quantity.parse::<u128>() {
+                        Ok(q) => q,
+                        Err(_) => 0,
+                    };
+                    let address_bytes = self.new_order_shipping_address.clone().into_bytes();
+                    let encrypted_shipping_address =
+                        gpg::encrypt(self.vendor_status.i2p.clone(), &address_bytes);
+                    let new_order = reqres::OrderRequest {
+                        cid: String::from(&self.new_order.cid),
+                        pid: String::from(&self.new_order.pid),
+                        ship_address: encrypted_shipping_address.unwrap_or(Vec::new()),
+                        quantity: qty,
+                        ..Default::default()
+                    };
+                    let _j_order = utils::order_to_json(&new_order);
+
+                    // create order channel
+
+                    self.new_order = Default::default();
+                    self.new_order_price = 0;
+                    self.new_order_quantity = utils::empty_string();
+                    self.new_order_shipping_address = utils::empty_string();
+                }
+                ui.label("\n");
+                if ui.button("Exit").clicked() {
+                    self.products = product::find_all();
+                    self.is_showing_products = true;
+                    self.is_showing_vendors = false;
+                }
+            });
 
         // View vendors
         //-----------------------------------------------------------------------------------
@@ -496,7 +554,9 @@ impl eframe::App for MarketApp {
                                             }
                                         } else {
                                             if ui.button("Create Order").clicked() {
-                                                self.product_update_pid = p.pid.clone();
+                                                self.new_order.pid = p.pid.clone();
+                                                self.new_order.cid = i2p::get_destination(None);
+                                                self.new_order_price = p.price;
                                                 self.is_ordering = true;
                                             }
                                         }

@@ -268,7 +268,7 @@ pub fn message_to_json(m: &models::Message) -> Json<models::Message> {
 
 /// convert product to json so only core module does the work
 pub fn product_to_json(m: &models::Product) -> Json<models::Product> {
-    let r_message: models::Product = models::Product {
+    let r_product: models::Product = models::Product {
         pid: String::from(&m.pid),
         description: String::from(&m.description),
         image: m.image.iter().cloned().collect(),
@@ -277,7 +277,17 @@ pub fn product_to_json(m: &models::Product) -> Json<models::Product> {
         price: m.price,
         qty: m.qty,
     };
-    Json(r_message)
+    Json(r_product)
+}
+
+pub fn order_to_json(o: &reqres::OrderRequest) -> Json<reqres::OrderRequest> {
+    let r_order: reqres::OrderRequest = reqres::OrderRequest {
+        cid: String::from(&o.cid),
+        pid: String::from(&o.pid),
+        ship_address: o.ship_address.iter().cloned().collect(),
+        quantity: o.quantity,
+    };
+    Json(r_order)
 }
 
 /// Instead of putting `String::from("")`
