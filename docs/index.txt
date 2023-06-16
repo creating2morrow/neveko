@@ -1,0 +1,27 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+NEVEKO Links
+
+# Git Clone
+torsocks git clone git://imedhgry5mmgq77xsrpyaympwknpdt3mw5srzjtbxyaqvdi7ipnjqoid.onion/neveko
+
+# Git Web
+http://c2m2ybr7ms26sgrlqmpjiuohvzshgtyjehrncsjf7ijq7unckkaq.b32.i2p
+
+# Nevekonet InspirIRC
+c2m73nyvu63rdobge3dss63ksn5e4kesqon6bay6m323ls37voba.b32.i2p/6667
+  - #dev (patches, feature planning)
+  - #issues (bug report, testing results)
+  - #random
+
+# Home, index, canary, pgp, etc.
+c2m3p4ortbgekuegv7oskhjrit3mr3irb5775ic2kyqnj4exk2dq.b32.i2p
+  - /pgp.txt - public gpg signing key
+  - /index.txt - this page
+  - /canary.txt
+  - /download/neveko-x86_64-linux-gnu-v0.4.1-alpha.tar.bz2  - latest neveko download
+  - /download/neveko-x86_64-linux-gnu-v0.4.1-alpha.tar.bz2.sig - detached sig
+
+Clearnet
+- ----------------------------------
