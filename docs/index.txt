@@ -3,20 +3,28 @@ Hash: SHA512
 
 NEVEKO Links
 
+A/B instances
+  - A instances are primary
+  - B instances are backup
+
 # Git Clone
-torsocks git clone git://imedhgry5mmgq77xsrpyaympwknpdt3mw5srzjtbxyaqvdi7ipnjqoid.onion/neveko
+A -> torsocks git clone git://imedhgry5mmgq77xsrpyaympwknpdt3mw5srzjtbxyaqvdi7ipnjqoid.onion/neveko
+B -> torsocks git clone git://nvl5yxqvhufllbsvfevqsytxdbi7aqonp7qceu4ljomfyardzjd7l4yd.onion/neveko
 
 # Git Web
-http://c2m2ybr7ms26sgrlqmpjiuohvzshgtyjehrncsjf7ijq7unckkaq.b32.i2p
+A -> http://c2m2ybr7ms26sgrlqmpjiuohvzshgtyjehrncsjf7ijq7unckkaq.b32.i2p
+B -> http://c2m373qgif2qigrntgjaqevfcnqjkqb2zcy3bop6vqwbudqqr7oa.b32.i2p
 
 # Nevekonet InspirIRC
-c2m73nyvu63rdobge3dss63ksn5e4kesqon6bay6m323ls37voba.b32.i2p/6667
+A -> c2m73nyvu63rdobge3dss63ksn5e4kesqon6bay6m323ls37voba.b32.i2p/6667
+B -> c2m5qj2ceahpbzusggcoybjm2kqakrd5v7zv2pvi2qxozqmgjpua.b32.i2p/6667
   - #dev (patches, feature planning)
   - #issues (bug report, testing results)
   - #random
 
 # Home, index, canary, pgp, etc.
-c2m3p4ortbgekuegv7oskhjrit3mr3irb5775ic2kyqnj4exk2dq.b32.i2p
+A -> c2m3p4ortbgekuegv7oskhjrit3mr3irb5775ic2kyqnj4exk2dq.b32.i2p
+B -> c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p
   - /pgp.txt - public gpg signing key
   - /index.txt - this page
   - /canary.txt
@@ -24,16 +32,16 @@ c2m3p4ortbgekuegv7oskhjrit3mr3irb5775ic2kyqnj4exk2dq.b32.i2p
   - /download/neveko-x86_64-linux-gnu-v0.4.1-alpha.tar.bz2.sig - detached sig
 
 Clearnet
-- ----------------------------------
+- ------------------------------------
 
 # Github
 
 git clone https://github.com/creating2morrow/neveko.git
 -----BEGIN PGP SIGNATURE-----
 
-iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZIuK6xwcY3JlYXRpbmdf
-dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMVCcBAIc+V+1nzX3zawGWVg2x
-wDw6Rf9im2paqfYGRH4RMkfTAP9ftGuHGGzVpbqP5oHX0p7t072OWrzaFTAMttGk
-FsvADQ==
-=OTUt
+iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZI28dRwcY3JlYXRpbmdf
+dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMSRYA/0DTQsOQ4a81IQPI4pEB
+wTzQsCUtN/FgVU59mP1rLXn0AQDAc5OE6k2c8hKpajjGBCqVnq8pbiWZER2eGmzA
+p9UFDQ==
+=JKu1
 -----END PGP SIGNATURE-----
