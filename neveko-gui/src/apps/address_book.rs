@@ -447,6 +447,7 @@ impl eframe::App for AddressBookApp {
                             if ui.button("Approve").clicked() {
                                 self.is_loading = true;
                                 self.approve_contact = false;
+                                self.is_adding = false;
                                 let c_contact: models::Contact = models::Contact {
                                     cid: self.s_contact.cid.clone(),
                                     i2p_address,

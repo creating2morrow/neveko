@@ -1,7 +1,7 @@
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA512
 
-NEVEKO Links
+NEVEKO Links (Dark)
 
 A/B instances
   - A instances are primary
@@ -15,7 +15,7 @@ B -> torsocks git clone git://nvl5yxqvhufllbsvfevqsytxdbi7aqonp7qceu4ljomfyardzj
 A -> http://c2m2ybr7ms26sgrlqmpjiuohvzshgtyjehrncsjf7ijq7unckkaq.b32.i2p
 B -> http://c2m373qgif2qigrntgjaqevfcnqjkqb2zcy3bop6vqwbudqqr7oa.b32.i2p
 
-# Nevekonet InspirIRC
+# Nevekonet InspIRC
 A -> c2m73nyvu63rdobge3dss63ksn5e4kesqon6bay6m323ls37voba.b32.i2p/6667
 B -> c2m5qj2ceahpbzusggcoybjm2kqakrd5v7zv2pvi2qxozqmgjpua.b32.i2p/6667
   - #dev (patches, feature planning)
@@ -23,25 +23,24 @@ B -> c2m5qj2ceahpbzusggcoybjm2kqakrd5v7zv2pvi2qxozqmgjpua.b32.i2p/6667
   - #random
 
 # Home, index, canary, pgp, etc.
-A -> c2m3p4ortbgekuegv7oskhjrit3mr3irb5775ic2kyqnj4exk2dq.b32.i2p
-B -> c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p
+A -> http://c2m3p4ortbgekuegv7oskhjrit3mr3irb5775ic2kyqnj4exk2dq.b32.i2p
+B -> http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p
   - /pgp.txt - public gpg signing key
   - /index.txt - this page
   - /canary.txt
   - /download/neveko-x86_64-linux-gnu-v0.4.1-alpha.tar.bz2  - latest neveko download
   - /download/neveko-x86_64-linux-gnu-v0.4.1-alpha.tar.bz2.sig - detached sig
 
-Clearnet
-- ------------------------------------
+NEVEKO Links (Clear)
 
 # Github
 
-git clone https://github.com/creating2morrow/neveko.git
+git clone https://github
 -----BEGIN PGP SIGNATURE-----
 
-iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZI28dRwcY3JlYXRpbmdf
-dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMSRYA/0DTQsOQ4a81IQPI4pEB
-wTzQsCUtN/FgVU59mP1rLXn0AQDAc5OE6k2c8hKpajjGBCqVnq8pbiWZER2eGmzA
-p9UFDQ==
-=JKu1
+iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZI+uVhwcY3JlYXRpbmdf
+dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMJC0BALCzcvZ3bO8zVFt+tzf4
+7wDH/ghLrOVj7JM14vBOhpUEAP4lZZqtWTwUwLDRP144iZzNx+dcIQ0zdCsIF9KL
+P1P9BA==
+=DYWe
 -----END PGP SIGNATURE-----
