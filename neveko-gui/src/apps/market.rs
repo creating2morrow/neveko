@@ -138,6 +138,12 @@ impl eframe::App for MarketApp {
                     vendor_product.pid
                 );
                 if self.is_window_shopping {
+                    match std::fs::write(&file_path, &vendor_product.image) {
+                        Ok(w) => w,
+                        Err(_) => {
+                            log::error!("failed to write product image")
+                        }
+                    };
                     self.is_loading = true;
                     let contents = std::fs::read(&file_path).unwrap_or(Vec::new());
                     // this image should uwrap if vendor image bytes are
