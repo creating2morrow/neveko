@@ -136,7 +136,7 @@ fn create_tunnel() {
             &format!("{}", utils::get_app_port()),
         ])
         .spawn()
-        .expect("i2p-zero failed to create a tunnel");
+        .expect("i2p-zero failed to create a app tunnel");
     debug!("{:?}", output.stdout);
 }
 
@@ -152,7 +152,7 @@ fn create_tx_proxy_tunnel() {
             &format!("{}", monero::get_daemon_port()),
         ])
         .spawn()
-        .expect("i2p-zero failed to create a tunnel");
+        .expect("i2p-zero failed to create a tx proxy tunnel");
     debug!("{:?}", output.stdout);
 }
 

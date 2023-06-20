@@ -84,8 +84,10 @@ impl Default for Installations {
 pub struct Connections {
     pub blockchain_dir: String,
     pub daemon_host: String,
+    pub i2p_proxy_host: String,
     pub i2p_zero_dir: String,
     pub is_remote_node: bool,
+    pub is_i2p_advanced: bool,
     pub mainnet: bool,
     pub monero_location: String,
     pub rpc_credential: String,
@@ -98,8 +100,10 @@ impl Default for Connections {
         Connections {
             blockchain_dir: String::from("/home/user/.bitmonero"),
             daemon_host: String::from("http://localhost:38081"),
+            i2p_proxy_host: String::from("http://localhost:4444"),
             i2p_zero_dir: String::from("/home/user/i2p-zero-linux.v1.21"),
             is_remote_node: false,
+            is_i2p_advanced: false,
             mainnet: false,
             monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.2.2"),
             rpc_credential: String::from("pass"),
@@ -143,6 +147,7 @@ impl ReleaseEnvironment {
 pub fn start_core(conn: &Connections) {
     let env = if !conn.mainnet { "dev" } else { "prod" };
     let remote_node = if !conn.is_remote_node { "--full-node" } else { "--remote-node" };
+    let i2p_advanced = if !conn.is_i2p_advanced { "--i2p-normal" } else { "--i2p-advanced" };
     let args = [
         "--monero-location",
         &conn.monero_location,
@@ -160,7 +165,10 @@ pub fn start_core(conn: &Connections) {
         &conn.i2p_zero_dir,
         "-r",
         env,
-        remote_node
+        remote_node,
+        i2p_advanced,
+        "--i2p-proxy-host",
+        &conn.i2p_proxy_host,
     ];
     let output = std::process::Command::new("./neveko")
         .args(args)
@@ -206,7 +214,9 @@ pub fn get_app_port() -> u16 {
 /// i2p http proxy
 pub fn get_i2p_http_proxy() -> String {
     let args = args::Args::parse();
-    args.i2p_proxy_host
+    let advanced_proxy =
+        std::env::var(crate::NEVEKO_I2P_PROXY_HOST).unwrap_or(empty_string());
+    if advanced_proxy == empty_string() { args.i2p_proxy_host } else { advanced_proxy }
 }
 
 /// app auth port
@@ -496,7 +506,9 @@ pub async fn start_up() {
     let wallet_password =
         std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
     gen_app_wallet(&wallet_password).await;
-    i2p::start().await;
+    if args.i2p_normal {
+        i2p::start().await;
+    }
     gen_app_gpg().await;
     let env: String = get_release_env().value();
     start_gui();

@@ -137,8 +137,22 @@ pub struct Args {
     /// Remove all failed-to-send messages from db on app startup
     #[arg(
         long,
-        help = "this will clear failed-to-send messages from the databse",
+        help = "this will clear failed-to-send messages from the database",
         default_value = "false"
     )]
     pub clear_fts: bool,
+    /// Manually configure i2p
+    #[arg(
+        long,
+        help = "ADVANCED. Neveko will no longer handle i2p proxy tunnels or identity.",
+        default_value = "false"
+    )]
+    pub i2p_advanced: bool,
+    /// Dummy flag for normal neveko i2p-zero config. Future use.
+    #[arg(
+        long,
+        help = "Normal mode. Neveko will handle i2p proxy tunnels and identity.",
+        default_value = "false"
+    )]
+    pub i2p_normal: bool,
 }
