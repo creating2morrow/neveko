@@ -25,8 +25,8 @@ NEVidebla-EKOnomia (invisible economy)
     * `sudo apt install -y libssl-dev build-essential libgpgme-dev`
 * `git clone https://github.com/creating2morrow/neveko`
 * `cd neveko && ./scripts/build_all_and_run.sh "-- -h"`
-* Example to start neveko with remote stagenet node for development:
-    * `./scripts/build_all_and_run.sh "-- --monero-rpc-daemon http://stagenet.community.rino.io:38081 --remote-node --monero-location /path/to/monero-x86_64-linux-gnu-v0.18.2.2/ --i2p-zero-dir /path/to/i2p-zero-linux.v1.21/"`
+* Example to start neveko with remote stagenet node / i2p proxy remote for development:
+    * `./scripts/build_all_and_run.sh "-- --monero-rpc-daemon http://stagenet.community.rino.io:38081 --remote-node --monero-location /path/to/monero-x86_64-linux-gnu-v0.18.2.2/ --i2p-proxy-host x.x.x.x:port --i2p-tunnels-json /path/to/manual-i2p/config/ --i2p-advanced`
     * the `--monero-location` flag is needed even when using a remote node because
       neveko has its own monero-wallet-rpc instance
 * gui built with rust [egui](https://docs.rs/egui/latest/egui/)

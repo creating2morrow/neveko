@@ -256,21 +256,25 @@ impl eframe::App for HomeApp {
                     ui.text_edit_singleline(&mut self.connections.monero_location)
                         .labelled_by(cm_xmr_dir_label.id);
                 });
-                ui.horizontal(|ui| {
-                    let cm_i2p_dir_label = ui.label("i2p-zero path: \t");
-                    ui.text_edit_singleline(&mut self.connections.i2p_zero_dir)
-                        .labelled_by(cm_i2p_dir_label.id);
-                });
-                ui.horizontal(|ui| {
-                    let cm_i2p_proxy_label = ui.label("i2p proxy host: \t");
-                    ui.text_edit_singleline(&mut self.connections.i2p_proxy_host)
-                        .labelled_by(cm_i2p_proxy_label.id);
-                });
-                ui.horizontal(|ui| {
-                    let cm_i2p_tunnels_label = ui.label("tunnels.json dir:  ");
-                    ui.text_edit_singleline(&mut self.connections.i2p_tunnels_json)
-                        .labelled_by(cm_i2p_tunnels_label.id);
-                });
+                if !self.connections.is_i2p_advanced {
+                    ui.horizontal(|ui| {
+                        let cm_i2p_dir_label = ui.label("i2p-zero path: \t");
+                        ui.text_edit_singleline(&mut self.connections.i2p_zero_dir)
+                            .labelled_by(cm_i2p_dir_label.id);
+                    });
+                }
+                if self.connections.is_i2p_advanced {
+                    ui.horizontal(|ui| {
+                        let cm_i2p_proxy_label = ui.label("i2p proxy host: \t");
+                        ui.text_edit_singleline(&mut self.connections.i2p_proxy_host)
+                            .labelled_by(cm_i2p_proxy_label.id);
+                    });
+                    ui.horizontal(|ui| {
+                        let cm_i2p_tunnels_label = ui.label("tunnels.json dir:  ");
+                        ui.text_edit_singleline(&mut self.connections.i2p_tunnels_json)
+                            .labelled_by(cm_i2p_tunnels_label.id);
+                    });
+                }
                 let mut is_remote_node = self.connections.is_remote_node;
                 if ui.checkbox(&mut is_remote_node, "remote node").changed() {
                     self.connections.is_remote_node = !self.connections.is_remote_node;
@@ -293,16 +297,18 @@ impl eframe::App for HomeApp {
                     self.is_editing_connections = false;
                     utils::kill_child_processes(true);
                     utils::start_core(&self.connections);
-                    // set the i2p proxy host for advanced user re-use
-                    std::env::set_var(
-                        neveko_core::NEVEKO_I2P_PROXY_HOST,
-                        self.connections.i2p_proxy_host.clone(),
-                    );
-                    std::env::set_var(
-                        neveko_core::NEVEKO_I2P_TUNNELS_JSON,
-                        self.connections.i2p_tunnels_json.clone(),
-                    );
-                    std::env::set_var(neveko_core::NEVEKO_I2P_ADVANCED_MODE, String::from("1"));
+                    if self.connections.is_i2p_advanced {
+                        // set the i2p proxy host for advanced user re-use
+                        std::env::set_var(
+                            neveko_core::NEVEKO_I2P_PROXY_HOST,
+                            self.connections.i2p_proxy_host.clone(),
+                        );
+                        std::env::set_var(
+                            neveko_core::NEVEKO_I2P_TUNNELS_JSON,
+                            self.connections.i2p_tunnels_json.clone(),
+                        );
+                        std::env::set_var(neveko_core::NEVEKO_I2P_ADVANCED_MODE, String::from("1"));
+                    }
                     self.is_loading = true;
                     start_core_timeout(self.core_timeout_tx.clone(), ctx.clone());
                 }
