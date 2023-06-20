@@ -262,9 +262,14 @@ impl eframe::App for HomeApp {
                         .labelled_by(cm_i2p_dir_label.id);
                 });
                 ui.horizontal(|ui| {
-                    let cm_i2p_proxy_label = ui.label("i2p proxy host:  \t");
+                    let cm_i2p_proxy_label = ui.label("i2p proxy host: \t");
                     ui.text_edit_singleline(&mut self.connections.i2p_proxy_host)
                         .labelled_by(cm_i2p_proxy_label.id);
+                });
+                ui.horizontal(|ui| {
+                    let cm_i2p_tunnels_label = ui.label("tunnels.json dir:  ");
+                    ui.text_edit_singleline(&mut self.connections.i2p_tunnels_json)
+                        .labelled_by(cm_i2p_tunnels_label.id);
                 });
                 let mut is_remote_node = self.connections.is_remote_node;
                 if ui.checkbox(&mut is_remote_node, "remote node").changed() {
@@ -272,7 +277,10 @@ impl eframe::App for HomeApp {
                     log::debug!("is remote node: {}", self.connections.is_remote_node);
                 }
                 let mut is_i2p_advanced = self.connections.is_i2p_advanced;
-                if ui.checkbox(&mut is_i2p_advanced, "i2p advanced mode").changed() {
+                if ui
+                    .checkbox(&mut is_i2p_advanced, "i2p advanced mode")
+                    .changed()
+                {
                     self.connections.is_i2p_advanced = !self.connections.is_i2p_advanced;
                     log::debug!("is i2p advanced mode: {}", self.connections.is_i2p_advanced);
                 }
@@ -286,7 +294,15 @@ impl eframe::App for HomeApp {
                     utils::kill_child_processes(true);
                     utils::start_core(&self.connections);
                     // set the i2p proxy host for advanced user re-use
-                    std::env::set_var(neveko_core::NEVEKO_I2P_PROXY_HOST, self.connections.i2p_proxy_host.clone());
+                    std::env::set_var(
+                        neveko_core::NEVEKO_I2P_PROXY_HOST,
+                        self.connections.i2p_proxy_host.clone(),
+                    );
+                    std::env::set_var(
+                        neveko_core::NEVEKO_I2P_TUNNELS_JSON,
+                        self.connections.i2p_tunnels_json.clone(),
+                    );
+                    std::env::set_var(neveko_core::NEVEKO_I2P_ADVANCED_MODE, String::from("1"));
                     self.is_loading = true;
                     start_core_timeout(self.core_timeout_tx.clone(), ctx.clone());
                 }
@@ -355,6 +371,9 @@ impl eframe::App for HomeApp {
             if self.s_i2p_status == i2p::ProxyStatus::Open {
                 str_i2p_status = String::from("online");
             }
+            if self.connections.is_i2p_advanced {
+                str_i2p_status = String::from("remote proxy");
+            }
             ui.horizontal(|ui| {
                 self.logo_i2p.show(ui);
                 ui.horizontal(|ui| {
@@ -397,7 +416,7 @@ impl eframe::App for HomeApp {
                     }
                 }
             }
-            if !self.is_core_running && !self.is_installing
+            if !self.is_core_running && !self.is_installing && !self.connections.is_remote_node && !self.connections.is_i2p_advanced
             && (self.s_xmr_rpc_ver.result.version == 0 || self.s_i2p_status == i2p::ProxyStatus::Opening) {
                 if !self.is_loading {
                     if ui.button("Install Software").clicked() {

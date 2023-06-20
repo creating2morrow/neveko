@@ -23,6 +23,10 @@ pub const NEVEKO_JWT_SECRET_KEY: &str = "NEVEKO_JWT_SECRET_KEY";
 pub const MONERO_WALLET_PASSWORD: &str = "MONERO_WALLET_PASSWORD";
 /// Environment variable for I2P proxy host
 pub const NEVEKO_I2P_PROXY_HOST: &str = "NEVEKO_I2P_PROXY_HOST";
+/// Environment variable for I2P manual tunnels.json
+pub const NEVEKO_I2P_TUNNELS_JSON: &str = "NEVEKO_I2P_TUNNELS_JSON";
+/// Environment variable for I2P advanced mode
+pub const NEVEKO_I2P_ADVANCED_MODE: &str = "NEVEKO_I2P_ADVANCED_MODE";
 
 /// The latest monero release download
 pub const MONERO_RELEASE_VERSION: &str = "monero-linux-x64-v0.18.2.2.tar.bz2";

@@ -85,6 +85,8 @@ pub struct Connections {
     pub blockchain_dir: String,
     pub daemon_host: String,
     pub i2p_proxy_host: String,
+    /// path to manually created tunnels json
+    pub i2p_tunnels_json: String,
     pub i2p_zero_dir: String,
     pub is_remote_node: bool,
     pub is_i2p_advanced: bool,
@@ -101,6 +103,7 @@ impl Default for Connections {
             blockchain_dir: String::from("/home/user/.bitmonero"),
             daemon_host: String::from("http://localhost:38081"),
             i2p_proxy_host: String::from("http://localhost:4444"),
+            i2p_tunnels_json: String::from("/home/user/neveko/i2p-manual"),
             i2p_zero_dir: String::from("/home/user/i2p-zero-linux.v1.21"),
             is_remote_node: false,
             is_i2p_advanced: false,
@@ -146,8 +149,16 @@ impl ReleaseEnvironment {
 /// start core module from gui
 pub fn start_core(conn: &Connections) {
     let env = if !conn.mainnet { "dev" } else { "prod" };
-    let remote_node = if !conn.is_remote_node { "--full-node" } else { "--remote-node" };
-    let i2p_advanced = if !conn.is_i2p_advanced { "--i2p-normal" } else { "--i2p-advanced" };
+    let remote_node = if !conn.is_remote_node {
+        "--full-node"
+    } else {
+        "--remote-node"
+    };
+    let i2p_advanced = if !conn.is_i2p_advanced {
+        "--i2p-normal"
+    } else {
+        "--i2p-advanced"
+    };
     let args = [
         "--monero-location",
         &conn.monero_location,
@@ -214,9 +225,12 @@ pub fn get_app_port() -> u16 {
 /// i2p http proxy
 pub fn get_i2p_http_proxy() -> String {
     let args = args::Args::parse();
-    let advanced_proxy =
-        std::env::var(crate::NEVEKO_I2P_PROXY_HOST).unwrap_or(empty_string());
-    if advanced_proxy == empty_string() { args.i2p_proxy_host } else { advanced_proxy }
+    let advanced_proxy = std::env::var(crate::NEVEKO_I2P_PROXY_HOST).unwrap_or(empty_string());
+    if advanced_proxy == empty_string() {
+        args.i2p_proxy_host
+    } else {
+        advanced_proxy
+    }
 }
 
 /// app auth port

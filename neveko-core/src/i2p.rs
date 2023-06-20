@@ -184,10 +184,23 @@ fn create_http_proxy() {
 ///
 /// `port` - the port of the tunnel (e.g. `utils::get_app_port()`)
 pub fn get_destination(port: Option<u16>) -> String {
-    let file_path = format!(
+    let mut file_path = format!(
         "/home/{}/.i2p-zero/config/tunnels.json",
         env::var("USER").unwrap_or(String::from("user"))
     );
+    let args = args::Args::parse();
+    let is_advanced_mode =
+        std::env::var(crate::NEVEKO_I2P_ADVANCED_MODE).unwrap_or(utils::empty_string());
+    if args.i2p_advanced || is_advanced_mode == String::from("1") {
+        let advanced_tunnel =
+            std::env::var(crate::NEVEKO_I2P_TUNNELS_JSON).unwrap_or(utils::empty_string());
+        let manual_tunnel = if advanced_tunnel == utils::empty_string() {
+            args.i2p_tunnels_json
+        } else {
+            advanced_tunnel
+        };
+        file_path = format!("{}/tunnels.json", manual_tunnel);
+    }
     // Don't panic if i2p-zero isn't installed
     let contents = match fs::read_to_string(file_path) {
         Ok(file) => file,

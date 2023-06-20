@@ -148,6 +148,13 @@ pub struct Args {
         default_value = "false"
     )]
     pub i2p_advanced: bool,
+    /// Manually configured tunnels.json directory
+    #[arg(
+        long,
+        help = "ADVANCED. Location of the manually created destination tunnels.",
+        default_value = "/home/user/neveko/i2p-manual"
+    )]
+    pub i2p_tunnels_json: String,
     /// Dummy flag for normal neveko i2p-zero config. Future use.
     #[arg(
         long,
