@@ -120,6 +120,13 @@ pub struct Args {
         default_value = "false"
     )]
     pub remote_node: bool,
+    /// Dummy flag for normal mode when not using remote node
+    #[arg(
+        long,
+        help = "dummy flag for normal node operations. (Future use)",
+        default_value = "false"
+    )]
+    pub full_node: bool,
     /// Connect to micro servers
     #[arg(
         long,

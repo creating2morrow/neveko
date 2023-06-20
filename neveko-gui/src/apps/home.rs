@@ -261,6 +261,11 @@ impl eframe::App for HomeApp {
                     ui.text_edit_singleline(&mut self.connections.i2p_zero_dir)
                         .labelled_by(cm_i2p_dir_label.id);
                 });
+                let mut is_remote_node = self.connections.is_remote_node;
+                if ui.checkbox(&mut is_remote_node, "remote node").changed() {
+                    self.connections.is_remote_node = !self.connections.is_remote_node;
+                    log::debug!("is remote node: {}", self.connections.is_remote_node);
+                }
                 // let mut is_mainnet = self.connections.mainnet;
                 // if ui.checkbox(&mut is_mainnet, "mainnet").changed() {
                 //     self.connections.mainnet = !self.connections.mainnet;

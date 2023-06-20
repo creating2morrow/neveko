@@ -85,6 +85,7 @@ pub struct Connections {
     pub blockchain_dir: String,
     pub daemon_host: String,
     pub i2p_zero_dir: String,
+    pub is_remote_node: bool,
     pub mainnet: bool,
     pub monero_location: String,
     pub rpc_credential: String,
@@ -98,6 +99,7 @@ impl Default for Connections {
             blockchain_dir: String::from("/home/user/.bitmonero"),
             daemon_host: String::from("http://localhost:38081"),
             i2p_zero_dir: String::from("/home/user/i2p-zero-linux.v1.21"),
+            is_remote_node: false,
             mainnet: false,
             monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.2.2"),
             rpc_credential: String::from("pass"),
@@ -140,6 +142,7 @@ impl ReleaseEnvironment {
 /// start core module from gui
 pub fn start_core(conn: &Connections) {
     let env = if !conn.mainnet { "dev" } else { "prod" };
+    let remote_node = if !conn.is_remote_node { "--full-node" } else { "--remote-node" };
     let args = [
         "--monero-location",
         &conn.monero_location,
@@ -157,6 +160,7 @@ pub fn start_core(conn: &Connections) {
         &conn.i2p_zero_dir,
         "-r",
         env,
+        remote_node
     ];
     let output = std::process::Command::new("./neveko")
         .args(args)
