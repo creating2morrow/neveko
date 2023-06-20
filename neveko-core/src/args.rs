@@ -120,7 +120,7 @@ pub struct Args {
         default_value = "false"
     )]
     pub remote_node: bool,
-    /// Dummy flag for normal mode when not using remote node
+    /// Dummy flag for normal mode when not using remote node. Future use.
     #[arg(
         long,
         help = "dummy flag for normal node operations. (Future use)",
