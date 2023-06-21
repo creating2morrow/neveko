@@ -20,6 +20,9 @@ use log::{
 use rand_core::RngCore;
 use rocket::serde::json::Json;
 use std::time::Duration;
+extern crate rpassword;
+use rpassword::read_password;
+use std::io::Write;
 
 const ESTIMATE_FEE_FAILURE: u128 = 0;
 
@@ -517,8 +520,13 @@ pub async fn start_up() {
     // wait for rpc server for a bit
     tokio::time::sleep(std::time::Duration::new(5, 0)).await;
     monero::check_rpc_connection().await;
-    let wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    let mut wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(empty_string());
+    if wallet_password == empty_string() {
+        print!("enter a password for monero-wallet-rpc: ");
+        std::io::stdout().flush().unwrap();
+        wallet_password = read_password().unwrap();
+    }
     gen_app_wallet(&wallet_password).await;
     if args.i2p_normal {
         i2p::start().await;
