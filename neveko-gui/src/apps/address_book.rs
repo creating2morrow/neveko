@@ -740,7 +740,7 @@ fn send_payment_req(
             // if we made it this far we can now request a JWP from our friend
             // wait a bit for the tx to propogate
             tokio::time::sleep(std::time::Duration::from_secs(
-                crate::PROPOGATION_TIME_IN_SECS_EST,
+                crate::PROPAGATION_TIME_IN_SECS_EST,
             ))
             .await;
             match proof::prove_payment(String::from(&contact), &ftxp).await {

@@ -13,8 +13,8 @@ pub const LOCK_SCREEN_TIMEOUT_SECS: u64 = 60 * 5;
 pub const CRED_CHECK_INTERVAL: u64 = 5;
 /// monero estimated block time in seconds
 pub const BLOCK_TIME_IN_SECS_EST: u64 = 0x78;
-/// monero estimated propogation time in seconds
-pub const PROPOGATION_TIME_IN_SECS_EST: u64 = 0x1E;
+/// monero estimated propagation time in seconds
+pub const PROPAGATION_TIME_IN_SECS_EST: u64 = 5;
 /// time to wait before giving up on adding a contact
 pub const ADD_CONTACT_TIMEOUT_SECS: u64 = 0x5A;
 /// time to wait before giving up on neveko core
