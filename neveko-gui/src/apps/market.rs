@@ -216,9 +216,8 @@ impl eframe::App for MarketApp {
                 }
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
-                    self.products = product::find_all();
-                    self.is_showing_products = true;
-                    self.is_showing_vendors = false;
+                    self.is_ordering = false;
+                    self.is_loading = false;
                 }
             });
 
