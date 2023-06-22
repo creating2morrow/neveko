@@ -202,6 +202,9 @@ pub fn start_rpc() {
     );
     let release_env = utils::get_release_env();
     let cli_args = args::Args::parse();
+    if cli_args.remote_node && !&cli_args.i2p_proxy_host.contains(".i2p") {
+        warn!("invalid i2p monero remote node detected");
+    }
     if release_env == utils::ReleaseEnvironment::Development {
         let mut args = vec![
             "--rpc-bind-port",
@@ -215,9 +218,6 @@ pub fn start_rpc() {
             "--stagenet",
         ];
         if cli_args.remote_node {
-            if !&cli_args.i2p_proxy_host.contains(".i2p") {
-                warn!("invalid i2p monero remote node detected");
-            }
             args.push("--proxy");
             args.push(&cli_args.i2p_proxy_host);
         }
