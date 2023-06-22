@@ -28,8 +28,8 @@ B -> http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p
   - /pgp.txt - public gpg signing key
   - /index.txt - this page
   - /canary.txt
-  - /download/neveko-x86_64-linux-gnu-v0.4.2-alpha.tar.bz2  - latest neveko download
-  - /download/neveko-x86_64-linux-gnu-v0.4.2-alpha.tar.bz2.sig - detached sig
+  - /download/neveko-x86_64-linux-gnu-v0.4.3-alpha.tar.bz2  - latest neveko download
+  - /download/neveko-x86_64-linux-gnu-v0.4.3-alpha.tar.bz2.sig - detached sig
 
 NEVEKO Links (Clear)
 
@@ -38,9 +38,9 @@ NEVEKO Links (Clear)
 git clone https://github.com/creating2morrow/neveko.git
 -----BEGIN PGP SIGNATURE-----
 
-iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZJIw9xwcY3JlYXRpbmdf
-dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NM8moA/jvYnAos9hU3NKv6lzUn
-37Q6iQupJMEUM8GVaodM+NLGAQDdSWbC/wM3VxnCRxWO8DE5bcbu9jlBfUb1QJmI
-DM+wAQ==
-=zCby
+iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZJQ+DRwcY3JlYXRpbmdf
+dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMbdgA/RwFjSOMYbhhrVv6nSEZ
+HdbiWc8hwIEjWUltrkNG3ZtWAP48a4hXzmPelJbpQvvxRm7HbbC0JdkOgtB+5o0G
+5GRGAg==
+=BWhs
 -----END PGP SIGNATURE-----
