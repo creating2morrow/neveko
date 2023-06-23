@@ -191,19 +191,26 @@ pub fn start_daemon() {
 /// Start monero-wallet-rpc
 pub fn start_rpc() {
     info!("starting monero-wallet-rpc");
+    let cli_args = args::Args::parse();
     let bin_dir = get_monero_location();
     let port = get_rpc_port();
     let login = get_rpc_creds();
-    let daemon_address = get_rpc_daemon();
+    let daemon_address = cli_args.monero_rpc_daemon;
     let rpc_login = format!("{}:{}", &login.username, &login.credential);
     let mut wallet_dir = format!(
         "/home/{}/.neveko/stagenet/wallet/",
         std::env::var("USER").unwrap_or(String::from("user")),
     );
     let release_env = utils::get_release_env();
-    let cli_args = args::Args::parse();
-    if cli_args.remote_node && !&cli_args.i2p_proxy_host.contains(".i2p") {
+    if cli_args.remote_node && !&daemon_address.contains(".i2p") {
         warn!("invalid i2p monero remote node detected");
+    }
+    // proxy host can't have protocol
+    let mut proxy_host = utils::get_i2p_http_proxy();
+    if proxy_host.contains("http://") {
+        let values = proxy_host.split("http://");
+        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        proxy_host = v.remove(1);
     }
     if release_env == utils::ReleaseEnvironment::Development {
         let mut args = vec![
@@ -219,7 +226,7 @@ pub fn start_rpc() {
         ];
         if cli_args.remote_node {
             args.push("--proxy");
-            args.push(&cli_args.i2p_proxy_host);
+            args.push(&proxy_host);
         }
         let output = Command::new(format!("{}/monero-wallet-rpc", bin_dir))
             .args(args)
@@ -243,7 +250,7 @@ pub fn start_rpc() {
         ];
         if cli_args.remote_node {
             args.push("--proxy");
-            args.push(&cli_args.i2p_proxy_host);
+            args.push(&proxy_host);
         }
         let output = Command::new(format!("{}/monero-wallet-rpc", bin_dir))
             .args(args)

@@ -31,6 +31,9 @@ B -> http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p
   - /download/neveko-x86_64-linux-gnu-v0.4.3-alpha.tar.bz2  - latest neveko download
   - /download/neveko-x86_64-linux-gnu-v0.4.3-alpha.tar.bz2.sig - detached sig
 
+# Monero remote node (stagenet)
+xmr3kaacphwkk4z2gp35bdl47lrrnzimmyqj4oliauqrjzqecofa.b32.i2p
+
 NEVEKO Links (Clear)
 
 # Github
@@ -38,9 +41,9 @@ NEVEKO Links (Clear)
 git clone https://github.com/creating2morrow/neveko.git
 -----BEGIN PGP SIGNATURE-----
 
-iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZJQ+DRwcY3JlYXRpbmdf
-dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMbdgA/RwFjSOMYbhhrVv6nSEZ
-HdbiWc8hwIEjWUltrkNG3ZtWAP48a4hXzmPelJbpQvvxRm7HbbC0JdkOgtB+5o0G
-5GRGAg==
-=BWhs
+iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZJXzkxwcY3JlYXRpbmdf
+dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMn+EBAN2vhrS+ndb2aS2QpGe7
+doQtGzzMV5Zk8kKocZVHD92EAQDa+WbGmZSqAic9PpWGwpEqGj2GcNC+mvtcGyaP
+zn8qCg==
+=HMN/
 -----END PGP SIGNATURE-----
