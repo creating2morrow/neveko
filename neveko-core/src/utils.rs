@@ -529,7 +529,7 @@ pub async fn start_up() {
         std::env::set_var(crate::MONERO_WALLET_PASSWORD, &wallet_password);
     }
     gen_app_wallet(&wallet_password).await;
-    if args.i2p_normal {
+    if !args.i2p_advanced {
         i2p::start().await;
     }
     gen_app_gpg().await;
