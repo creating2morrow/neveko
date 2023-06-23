@@ -526,6 +526,7 @@ pub async fn start_up() {
         print!("enter a password for monero-wallet-rpc: ");
         std::io::stdout().flush().unwrap();
         wallet_password = read_password().unwrap();
+        std::env::set_var(crate::MONERO_WALLET_PASSWORD, &wallet_password);
     }
     gen_app_wallet(&wallet_password).await;
     if args.i2p_normal {
