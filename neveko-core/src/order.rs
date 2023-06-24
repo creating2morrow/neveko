@@ -298,12 +298,13 @@ pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
 }
 
 /// Send order request to vendor and start multisig flow
-pub async fn transmit_order_request(contact: String, request: reqres::OrderRequest) -> Result<Order, Box<dyn Error>> {
+pub async fn transmit_order_request(contact: String, jwp: String, request: reqres::OrderRequest) -> Result<Order, Box<dyn Error>> {
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
     match client?
         .post(format!("http://{}/market/order/create", contact))
+        .header("proof", jwp)
         .json(&request)
         .send()
         .await
@@ -312,7 +313,7 @@ pub async fn transmit_order_request(contact: String, request: reqres::OrderReque
             let res = response.json::<Order>().await;
             debug!("create order response: {:?}", res);
             match res {
-                Ok(r) => Ok(r),
+                Ok(_r) => Ok(Default::default()),
                 _ => Ok(Default::default()),
             }
         }

@@ -228,12 +228,21 @@ impl eframe::App for MarketApp {
                             quantity: qty,
                             ..Default::default()
                         };
+                        log::debug!("new order: {:?}", &new_order);
                         self.is_loading = true;
-                        submit_order_req(self.submit_order_tx.clone(), ctx.clone(), new_order);
+                        submit_order_req(
+                            self.submit_order_tx.clone(),
+                            self.vendor_status.i2p.clone(), 
+                            ctx.clone(),
+                            self.vendor_status.jwp.clone(),
+                            new_order
+                        );
                         self.new_order = Default::default();
                         self.new_order_price = 0;
                         self.new_order_quantity = utils::empty_string();
                         self.new_order_shipping_address = utils::empty_string();
+                        self.is_ordering = false;
+                        self.is_showing_products = false;
                     }
                 }
                 ui.label("\n");
@@ -928,12 +937,19 @@ fn vendor_status_timeout(tx: Sender<bool>, ctx: egui::Context) {
     });
 }
 
-fn submit_order_req(tx: Sender<models::Order>, ctx: egui::Context, request: reqres::OrderRequest) {
+fn submit_order_req(tx: Sender<models::Order>, contact: String, ctx: egui::Context, jwp: String, request: reqres::OrderRequest) {
     tokio::spawn(async move {
         log::info!("submit order");
-        let contact = String::from(&request.cid);
-        let order = order::transmit_order_request(contact, request).await;
-        let _ = tx.send(order.unwrap_or(Default::default()));
+        let r_contact = String::from(&contact);
+        let order = order::transmit_order_request(r_contact, jwp, request).await;
+        let u_order = order.unwrap_or(Default::default());
+        // cache order request to db
+        utils::write_gui_db(
+            String::from("gui-orid"),
+            String::from(&contact),
+            String::from(&u_order.orid),
+        );
+        let _ = tx.send(u_order);
         ctx.request_repaint();
     });
 }
