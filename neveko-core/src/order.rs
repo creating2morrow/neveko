@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use crate::{
     contact,
     db,
@@ -253,7 +255,7 @@ pub async fn upload_delivery_info(orid: &String, delivery_info: &Vec<u8>) {
     db::Interface::async_write(&s.env, &s.handle, &m_order.orid, &Order::to_db(&m_order)).await;
 }
 
-/// The vendor will first search for a encrypted multisig message in the form
+/// The vendor will first search for an encrypted multisig message in the form
 ///  
 /// txset-{order id}-{.b32.i2p}
 pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
@@ -292,5 +294,31 @@ pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
     reqres::FinalizeOrderResponse {
         orid: String::from(orid),
         delivery_info,
+    }
+}
+
+/// Send order request to vendor and start multisig flow
+pub async fn transmit_order_request(contact: String, request: reqres::OrderRequest) -> Result<Order, Box<dyn Error>> {
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    match client?
+        .post(format!("http://{}/market/order/create", contact))
+        .json(&request)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<Order>().await;
+            debug!("create order response: {:?}", res);
+            match res {
+                Ok(r) => Ok(r),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(e) => {
+            error!("failed to generate order due to: {:?}", e);
+            Ok(Default::default())
+        }
     }
 }

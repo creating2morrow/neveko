@@ -43,7 +43,10 @@ pub struct MarketApp {
     new_order_shipping_address: String,
     _refresh_on_delete_product_tx: Sender<bool>,
     _refresh_on_delete_product_rx: Receiver<bool>,
+    submit_order_tx: Sender<models::Order>,
+    submit_order_rx: Receiver<models::Order>,
     s_contact: models::Contact,
+    s_order: models::Order,
     vendor_status: utils::ContactStatus,
     vendors: Vec<models::Contact>,
 }
@@ -60,6 +63,7 @@ impl Default for MarketApp {
         let (contact_info_tx, contact_info_rx) = std::sync::mpsc::channel();
         let (get_vendor_products_tx, get_vendor_products_rx) = std::sync::mpsc::channel();
         let (get_vendor_product_tx, get_vendor_product_rx) = std::sync::mpsc::channel();
+        let (submit_order_tx, submit_order_rx) = std::sync::mpsc::channel();
         MarketApp {
             contact_info_rx,
             contact_info_tx,
@@ -104,6 +108,9 @@ impl Default for MarketApp {
             _refresh_on_delete_product_tx,
             _refresh_on_delete_product_rx,
             s_contact: Default::default(),
+            s_order: Default::default(),
+            submit_order_rx,
+            submit_order_tx,
             vendor_status: Default::default(),
             vendors: Vec::new(),
         }
@@ -114,6 +121,14 @@ impl eframe::App for MarketApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Hook into async channel threads
         //-----------------------------------------------------------------------------------
+
+        if let Ok(submit_order) = self.submit_order_rx.try_recv() {
+            self.s_order = submit_order;
+            if self.s_order.orid != utils::empty_string() {
+                self.is_ordering = false;
+                self.is_loading = false;
+            }
+        }
 
         if let Ok(contact_info) = self.contact_info_rx.try_recv() {
             self.s_contact = contact_info;
@@ -190,29 +205,36 @@ impl eframe::App for MarketApp {
                         .labelled_by(qty_name.id);
                 });
                 ui.label(format!("price: {}", self.new_order_price));
-                if ui.button("Submit Order").clicked() {
-                    let qty = match self.new_order_quantity.parse::<u128>() {
-                        Ok(q) => q,
-                        Err(_) => 0,
-                    };
-                    let address_bytes = self.new_order_shipping_address.clone().into_bytes();
-                    let encrypted_shipping_address =
-                        gpg::encrypt(self.vendor_status.i2p.clone(), &address_bytes);
-                    let new_order = reqres::OrderRequest {
-                        cid: String::from(&self.new_order.cid),
-                        pid: String::from(&self.new_order.pid),
-                        ship_address: encrypted_shipping_address.unwrap_or(Vec::new()),
-                        quantity: qty,
-                        ..Default::default()
-                    };
-                    let _j_order = utils::order_to_json(&new_order);
-
-                    // create order channel
-
-                    self.new_order = Default::default();
-                    self.new_order_price = 0;
-                    self.new_order_quantity = utils::empty_string();
-                    self.new_order_shipping_address = utils::empty_string();
+                let qty = match self.new_order_quantity.parse::<u128>() {
+                    Ok(q) => q,
+                    Err(_) => 0,
+                };
+                let mut p_qty: u128 = 0;
+                for p in &self.products {
+                    if p.pid == self.new_order.pid {
+                        p_qty = p.qty;
+                        break;
+                    }   
+                }
+                if qty <= p_qty && qty > 0 {
+                    if ui.button("Submit Order").clicked() {
+                        let address_bytes = self.new_order_shipping_address.clone().into_bytes();
+                        let encrypted_shipping_address =
+                            gpg::encrypt(self.vendor_status.i2p.clone(), &address_bytes);
+                        let new_order = reqres::OrderRequest {
+                            cid: String::from(&self.new_order.cid),
+                            pid: String::from(&self.new_order.pid),
+                            ship_address: encrypted_shipping_address.unwrap_or(Vec::new()),
+                            quantity: qty,
+                            ..Default::default()
+                        };
+                        self.is_loading = true;
+                        submit_order_req(self.submit_order_tx.clone(), ctx.clone(), new_order);
+                        self.new_order = Default::default();
+                        self.new_order_price = 0;
+                        self.new_order_quantity = utils::empty_string();
+                        self.new_order_shipping_address = utils::empty_string();
+                    }
                 }
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
@@ -902,6 +924,16 @@ fn vendor_status_timeout(tx: Sender<bool>, ctx: egui::Context) {
         .await;
         log::error!("vendor status timeout");
         let _ = tx.send(true);
+        ctx.request_repaint();
+    });
+}
+
+fn submit_order_req(tx: Sender<models::Order>, ctx: egui::Context, request: reqres::OrderRequest) {
+    tokio::spawn(async move {
+        log::info!("submit order");
+        let contact = String::from(&request.cid);
+        let order = order::transmit_order_request(contact, request).await;
+        let _ = tx.send(order.unwrap_or(Default::default()));
         ctx.request_repaint();
     });
 }
