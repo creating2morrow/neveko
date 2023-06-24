@@ -26,9 +26,14 @@ NEVidebla-EKOnomia (invisible economy)
 * `git clone https://github.com/creating2morrow/neveko`
 * `cd neveko && ./scripts/build_all_and_run.sh "-- -h"`
 * Example to start neveko with remote stagenet node / i2p proxy remote for development:
-    * `./scripts/build_all_and_run.sh "-- --monero-rpc-daemon http://stagenet.community.rino.io:38081 --remote-node --monero-location /path/to/monero-x86_64-linux-gnu-v0.18.2.2/ --i2p-proxy-host x.x.x.x:port --i2p-tunnels-json /path/to/manual-i2p/config/ --i2p-advanced`
+    * `./scripts/build_all_and_run.sh "-- --monero-rpc-daemon xmr3kaacphwkk4z2gp35bdl47lrrnzimmyqj4oliauqrjzqecofa.b32.i2p --monero-location /path/to/monero-x86_64-linux-gnu-v0.18.2.2/ --i2p-proxy-host x.x.x.x:port --i2p-tunnels-json /path/to/manual-i2p/config/ --i2p-advanced`
     * the `--monero-location` flag is needed even when using a remote node because
       neveko has its own monero-wallet-rpc instance
+    * remote nodes are forced over the `--i2p-proxy-host`
+* Recommended neveko-core startup with full node and i2p-zero locally running:
+    * ` ./scripts/build_all_and_run.sh "-- --monero-blockchain-dir=/home/user/.bitmonero --monero-location /home/user/monero-x86_64-linux-gnu-v0.18.2.2 --i2p-zero-dir /home/user/i2p-zero-linux.v1.21/"`
+    * monerod doesn't need to be running because neveko will start it and monero-wallet-rpc
+    * gui will automatically detect monerod, rpc and i2p-zero if neveko core is started first
 * gui built with rust [egui](https://docs.rs/egui/latest/egui/)
 
 ## Installation Mananger
