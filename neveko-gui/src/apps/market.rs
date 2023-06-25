@@ -9,6 +9,7 @@ pub struct MarketApp {
     contact_info_rx: Receiver<models::Contact>,
     contact_timeout_tx: Sender<bool>,
     contact_timeout_rx: Receiver<bool>,
+    customer_orders: Vec<models::Order>,
     find_vendor: String,
     get_vendor_products_tx: Sender<Vec<models::Product>>,
     get_vendor_products_rx: Receiver<Vec<models::Product>>,
@@ -17,6 +18,8 @@ pub struct MarketApp {
     is_loading: bool,
     is_ordering: bool,
     is_pinging: bool,
+    is_customer_viewing_orders: bool,
+    is_managing_multisig: bool,
     is_product_image_set: bool,
     is_showing_products: bool,
     is_showing_product_image: bool,
@@ -69,12 +72,15 @@ impl Default for MarketApp {
             contact_info_tx,
             contact_timeout_rx,
             contact_timeout_tx,
+            customer_orders: Vec::new(),
             find_vendor: utils::empty_string(),
             get_vendor_products_rx,
             get_vendor_products_tx,
             get_vendor_product_rx,
             get_vendor_product_tx,
+            is_customer_viewing_orders: false,
             is_loading: false,
+            is_managing_multisig: false,
             is_ordering: false,
             is_pinging: false,
             is_product_image_set: false,
@@ -185,6 +191,152 @@ impl eframe::App for MarketApp {
             }
         }
 
+        // Vendor status window
+        //-----------------------------------------------------------------------------------
+        let mut is_showing_vendor_status = self.is_showing_vendor_status;
+        egui::Window::new(&self.vendor_status.i2p)
+            .open(&mut is_showing_vendor_status)
+            .vscroll(true)
+            .title_bar(false)
+            .id(egui::Id::new(self.vendor_status.i2p.clone()))
+            .show(&ctx, |ui| {
+                if self.is_pinging {
+                    ui.add(egui::Spinner::new());
+                    ui.label("pinging...");
+                }
+                let status = if self.s_contact.xmr_address != utils::empty_string() {
+                    "online"
+                } else {
+                    "offline"
+                };
+                let mode = if self.vendor_status.is_vendor {
+                    "enabled "
+                } else {
+                    "disabled"
+                };
+                ui.label(format!("status: {}", status));
+                ui.label(format!("vendor mode: {}", mode));
+                ui.label(format!("nick: {}", self.vendor_status.nick));
+                ui.label(format!("tx proof: {}", self.vendor_status.txp));
+                ui.label(format!("jwp: {}", self.vendor_status.jwp));
+                ui.label(format!("expiration: {}", self.vendor_status.h_exp));
+                ui.label(format!("signed key: {}", self.vendor_status.signed_key));
+                if ui.button("Exit").clicked() {
+                    self.is_showing_vendor_status = false;
+                }
+            });
+
+        // Product image window
+        //-----------------------------------------------------------------------------------
+        let mut is_showing_product_image = self.is_showing_product_image;
+        egui::Window::new("")
+            .open(&mut is_showing_product_image)
+            .vscroll(true)
+            .show(ctx, |ui| {
+                self.product_image.show(ui);
+                if ui.button("Exit").clicked() {
+                    self.is_showing_product_image = false;
+                    self.is_product_image_set = false;
+                    let read_product_image = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
+                    self.product_image =
+                        egui_extras::RetainedImage::from_image_bytes("qr.png", &read_product_image)
+                            .unwrap();
+                }
+            });
+
+        // Multisig Management window
+        //-----------------------------------------------------------------------------------
+        let mut is_managing_multisig = self.is_managing_multisig;
+        egui::Window::new("Multisig Management")
+            .open(&mut is_managing_multisig)
+            .vscroll(true)
+            .show(ctx, |ui| {
+                // TODO(c2m): interactive multisig checklist
+                if ui.button("Exit").clicked() {
+                    self.is_managing_multisig = false;
+                    self.is_loading = false;
+                }
+            });
+
+        // View orders - Customer Order Flow Management
+        //-----------------------------------------------------------------------------------
+        let mut is_customer_viewing_orders = self.is_customer_viewing_orders;
+        egui::Window::new("View Orders")
+            .open(&mut is_customer_viewing_orders)
+            .vscroll(true)
+            .show(&ctx, |ui| {
+                use egui_extras::{
+                    Column,
+                    TableBuilder,
+                };
+                let table = TableBuilder::new(ui)
+                    .striped(true)
+                    .resizable(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .min_scrolled_height(0.0);
+
+                table
+                    .header(20.0, |mut header| {
+                        header.col(|ui| {
+                            ui.strong("orid");
+                        });
+                        header.col(|ui| {
+                            ui.strong("date");
+                        });
+                        header.col(|ui| {
+                            ui.strong("status");
+                        });
+                        header.col(|ui| {
+                            ui.strong("");
+                        });
+                        header.col(|ui| {
+                            ui.strong("");
+                        });
+                    })
+                    .body(|mut body| {
+                        for o in &self.customer_orders {
+                            let row_height = 20.0;
+                            body.row(row_height, |mut row| {
+                                row.col(|ui| {
+                                    ui.label(format!("{}", o.orid));
+                                });
+                                row.col(|ui| {
+                                    let h_date =
+                                        chrono::NaiveDateTime::from_timestamp_opt(o.date, 0)
+                                            .unwrap()
+                                            .to_string();
+                                    ui.label(format!("{}", h_date));
+                                });
+                                row.col(|ui| {
+                                    ui.label(format!("{}", o.status));
+                                });
+                                row.col(|ui| {
+                                    if ui.button("MSIG").clicked() {
+                                        // dynamically generate buttons for multisig wallet ops
+                                    }
+                                });
+                                row.col(|ui| {
+                                    ui.style_mut().wrap = Some(false);
+                                    ui.horizontal(|ui| {
+                                        if ui.button("Cancel").clicked() {
+                                            // TODO(c2m): Cancel order logic
+                                        }
+                                    });
+                                });
+                            });
+                        }
+                    });
+                if ui.button("Exit").clicked() {
+                    self.is_customer_viewing_orders = false;
+                    self.is_loading = false;
+                }
+            });
+
         // Customer Order Form
         //-----------------------------------------------------------------------------------
         let mut is_ordering = self.is_ordering;
@@ -192,6 +344,10 @@ impl eframe::App for MarketApp {
             .open(&mut is_ordering)
             .vscroll(true)
             .show(&ctx, |ui| {
+                if self.is_loading {
+                    ui.add(egui::Spinner::new());
+                    ui.label("loading...");
+                }
                 ui.label(format!("cid: {}", self.new_order.cid));
                 ui.label(format!("pid: {}", self.new_order.pid));
                 ui.horizontal(|ui| {
@@ -200,7 +356,7 @@ impl eframe::App for MarketApp {
                         .labelled_by(shipping_name.id);
                 });
                 ui.horizontal(|ui| {
-                    let qty_name = ui.label("quantity: \t\t");
+                    let qty_name = ui.label("quantity: \t\t\t\t");
                     ui.text_edit_singleline(&mut self.new_order_quantity)
                         .labelled_by(qty_name.id);
                 });
@@ -214,7 +370,7 @@ impl eframe::App for MarketApp {
                     if p.pid == self.new_order.pid {
                         p_qty = p.qty;
                         break;
-                    }   
+                    }
                 }
                 if qty <= p_qty && qty > 0 {
                     if ui.button("Submit Order").clicked() {
@@ -232,16 +388,15 @@ impl eframe::App for MarketApp {
                         self.is_loading = true;
                         submit_order_req(
                             self.submit_order_tx.clone(),
-                            self.vendor_status.i2p.clone(), 
+                            self.vendor_status.i2p.clone(),
                             ctx.clone(),
                             self.vendor_status.jwp.clone(),
-                            new_order
+                            new_order,
                         );
                         self.new_order = Default::default();
                         self.new_order_price = 0;
                         self.new_order_quantity = utils::empty_string();
                         self.new_order_shipping_address = utils::empty_string();
-                        self.is_ordering = false;
                         self.is_showing_products = false;
                     }
                 }
@@ -313,7 +468,7 @@ impl eframe::App for MarketApp {
                                     row.col(|ui| {
                                         if ui.button("Check Status").clicked() {
                                             let nick_db = utils::search_gui_db(
-                                                String::from("gui-nick"),
+                                                String::from(crate::GUI_NICK_DB_KEY),
                                                 String::from(&v.i2p_address),
                                             );
                                             let nick = if nick_db == utils::empty_string() {
@@ -325,17 +480,16 @@ impl eframe::App for MarketApp {
                                             self.vendor_status.i2p = String::from(&v.i2p_address);
                                             // get the txp
                                             self.vendor_status.txp = utils::search_gui_db(
-                                                String::from("gui-txp"),
+                                                String::from(crate::GUI_TX_PROOF_DB_KEY),
                                                 String::from(&v.i2p_address),
                                             );
                                             // get the jwp
                                             self.vendor_status.jwp = utils::search_gui_db(
-                                                String::from("gui-jwp"),
+                                                String::from(crate::GUI_JWP_DB_KEY),
                                                 String::from(&v.i2p_address),
                                             );
-                                            log::debug!("jwp: {}", self.vendor_status.jwp);
                                             let r_exp = utils::search_gui_db(
-                                                String::from("gui-exp"),
+                                                String::from(crate::GUI_EXP_DB_KEY),
                                                 String::from(&v.i2p_address),
                                             );
                                             self.vendor_status.exp = r_exp;
@@ -686,10 +840,10 @@ impl eframe::App for MarketApp {
                 }
             });
 
-        // TODO(c2m): Orders window
+        // Vendor Orders window
         //-----------------------------------------------------------------------------------
         let mut is_showing_orders = self.is_showing_orders;
-        egui::Window::new("Orders")
+        egui::Window::new("Manage Orders")
             .open(&mut is_showing_orders)
             .vscroll(true)
             .show(&ctx, |ui| {
@@ -781,7 +935,8 @@ impl eframe::App for MarketApp {
             }
             ui.label("\n");
             if ui.button("View Orders").clicked() {
-                // TODO(c2m):
+                self.customer_orders = order::find_all_backup();
+                self.is_customer_viewing_orders = true;
             }
             if self.is_vendor_enabled {
                 ui.label("\n");
@@ -850,6 +1005,10 @@ impl eframe::App for MarketApp {
                     self.is_showing_products = true;
                     self.is_showing_vendors = false;
                 }
+                ui.label("\n");
+                if ui.button("Manage Orders").clicked() {
+                    // TODO(c2m): vendor order management logic
+                }
             }
         });
     }
@@ -884,7 +1043,7 @@ fn send_contact_info_req(
 }
 
 fn check_signed_key(contact: String) -> bool {
-    let v = utils::search_gui_db(String::from("gui-signed-key"), contact);
+    let v = utils::search_gui_db(String::from(crate::GUI_SIGNED_GPG_DB_KEY), contact);
     v != utils::empty_string()
 }
 
@@ -937,18 +1096,20 @@ fn vendor_status_timeout(tx: Sender<bool>, ctx: egui::Context) {
     });
 }
 
-fn submit_order_req(tx: Sender<models::Order>, contact: String, ctx: egui::Context, jwp: String, request: reqres::OrderRequest) {
+fn submit_order_req(
+    tx: Sender<models::Order>,
+    contact: String,
+    ctx: egui::Context,
+    jwp: String,
+    request: reqres::OrderRequest,
+) {
     tokio::spawn(async move {
         log::info!("submit order");
         let r_contact = String::from(&contact);
         let order = order::transmit_order_request(r_contact, jwp, request).await;
-        let u_order = order.unwrap_or(Default::default());
+        let u_order = order.unwrap_or_else(|_| Default::default());
         // cache order request to db
-        utils::write_gui_db(
-            String::from("gui-orid"),
-            String::from(&contact),
-            String::from(&u_order.orid),
-        );
+        order::backup(&u_order);
         let _ = tx.send(u_order);
         ctx.request_repaint();
     });

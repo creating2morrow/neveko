@@ -51,9 +51,9 @@ impl Default for MultisigMessageData {
 /// Create a new message
 pub async fn create(m: Json<Message>, jwp: String, m_type: MessageType) -> Message {
     let rnd = utils::generate_rnd();
-    let mut f_mid: String = format!("m{}", &rnd);
+    let mut f_mid: String = format!("{}{}", crate::MESSAGE_DB_KEY, &rnd);
     if m_type == MessageType::Multisig {
-        f_mid = format!("msig{}", &rnd);
+        f_mid = format!("{}{}", crate::MSIG_MESSAGE_DB_KEY, &rnd);
     }
     info!("creating message: {}", &f_mid);
     let created = chrono::offset::Utc::now().timestamp();
@@ -73,8 +73,8 @@ pub async fn create(m: Json<Message>, jwp: String, m_type: MessageType) -> Messa
     let k = &new_message.mid;
     db::Interface::write(&s.env, &s.handle, k, &Message::to_db(&new_message));
     // in order to retrieve all message, write keys to with ml
-    let list_key = format!("ml");
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(&list_key));
+    let list_key = crate::MESSAGE_LIST_DB_KEY;
+    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
     if r == utils::empty_string() {
         debug!("creating message index");
     }
@@ -99,10 +99,10 @@ pub async fn rx(m: Json<Message>) {
     if !is_in_contact_list {
         return;
     }
-    let f_mid: String = format!("m{}", utils::generate_rnd());
+    let f_mid: String = format!("{}{}", crate::MESSAGE_DB_KEY, utils::generate_rnd());
     let new_message = Message {
         mid: String::from(&f_mid),
-        uid: String::from("rx"),
+        uid: String::from(crate::RX_MESSAGE_DB_KEY),
         from: String::from(&m.from),
         body: m.body.iter().cloned().collect(),
         created: chrono::offset::Utc::now().timestamp(),
@@ -113,8 +113,8 @@ pub async fn rx(m: Json<Message>) {
     let k = &new_message.mid;
     db::Interface::write(&s.env, &s.handle, k, &Message::to_db(&new_message));
     // in order to retrieve all message, write keys to with rx
-    let list_key = format!("rx");
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(&list_key));
+    let list_key = crate::RX_MESSAGE_DB_KEY;
+    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
     if r == utils::empty_string() {
         debug!("creating message index");
     }
@@ -191,7 +191,7 @@ pub async fn rx_multisig(m: Json<Message>) {
     let f_mid: String = format!("msig{}", utils::generate_rnd());
     let new_message = Message {
         mid: String::from(&f_mid),
-        uid: String::from("rx"),
+        uid: String::from(crate::RX_MESSAGE_DB_KEY),
         from: String::from(&m.from),
         body: m.body.iter().cloned().collect(),
         created: chrono::offset::Utc::now().timestamp(),
@@ -226,7 +226,7 @@ pub fn find(mid: &String) -> Message {
 /// Message lookup
 pub fn find_all() -> Vec<Message> {
     let i_s = db::Interface::open();
-    let i_list_key = format!("ml");
+    let i_list_key = crate::MESSAGE_LIST_DB_KEY;
     let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
     if i_r == utils::empty_string() {
         error!("message index not found");
@@ -240,7 +240,7 @@ pub fn find_all() -> Vec<Message> {
             messages.push(message);
         }
     }
-    let o_list_key = format!("rx");
+    let o_list_key = crate::RX_MESSAGE_DB_KEY;
     let o_s = db::Interface::open();
     let o_r = db::Interface::read(&o_s.env, &o_s.handle, &String::from(o_list_key));
     if o_r == utils::empty_string() {
@@ -350,8 +350,8 @@ async fn send_to_retry(mid: String) {
     info!("sending {} to fts", &mid);
     let s = db::Interface::open();
     // in order to retrieve FTS (failed-to-send), write keys to db with fts
-    let list_key = format!("fts");
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(&list_key));
+    let list_key = crate::FTS_DB_KEY;
+    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
     if r == utils::empty_string() {
         debug!("creating fts message index");
     }
@@ -366,8 +366,7 @@ async fn send_to_retry(mid: String) {
     );
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
     // restart fts if not empty
-    let list_key = format!("fts");
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(&list_key));
+    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
     let v_mid = r.split(",");
     let v: Vec<String> = v_mid.map(|s| String::from(s)).collect();
     debug!("fts contents: {:#?}", v);
@@ -383,8 +382,8 @@ fn remove_from_fts(mid: String) {
     info!("removing id {} from fts", &mid);
     let s = db::Interface::open();
     // in order to retrieve FTS (failed-to-send), write keys to with fts
-    let list_key = format!("fts");
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(&list_key));
+    let list_key = crate::FTS_DB_KEY;
+    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
     if r == utils::empty_string() {
         debug!("fts is empty");
     }
@@ -417,7 +416,7 @@ pub async fn retry_fts() {
         debug!("running retry failed-to-send thread");
         tick.recv().unwrap();
         let s = db::Interface::open();
-        let list_key = format!("fts");
+        let list_key = crate::FTS_DB_KEY;
         let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
         if r == utils::empty_string() {
             info!("fts message index not found");
@@ -430,7 +429,7 @@ pub async fn retry_fts() {
         if cleared {
             // index was created but cleared
             info!("terminating retry fts thread");
-            db::Interface::delete(&s.env, &s.handle, "fts");
+            db::Interface::delete(&s.env, &s.handle, list_key);
             break;
         }
         for m in v {
@@ -438,7 +437,7 @@ pub async fn retry_fts() {
             if message.mid != utils::empty_string() {
                 let s = db::Interface::open();
                 // get jwp from db
-                let k = format!("{}-{}", "fts-jwp", &message.to);
+                let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &message.to);
                 let jwp = db::Interface::read(&s.env, &s.handle, &k);
                 if jwp != utils::empty_string() {
                     let m_type = if message.mid.contains("misg") {
@@ -479,7 +478,7 @@ pub async fn send_prepare_info(orid: &String, contact: &String) {
     let wallet_password = utils::empty_string();
     monero::open_wallet(&orid, &wallet_password).await;
     let prepare_info = monero::prepare_wallet().await;
-    let k = format!("{}-{}", "fts-jwp", contact);
+    let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
     let body_str = format!(
         "{}:{}:{}",
@@ -504,7 +503,7 @@ pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) 
     let wallet_password = utils::empty_string();
     monero::open_wallet(&orid, &wallet_password).await;
     let make_info = monero::make_wallet(info).await;
-    let k = format!("{}-{}", "fts-jwp", contact);
+    let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
     let body_str = format!("{}:{}:{}", MAKE_MSIG, orid, &make_info.result.multisig_info);
     let message: Message = Message {
@@ -526,7 +525,7 @@ pub async fn send_exchange_info(orid: &String, contact: &String, info: Vec<Strin
     let wallet_password = utils::empty_string();
     monero::open_wallet(&orid, &wallet_password).await;
     let exchange_info = monero::exchange_multisig_keys(false, info, &wallet_password).await;
-    let k = format!("{}-{}", "fts-jwp", contact);
+    let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
     let body_str = format!(
         "{}:{}:{}",
@@ -551,7 +550,7 @@ pub async fn send_export_info(orid: &String, contact: &String) {
     let wallet_password = utils::empty_string();
     monero::open_wallet(&orid, &wallet_password).await;
     let exchange_info = monero::export_multisig_info().await;
-    let k = format!("{}-{}", "fts-jwp", contact);
+    let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
     let body_str = format!("{}:{}:{}", EXPORT_MSIG, orid, &exchange_info.result.info);
     let message: Message = Message {

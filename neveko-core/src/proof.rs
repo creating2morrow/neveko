@@ -133,7 +133,7 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
                 Ok(r) => {
                     // cache the jwp for for fts
                     let s = db::Interface::open();
-                    let k = format!("{}-{}", "fts-jwp", &contact);
+                    let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
                     db::Interface::delete(&s.env, &s.handle, &k);
                     db::Interface::write(&s.env, &s.handle, &k, &r.jwp);
                     Ok(r)

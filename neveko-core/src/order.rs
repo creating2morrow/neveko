@@ -20,6 +20,7 @@ use log::{
 use rocket::serde::json::Json;
 
 enum StatusType {
+    _Cancelled,
     Delivered,
     MultisigMissing,
     MulitsigComplete,
@@ -29,6 +30,7 @@ enum StatusType {
 impl StatusType {
     pub fn value(&self) -> String {
         match *self {
+            StatusType::_Cancelled => String::from("Cancelled"),
             StatusType::Delivered => String::from("Delivered"),
             StatusType::MultisigMissing => String::from("MultisigMissing"),
             StatusType::MulitsigComplete => String::from("MulitsigComplete"),
@@ -45,7 +47,7 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
         std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let ts = chrono::offset::Utc::now().timestamp();
-    let orid: String = format!("O{}", utils::generate_rnd());
+    let orid: String = format!("{}{}", crate::ORDER_DB_KEY, utils::generate_rnd());
     let r_subaddress = monero::create_address().await;
     let subaddress = r_subaddress.result.address;
     let new_order = Order {
@@ -71,8 +73,8 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     let k = &new_order.orid;
     db::Interface::write(&s.env, &s.handle, k, &Order::to_db(&new_order));
     // in order to retrieve all orders, write keys to with ol
-    let list_key = format!("ol");
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(&list_key));
+    let list_key = crate::ORDER_LIST_DB_KEY;
+    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
     if r == utils::empty_string() {
         debug!("creating order index");
     }
@@ -81,6 +83,23 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &order_list);
     monero::close_wallet(&orid, &wallet_password).await;
     new_order
+}
+
+/// Backup order for customer
+pub fn backup(order: &Order) {
+    info!("creating backup of order: {}", order.orid);
+    let s = db::Interface::open();
+    let k = &order.orid;
+    db::Interface::write(&s.env, &s.handle, k, &Order::to_db(&order));
+    // in order to retrieve all orders, write keys to with col
+    let list_key = crate::CUSTOMER_ORDER_LIST_DB_KEY;
+    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
+    if r == utils::empty_string() {
+        debug!("creating customer order index");
+    }
+    let order_list = [r, String::from(&order.orid)].join(",");
+    debug!("writing order index {} for id: {}", order_list, list_key);
+    db::Interface::write(&s.env, &s.handle, &String::from(list_key), &order_list);
 }
 
 /// Lookup order
@@ -98,10 +117,30 @@ pub fn find(oid: &String) -> Order {
 /// Lookup all orders from admin server
 pub fn find_all() -> Vec<Order> {
     let i_s = db::Interface::open();
-    let i_list_key = format!("ol");
+    let i_list_key = crate::ORDER_LIST_DB_KEY;
     let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
     if i_r == utils::empty_string() {
         error!("order index not found");
+    }
+    let i_v_oid = i_r.split(",");
+    let i_v: Vec<String> = i_v_oid.map(|s| String::from(s)).collect();
+    let mut orders: Vec<Order> = Vec::new();
+    for o in i_v {
+        let order: Order = find(&o);
+        if order.orid != utils::empty_string() {
+            orders.push(order);
+        }
+    }
+    orders
+}
+
+/// Lookup all orders that customer has saved from gui
+pub fn find_all_backup() -> Vec<Order> {
+    let i_s = db::Interface::open();
+    let i_list_key = crate::CUSTOMER_ORDER_LIST_DB_KEY;
+    let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
+    if i_r == utils::empty_string() {
+        error!("customer order index not found");
     }
     let i_v_oid = i_r.split(",");
     let i_v: Vec<String> = i_v_oid.map(|s| String::from(s)).collect();
@@ -119,7 +158,7 @@ pub fn find_all() -> Vec<Order> {
 pub async fn find_all_customer_orders(cid: String) -> Vec<Order> {
     info!("lookup orders for customer: {}", &cid);
     let i_s = db::Interface::open();
-    let i_list_key = format!("ol");
+    let i_list_key = crate::ORDER_LIST_DB_KEY;
     let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
     if i_r == utils::empty_string() {
         error!("order index not found");
@@ -298,7 +337,11 @@ pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
 }
 
 /// Send order request to vendor and start multisig flow
-pub async fn transmit_order_request(contact: String, jwp: String, request: reqres::OrderRequest) -> Result<Order, Box<dyn Error>> {
+pub async fn transmit_order_request(
+    contact: String,
+    jwp: String,
+    request: reqres::OrderRequest,
+) -> Result<Order, Box<dyn Error>> {
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
@@ -313,7 +356,7 @@ pub async fn transmit_order_request(contact: String, jwp: String, request: reqre
             let res = response.json::<Order>().await;
             debug!("create order response: {:?}", res);
             match res {
-                Ok(_r) => Ok(Default::default()),
+                Ok(r) => Ok(r),
                 _ => Ok(Default::default()),
             }
         }

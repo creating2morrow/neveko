@@ -32,7 +32,7 @@ use std::collections::BTreeMap;
 /// Create authorization data to sign and expiration
 pub fn create(address: &String) -> Authorization {
     info!("creating auth");
-    let aid: String = format!("auth{}", utils::generate_rnd());
+    let aid: String = format!("{}{}", crate::AUTH_DB_KEY, utils::generate_rnd());
     let rnd: String = utils::generate_rnd();
     let created: i64 = chrono::offset::Utc::now().timestamp();
     let token: String = create_token(String::from(address), created);

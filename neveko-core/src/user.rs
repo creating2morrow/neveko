@@ -12,10 +12,12 @@ use log::{
 use rocket::serde::json::Json;
 
 // This module is only used for remote access
+// TODO(c2m): remove this module since there is only support for a single
+// authenticated user
 
 /// Create a new user
 pub fn create(address: &String) -> User {
-    let f_uid: String = format!("u{}", utils::generate_rnd());
+    let f_uid: String = format!("{}{}", crate::USER_DB_KEY, utils::generate_rnd());
     let new_user = User {
         uid: String::from(&f_uid),
         xmr_address: String::from(address),

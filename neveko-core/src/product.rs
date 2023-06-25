@@ -14,7 +14,7 @@ use std::error::Error;
 
 /// Create a new product
 pub fn create(d: Json<Product>) -> Product {
-    let pid: String = format!("product{}", utils::generate_rnd());
+    let pid: String = format!("{}{}", crate::PRODUCT_DB_KEY, utils::generate_rnd());
     if !validate_product(&d) {
         error!("invalid product");
         return Default::default();
@@ -33,8 +33,8 @@ pub fn create(d: Json<Product>) -> Product {
     let k = &new_product.pid;
     db::Interface::write(&s.env, &s.handle, k, &Product::to_db(&new_product));
     // in order to retrieve all products, write keys to with pl
-    let list_key = format!("pl");
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(&list_key));
+    let list_key = crate::PRODUCT_LIST_DB_KEY;
+    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
     if r == utils::empty_string() {
         debug!("creating product index");
     }
@@ -61,7 +61,7 @@ pub fn find(pid: &String) -> Product {
 /// Product lookup for all
 pub fn find_all() -> Vec<Product> {
     let i_s = db::Interface::open();
-    let i_list_key = format!("pl");
+    let i_list_key = crate::PRODUCT_LIST_DB_KEY;
     let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
     if i_r == utils::empty_string() {
         error!("product index not found");

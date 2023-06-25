@@ -15,6 +15,8 @@ use std::{
     process::Command,
 };
 
+// TODO(c2m): remove this module and use monero public keys for text encryption
+
 /// Searches for key, returns empty string if none exists
 ///
 /// TODO(c2m): add more cli options

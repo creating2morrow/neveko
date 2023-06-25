@@ -37,7 +37,7 @@ impl Prune {
 
 /// Create a new contact
 pub async fn create(c: &Json<Contact>) -> Contact {
-    let f_cid: String = format!("c{}", utils::generate_rnd());
+    let f_cid: String = format!("{}{}", crate::CONTACT_DB_KEY, utils::generate_rnd());
     info!("creating contact: {}", f_cid);
     let new_contact = Contact {
         cid: String::from(&f_cid),
@@ -57,8 +57,8 @@ pub async fn create(c: &Json<Contact>) -> Contact {
     let k = &new_contact.cid;
     db::Interface::write(&s.env, &s.handle, k, &Contact::to_db(&new_contact));
     // in order to retrieve all contact, write keys to with cl
-    let list_key = format!("cl");
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(&list_key));
+    let list_key = crate::CONTACT_LIST_DB_KEY;
+    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
     if r == utils::empty_string() {
         debug!("creating contact index");
     }
@@ -85,7 +85,7 @@ pub fn find(cid: &String) -> Contact {
 /// All contact lookup
 pub fn find_all() -> Vec<Contact> {
     let s = db::Interface::open();
-    let list_key = format!("cl");
+    let list_key = crate::CONTACT_LIST_DB_KEY;
     let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
     if r == utils::empty_string() {
         error!("contact index not found");

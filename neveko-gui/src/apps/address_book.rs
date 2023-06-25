@@ -336,9 +336,9 @@ impl eframe::App for AddressBookApp {
                     if ui.button("Sign Key").clicked() {
                         contact::trust_gpg(self.status.i2p.clone());
                         utils::write_gui_db(
-                            String::from("gui-signed-key"),
+                            String::from(crate::GUI_SIGNED_GPG_DB_KEY),
                             self.status.i2p.clone(),
-                            String::from("1"),
+                            String::from(crate::SIGNED_GPG_KEY),
                         );
                         self.showing_status = false;
                     }
@@ -542,7 +542,7 @@ impl eframe::App for AddressBookApp {
                                 row.col(|ui| {
                                     if ui.button("Check Status").clicked() {
                                         let nick_db = utils::search_gui_db(
-                                            String::from("gui-nick"),
+                                            String::from(crate::GUI_NICK_DB_KEY),
                                             String::from(&c.i2p_address),
                                         );
                                         let nick = if nick_db == utils::empty_string() {
@@ -554,16 +554,16 @@ impl eframe::App for AddressBookApp {
                                         self.status.i2p = String::from(&c.i2p_address);
                                         // get the txp
                                         self.status.txp = utils::search_gui_db(
-                                            String::from("gui-txp"),
+                                            String::from(crate::GUI_TX_PROOF_DB_KEY),
                                             String::from(&c.i2p_address),
                                         );
                                         // get the jwp
                                         self.status.jwp = utils::search_gui_db(
-                                            String::from("gui-jwp"),
+                                            String::from(crate::GUI_JWP_DB_KEY),
                                             String::from(&c.i2p_address),
                                         );
                                         let r_exp = utils::search_gui_db(
-                                            String::from("gui-exp"),
+                                            String::from(crate::GUI_EXP_DB_KEY),
                                             String::from(&c.i2p_address),
                                         );
                                         self.status.exp = r_exp;
@@ -713,22 +713,22 @@ fn send_payment_req(
                 signature: get_txp.result.signature,
             };
             utils::write_gui_db(
-                String::from("gui-txp"),
+                String::from(crate::GUI_TX_PROOF_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.signature),
             );
             utils::write_gui_db(
-                String::from("gui-txp-hash"),
+                String::from(crate::GUI_TX_HASH_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.hash),
             );
             utils::write_gui_db(
-                String::from("gui-txp-sig"),
+                String::from(crate::GUI_TX_SIGNATURE_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.signature),
             );
             utils::write_gui_db(
-                String::from("gui-txp-subaddress"),
+                String::from(crate::GUI_TX_SUBADDRESS_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.subaddress),
             );
@@ -746,7 +746,7 @@ fn send_payment_req(
             match proof::prove_payment(String::from(&contact), &ftxp).await {
                 Ok(result) => {
                     utils::write_gui_db(
-                        String::from("gui-jwp"),
+                        String::from(crate::GUI_JWP_DB_KEY),
                         String::from(&contact),
                         String::from(&result.jwp),
                     );
@@ -754,7 +754,7 @@ fn send_payment_req(
                     let seconds: i64 = expire as i64 * 2 * 60;
                     let unix: i64 = chrono::offset::Utc::now().timestamp() + seconds;
                     utils::write_gui_db(
-                        String::from("gui-exp"),
+                        String::from(crate::GUI_EXP_DB_KEY),
                         String::from(&contact),
                         format!("{}", unix),
                     );
@@ -767,9 +767,9 @@ fn send_payment_req(
             monero::close_wallet(&wallet_name, &wallet_password).await;
         }
         if retry {
-            let k_hash = String::from("gui-txp-hash");
-            let k_sig = String::from("gui-txp-sig");
-            let k_subaddress = String::from("gui-txp-subaddress");
+            let k_hash = String::from(crate::GUI_TX_HASH_DB_KEY);
+            let k_sig = String::from(crate::GUI_TX_SIGNATURE_DB_KEY);
+            let k_subaddress = String::from(crate::GUI_TX_SUBADDRESS_DB_KEY);
             let hash = utils::search_gui_db(k_hash, String::from(&contact));
             let signature = utils::search_gui_db(k_sig, String::from(&contact));
             let subaddress = utils::search_gui_db(k_subaddress, String::from(&contact));
@@ -788,7 +788,7 @@ fn send_payment_req(
             match proof::prove_payment(String::from(&contact), &ftxp).await {
                 Ok(result) => {
                     utils::write_gui_db(
-                        String::from("gui-jwp"),
+                        String::from(crate::GUI_JWP_DB_KEY),
                         String::from(&contact),
                         String::from(&result.jwp),
                     );
@@ -825,14 +825,18 @@ fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: Stri
 }
 
 fn check_signed_key(contact: String) -> bool {
-    let v = utils::search_gui_db(String::from("gui-signed-key"), contact);
+    let v = utils::search_gui_db(String::from(crate::GUI_SIGNED_GPG_DB_KEY), contact);
     v != utils::empty_string()
 }
 
 fn change_nick_req(contact: String, nick: String) {
     log::debug!("change nick");
-    utils::clear_gui_db(String::from("gui-nick"), String::from(&contact));
-    utils::write_gui_db(String::from("gui-nick"), String::from(&contact), nick);
+    utils::clear_gui_db(String::from(crate::GUI_NICK_DB_KEY), String::from(&contact));
+    utils::write_gui_db(
+        String::from(crate::GUI_NICK_DB_KEY),
+        String::from(&contact),
+        nick,
+    );
 }
 
 fn send_can_transfer_req(tx: Sender<bool>, ctx: egui::Context, invoice: u128) {

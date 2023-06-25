@@ -12,7 +12,7 @@ use rocket::serde::json::Json;
 
 /// Create a new dispute
 pub fn create(d: Json<Dispute>) -> Dispute {
-    let f_did: String = format!("dispute{}", utils::generate_rnd());
+    let f_did: String = format!("{}{}", crate::DISPUTE_DB_KEY, utils::generate_rnd());
     info!("create dispute: {}", &f_did);
     let new_dispute = Dispute {
         did: String::from(&f_did),
