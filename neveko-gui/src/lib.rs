@@ -1,4 +1,4 @@
-//! App app for egui
+//! Neveko app for egui
 #![allow(clippy::missing_errors_doc)]
 
 mod apps;
