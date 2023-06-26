@@ -3,28 +3,20 @@ Hash: SHA512
 
 NEVEKO Links (Dark)
 
-A/B instances
-  - A instances are primary
-  - B instances are backup
-
 # Git Clone
-A -> torsocks git clone git://imedhgry5mmgq77xsrpyaympwknpdt3mw5srzjtbxyaqvdi7ipnjqoid.onion/neveko
-B -> torsocks git clone git://nvl5yxqvhufllbsvfevqsytxdbi7aqonp7qceu4ljomfyardzjd7l4yd.onion/neveko
+torsocks git clone git://nvl5yxqvhufllbsvfevqsytxdbi7aqonp7qceu4ljomfyardzjd7l4yd.onion/neveko
 
 # Git Web
-A -> http://c2m2ybr7ms26sgrlqmpjiuohvzshgtyjehrncsjf7ijq7unckkaq.b32.i2p
-B -> http://c2m373qgif2qigrntgjaqevfcnqjkqb2zcy3bop6vqwbudqqr7oa.b32.i2p
+http://c2m373qgif2qigrntgjaqevfcnqjkqb2zcy3bop6vqwbudqqr7oa.b32.i2p
 
 # Nevekonet InspIRC
-A -> c2m73nyvu63rdobge3dss63ksn5e4kesqon6bay6m323ls37voba.b32.i2p/6667
-B -> c2m5qj2ceahpbzusggcoybjm2kqakrd5v7zv2pvi2qxozqmgjpua.b32.i2p/6667
+c2m5qj2ceahpbzusggcoybjm2kqakrd5v7zv2pvi2qxozqmgjpua.b32.i2p/6667
   - #dev (patches, feature planning)
   - #issues (bug report, testing results)
   - #random
 
 # Home, index, canary, pgp, etc.
-A -> http://c2m3p4ortbgekuegv7oskhjrit3mr3irb5775ic2kyqnj4exk2dq.b32.i2p
-B -> http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p
+http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p
   - /pgp.txt - public gpg signing key
   - /index.txt - this page
   - /canary.txt
@@ -32,7 +24,7 @@ B -> http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p
   - /download/neveko-x86_64-linux-gnu-v0.4.4-alpha.tar.bz2.sig - detached sig
 
 # Monero remote node (stagenet)
-xmr3kaacphwkk4z2gp35bdl47lrrnzimmyqj4oliauqrjzqecofa.b32.i2p
+http://xmr3kaacphwkk4z2gp35bdl47lrrnzimmyqj4oliauqrjzqecofa.b32.i2p
 
 NEVEKO Links (Clear)
 
@@ -41,9 +33,9 @@ NEVEKO Links (Clear)
 git clone https://github.com/creating2morrow/neveko.git
 -----BEGIN PGP SIGNATURE-----
 
-iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZJYHTRwcY3JlYXRpbmdf
-dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMiSwBAINzAFrzG/qC8pe3BHi/
-Eh+z2ujul+PM4ySdE4MdJQJlAPkBuBS7gfbe/vjxuNuIuIaUgN5yxIELZPyNeeE2
-Y9HdAA==
-=EFmd
+iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZJkJWRwcY3JlYXRpbmdf
+dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NM/uIA/2+g8noFt1+c4NMbnIWG
+FQnsJrnh/Hz0Xa7BW1CkKKJsAP4+TlPFRIGF5aTBzX+4wdPdYbFtxRorCSuIgENs
+QNcYCQ==
+=E/4H
 -----END PGP SIGNATURE-----

@@ -2,18 +2,18 @@
 Hash: SHA512
 
 
-I am the admin of c2m3p4ortbgekuegv7oskhjrit3mr3irb5775ic2kyqnj4exk2dq.b32.i2p.
+I am the admin of http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p.
 I am in control of my PGP key.
 I will update this canary within 14 days.
-Today is Thu Jun 15 08:56:08 PM UTC 2023.
+Today is Mon Jun 26 02:35:13 AM UTC 2023.
 
-Latest monero block hash (2908935):
-060793915e0112b31932215e991949ef6f5eba2787741137ca823df5e71404ac
+Latest monero block hash (2916237):
+761a51317fc1ae508eab3b0990916f405d7426466485499f9ba851986b558e71
 -----BEGIN PGP SIGNATURE-----
 
-iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZIt66BwcY3JlYXRpbmdf
-dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMRi4A/1U2rZ/baVjpHhdQD+kf
-6XigtTOi2O6IvWU3xkiSVItjAQDaj6YkJq6f2Fd5svNzItjRDPIBp8S+p+xSNU4i
-zWnuCg==
-=FPMa
+iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZJj5YRwcY3JlYXRpbmdf
+dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMHXsBAPWKWEfJoDtUxAPJwjLk
+vC4WkUc7kLpEjHihXFkRpR47AP4ptWVnXyt0cpEh1j12/U7QM/rDRUyD2o6Wc3/A
+kQsmDA==
+=HPZW
 -----END PGP SIGNATURE-----
