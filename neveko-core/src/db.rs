@@ -51,6 +51,11 @@ impl Interface {
     ///
     /// writing multiple key value pairs.
     pub fn write(e: &Environment, h: &DbHandle, k: &str, v: &str) {
+        // don't try and write empty keys
+        if k.is_empty() {
+            error!("can't write empty key");
+            return;
+        }
         let txn = e.new_transaction().unwrap();
         {
             // get a database bound to this transaction
@@ -75,6 +80,11 @@ impl Interface {
     ///
     /// returned. NEVEKO does not currently support duplicate keys.
     pub fn read(e: &Environment, h: &DbHandle, k: &str) -> String {
+        // don't try and read empty keys
+        if k.is_empty() {
+            error!("can't read empty key");
+            return utils::empty_string();
+        }
         let reader = e.get_reader().unwrap();
         let db = reader.bind(&h);
         let value = db.get::<&str>(&k).unwrap_or_else(|_| "");
@@ -96,6 +106,11 @@ impl Interface {
     ///
     /// error will be logged.
     pub fn delete(e: &Environment, h: &DbHandle, k: &str) {
+        // don't try and delete empty keys
+        if k.is_empty() {
+            error!("can't delete empty key");
+            return;
+        }
         let txn = e.new_transaction().unwrap();
         {
             // get a database bound to this transaction
