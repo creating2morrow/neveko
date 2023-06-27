@@ -175,8 +175,9 @@ impl eframe::App for HomeApp {
         // I2P Address QR
         //-----------------------------------------------------------------------------------
         let mut is_showing_qr = self.is_showing_qr;
-        egui::Window::new("")
+        egui::Window::new("i2p qr")
             .open(&mut is_showing_qr)
+            .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
                 let mut i2p_address = i2p::get_destination(None);
@@ -207,8 +208,9 @@ impl eframe::App for HomeApp {
         // Installation Error window
         //-----------------------------------------------------------------------------------
         let mut has_install_failed = self.has_install_failed;
-        egui::Window::new("Error")
+        egui::Window::new("error")
             .open(&mut has_install_failed)
+            .title_bar(false)
             .vscroll(false)
             .show(&ctx, |ui| {
                 ui.heading("Installation Failure");
@@ -222,10 +224,12 @@ impl eframe::App for HomeApp {
         // Connection Manager window
         //-----------------------------------------------------------------------------------
         let mut is_editing_connections = self.is_editing_connections;
-        egui::Window::new("Connection Manager")
+        egui::Window::new("connection")
             .open(&mut is_editing_connections)
+            .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
+                ui.heading("Connection Manager");
                 ui.horizontal(|ui| {
                     let cm_daemon_label = ui.label("daemon host:\t");
                     ui.text_edit_singleline(&mut self.connections.daemon_host)
@@ -321,10 +325,12 @@ impl eframe::App for HomeApp {
         // Installation Manager window
         //-----------------------------------------------------------------------------------
         let mut is_installing = self.is_installing;
-        egui::Window::new("Installation Manager")
+        egui::Window::new("installation")
             .open(&mut is_installing)
+            .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
+                ui.heading("Installation Manager");
                 let mut wants_i2p_zero = self.installations.i2p_zero;
                 let mut wants_xmr = self.installations.xmr;
                 if ui.checkbox(&mut wants_i2p_zero, "i2p-zero").changed() {

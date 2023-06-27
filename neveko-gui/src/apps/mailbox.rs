@@ -46,10 +46,12 @@ impl eframe::App for MailBoxApp {
         // Compose window
         //-----------------------------------------------------------------------------------
         let mut is_showing_decryption = self.is_showing_decryption;
-        egui::Window::new("Decrypted Message")
+        egui::Window::new("decrypted message")
             .open(&mut is_showing_decryption)
+            .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
+                ui.heading("Decrypted Message");
                 ui.label(format!("{}", self.decrypted_message));
                 ui.label("\n");
                 if ui.button("Exit").clicked() {

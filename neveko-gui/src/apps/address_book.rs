@@ -204,10 +204,12 @@ impl eframe::App for AddressBookApp {
         // Compose window
         //-----------------------------------------------------------------------------------
         let mut is_composing = self.is_composing;
-        egui::Window::new("Compose Message")
+        egui::Window::new("compose")
             .open(&mut is_composing)
+            .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
+                ui.heading("Compose Message");
                 if self.is_loading {
                     ui.add(egui::Spinner::new());
                     ui.label("sending message...");
@@ -245,10 +247,12 @@ impl eframe::App for AddressBookApp {
         let address = self.s_invoice.address.clone();
         let amount = self.s_invoice.pay_threshold;
         let expire = self.s_invoice.conf_threshold;
-        egui::Window::new("Approve Payment for JWP")
+        egui::Window::new("approve payment")
             .open(&mut is_approving_payment)
+            .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
+                ui.heading("Approve Payment for JWP");
                 if self.is_loading {
                     ui.add(egui::Spinner::new());
                     ui.label("creating jwp. please wait...");
@@ -290,12 +294,14 @@ impl eframe::App for AddressBookApp {
         // Contact status window
         //-----------------------------------------------------------------------------------
         let mut is_showing_status = self.showing_status;
-        egui::Window::new(&self.status.i2p)
+        egui::Window::new("contact status")
             .open(&mut is_showing_status)
+            .title_bar(false)
             .vscroll(true)
             .title_bar(false)
             .id(egui::Id::new(self.status.i2p.clone()))
             .show(&ctx, |ui| {
+                ui.heading(&self.status.i2p);
                 if self.is_pinging || self.is_loading {
                     let spinner_text = if self.is_loading {
                         "retrying payment proof... "
@@ -409,10 +415,12 @@ impl eframe::App for AddressBookApp {
 
             // Contact added confirmation screen
             //-----------------------------------------------------------------------------------
-            egui::Window::new("Added contact")
+            egui::Window::new("added contact")
                 .open(&mut is_added)
+                .title_bar(false)
                 .vscroll(true)
                 .show(ctx, |ui| {
+                    ui.heading("Added contact");
                     ui.label(format!("i2p address: {}", self.s_added_contact.i2p_address));
                     if ui.button("Exit").clicked() {
                         self.added = false;
@@ -428,10 +436,12 @@ impl eframe::App for AddressBookApp {
 
             // Contact approval screen
             //-----------------------------------------------------------------------------------
-            egui::Window::new("Approve Contact")
+            egui::Window::new("approve contact")
                 .open(&mut is_approved)
+                .title_bar(false)
                 .vscroll(true)
                 .show(ctx, |ui| {
+                    ui.heading("Approve Contact");
                     if is_loading {
                         ui.add(egui::Spinner::new());
                         ui.label("adding contact...");

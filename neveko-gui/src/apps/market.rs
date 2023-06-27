@@ -194,10 +194,10 @@ impl eframe::App for MarketApp {
         // Vendor status window
         //-----------------------------------------------------------------------------------
         let mut is_showing_vendor_status = self.is_showing_vendor_status;
-        egui::Window::new(&self.vendor_status.i2p)
+        egui::Window::new("vendor status")
+            .title_bar(false)
             .open(&mut is_showing_vendor_status)
             .vscroll(true)
-            .title_bar(false)
             .id(egui::Id::new(self.vendor_status.i2p.clone()))
             .show(&ctx, |ui| {
                 if self.is_pinging {
@@ -229,8 +229,9 @@ impl eframe::App for MarketApp {
         // Product image window
         //-----------------------------------------------------------------------------------
         let mut is_showing_product_image = self.is_showing_product_image;
-        egui::Window::new("")
+        egui::Window::new("product image")
             .open(&mut is_showing_product_image)
+            .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
                 self.product_image.show(ui);
@@ -247,10 +248,12 @@ impl eframe::App for MarketApp {
         // Multisig Management window
         //-----------------------------------------------------------------------------------
         let mut is_managing_multisig = self.is_managing_multisig;
-        egui::Window::new("Multisig Management")
+        egui::Window::new("msig")
             .open(&mut is_managing_multisig)
+            .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
+                ui.heading("Multisig Management");
                 // TODO(c2m): interactive multisig checklist
                 if ui.button("Exit").clicked() {
                     self.is_managing_multisig = false;
@@ -261,10 +264,12 @@ impl eframe::App for MarketApp {
         // View orders - Customer Order Flow Management
         //-----------------------------------------------------------------------------------
         let mut is_customer_viewing_orders = self.is_customer_viewing_orders;
-        egui::Window::new("View Orders")
+        egui::Window::new("view orders")
             .open(&mut is_customer_viewing_orders)
+            .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
+                ui.heading("View Orders");
                 use egui_extras::{
                     Column,
                     TableBuilder,
@@ -318,6 +323,7 @@ impl eframe::App for MarketApp {
                                 row.col(|ui| {
                                     if ui.button("MSIG").clicked() {
                                         // dynamically generate buttons for multisig wallet ops
+                                        self.is_managing_multisig = true;
                                     }
                                 });
                                 row.col(|ui| {
@@ -340,10 +346,12 @@ impl eframe::App for MarketApp {
         // Customer Order Form
         //-----------------------------------------------------------------------------------
         let mut is_ordering = self.is_ordering;
-        egui::Window::new("Order Form")
+        egui::Window::new("order form")
             .open(&mut is_ordering)
+            .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
+                ui.heading("Order Form");
                 if self.is_loading {
                     ui.add(egui::Spinner::new());
                     ui.label("loading...");
@@ -410,10 +418,12 @@ impl eframe::App for MarketApp {
         // View vendors
         //-----------------------------------------------------------------------------------
         let mut is_showing_vendors = self.is_showing_vendors;
-        egui::Window::new("Vendors")
+        egui::Window::new("vendors")
             .open(&mut is_showing_vendors)
+            .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
+                ui.heading("Vendors");
                 // Vendor filter
                 //-----------------------------------------------------------------------------------
                 ui.heading("\nFind Vendor");
@@ -561,9 +571,9 @@ impl eframe::App for MarketApp {
         //-----------------------------------------------------------------------------------
         let mut is_showing_vendor_status = self.is_showing_vendor_status;
         egui::Window::new(&self.vendor_status.i2p)
+            .title_bar(false)
             .open(&mut is_showing_vendor_status)
             .vscroll(true)
-            .title_bar(false)
             .id(egui::Id::new(self.vendor_status.i2p.clone()))
             .show(&ctx, |ui| {
                 if self.is_pinging {
@@ -595,8 +605,9 @@ impl eframe::App for MarketApp {
         // Product image window
         //-----------------------------------------------------------------------------------
         let mut is_showing_product_image = self.is_showing_product_image;
-        egui::Window::new("")
+        egui::Window::new("product image")
             .open(&mut is_showing_product_image)
+            .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
                 self.product_image.show(ui);
@@ -613,10 +624,12 @@ impl eframe::App for MarketApp {
         // Products Management window
         //-----------------------------------------------------------------------------------
         let mut is_showing_products = self.is_showing_products;
-        egui::Window::new("Products")
+        egui::Window::new("product management")
             .open(&mut is_showing_products)
+            .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
+                ui.heading("Products");
                 use egui_extras::{
                     Column,
                     TableBuilder,
@@ -765,10 +778,12 @@ impl eframe::App for MarketApp {
         // Update Product window
         //-----------------------------------------------------------------------------------
         let mut is_showing_product_update = self.is_showing_product_update;
-        egui::Window::new(format!("Update Product - {}", self.new_product_name))
+        egui::Window::new("update product")
             .open(&mut is_showing_product_update)
+            .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
+                ui.heading(format!("Update Product - {}", self.new_product_name));
                 ui.label(
                     "____________________________________________________________________________\n",
                 );
@@ -843,10 +858,12 @@ impl eframe::App for MarketApp {
         // Vendor Orders window
         //-----------------------------------------------------------------------------------
         let mut is_showing_orders = self.is_showing_orders;
-        egui::Window::new("Manage Orders")
+        egui::Window::new("manage orders")
             .open(&mut is_showing_orders)
+            .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
+                ui.heading("Manage Orders");
                 use egui_extras::{
                     Column,
                     TableBuilder,

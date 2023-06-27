@@ -61,10 +61,12 @@ impl eframe::App for WalletApp {
         // Sweep Result
         //-----------------------------------------------------------------------------------
         let mut is_showing_sweep_result = self.is_showing_sweep_result;
-        egui::Window::new("Sweep Result")
+        egui::Window::new("sweep result")
             .open(&mut is_showing_sweep_result)
+            .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
+                ui.heading("Sweep Result");
                 if self.is_loading {
                     ui.add(egui::Spinner::new());
                     ui.label("sweeping...");
@@ -78,8 +80,9 @@ impl eframe::App for WalletApp {
         // QR
         //-----------------------------------------------------------------------------------
         let mut is_showing_qr = self.is_showing_qr;
-        egui::Window::new("")
+        egui::Window::new("wallet qr")
             .open(&mut is_showing_qr)
+            .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
                 if !self.is_qr_set && self.s_xmr_address != utils::empty_string() {
