@@ -4,6 +4,34 @@ use std::sync::mpsc::{
     Sender,
 };
 
+pub struct MultisigManagement {
+    pub exchange_multisig_keys: String,
+    pub export_info: String,
+    pub has_mediator: bool,
+    pub make_info: String,
+    pub mediator: String,
+    pub prepare_info: String,
+    pub query_mediator: bool,
+    pub signed_txset: String,
+    pub vendor: String,
+}
+
+impl Default for MultisigManagement {
+    fn default() -> Self {
+        MultisigManagement {
+            exchange_multisig_keys: utils::empty_string(),
+            export_info: utils::empty_string(),
+            has_mediator: false,
+            make_info: utils::empty_string(),
+            mediator: utils::empty_string(),
+            prepare_info: utils::empty_string(),
+            query_mediator: false,
+            signed_txset: utils::empty_string(),
+            vendor: utils::empty_string(),
+        }
+    }
+}
+
 pub struct MarketApp {
     contact_info_tx: Sender<models::Contact>,
     contact_info_rx: Receiver<models::Contact>,
@@ -30,6 +58,9 @@ pub struct MarketApp {
     is_timeout: bool,
     is_vendor_enabled: bool,
     is_window_shopping: bool,
+    msig: MultisigManagement,
+    /// order currently being acted on
+    m_order: models::Order,
     orders: Vec<models::Order>,
     product_from_vendor: models::Product,
     product_image: egui_extras::RetainedImage,
@@ -93,6 +124,8 @@ impl Default for MarketApp {
             is_timeout: false,
             is_vendor_enabled,
             is_window_shopping: false,
+            msig: Default::default(),
+            m_order: Default::default(),
             new_order: Default::default(),
             new_order_price: 0,
             new_order_shipping_address: utils::empty_string(),
@@ -254,7 +287,71 @@ impl eframe::App for MarketApp {
             .vscroll(true)
             .show(ctx, |ui| {
                 ui.heading("Multisig Management");
-                // TODO(c2m): interactive multisig checklist
+                ui.horizontal(|ui| {
+                    let mediator = ui.label("Mediator: ");
+                    let prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                    if !self.msig.query_mediator {
+                        let mediator_db = utils::search_gui_db(String::from(&prefix), self.m_order.orid.clone());
+                        log::debug!("mediator db: {}", mediator_db);
+                        self.msig.has_mediator = mediator_db != utils::empty_string();
+                        self.msig.mediator = mediator_db;
+                        self.msig.query_mediator = true;
+                    } else if self.msig.query_mediator && !self.msig.has_mediator {
+                        ui.text_edit_singleline(&mut self.msig.mediator)
+                        .labelled_by(mediator.id);
+                        ui.label("\t");
+                        if ui.button("Set Mediator").clicked() {
+                            utils::write_gui_db(prefix, self.m_order.orid.clone(), self.msig.mediator.clone());
+                            self.msig.has_mediator = true;
+                        }
+                    } else {
+                        ui.label(self.msig.mediator.clone());
+                        ui.label("\t");
+                        if ui.button("Clear Mediator").clicked() {
+                            utils::clear_gui_db(prefix, self.m_order.orid.clone());
+                            self.msig.mediator = utils::empty_string();
+                            self.msig.has_mediator = false;
+                            self.msig.query_mediator = false;
+                        }
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Prepare:  \t\t\t\t\t");
+                    if ui.button("Prepare").clicked() {
+                        
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Make:   \t\t\t\t\t\t");
+                    if ui.button("Make").clicked() {
+                        
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Exchange Keys: \t\t");
+                    if ui.button("Exchange").clicked() {
+                        
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Fund:\t\t\t\t\t\t\t");
+                    if ui.button("Fund").clicked() {
+                        
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Export Info: \t\t\t\t");
+                    if ui.button("Export").clicked() {
+                        
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Release Payment: \t");
+                    if ui.button("Sign Txset").clicked() {
+                        
+                    }
+                });
+                ui.label("\n");
                 if ui.button("Exit").clicked() {
                     self.is_managing_multisig = false;
                     self.is_loading = false;
@@ -324,6 +421,7 @@ impl eframe::App for MarketApp {
                                     if ui.button("MSIG").clicked() {
                                         // dynamically generate buttons for multisig wallet ops
                                         self.is_managing_multisig = true;
+                                        self.m_order.orid = String::from(&o.orid);
                                     }
                                 });
                                 row.col(|ui| {

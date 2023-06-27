@@ -569,11 +569,6 @@ pub fn kill_child_processes(cm: bool) {
         .spawn()
         .expect("monero-wallet-rpc failed to stop");
     debug!("{:?}", rpc_output.stdout);
-    let i2pz_output = std::process::Command::new("pkill")
-        .arg("i2p-zero")
-        .spawn()
-        .expect("i2p-zero failed to stop");
-    debug!("{:?}", i2pz_output.stdout);
 }
 
 /// We can restart fts from since it gets terminated when empty
