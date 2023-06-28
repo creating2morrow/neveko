@@ -160,9 +160,9 @@ pub fn start_daemon() {
     let bin_dir = get_monero_location();
     let release_env = utils::get_release_env();
     let tx_proxy = format!("i2p,{}", utils::get_i2p_http_proxy());
-    let port = get_daemon_port();
+    let port = get_anon_inbound_port();
     let destination = i2p::get_destination(Some(port));
-    let anon_inbound = format!("{},127.0.0.1:{},8", destination, port);
+    let anon_inbound = format!("{},127.0.0.1:{}", destination, port);
     if release_env == utils::ReleaseEnvironment::Development {
         let args = ["--data-dir", &blockchain_dir, "--stagenet", "--detach"];
         let output = Command::new(format!("{}/monerod", bin_dir))
@@ -275,12 +275,17 @@ pub fn get_daemon_port() -> u16 {
     let rpc = String::from(args.monero_rpc_daemon);
     let values = rpc.split(":");
     let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
-    let port = v.remove(2);
+    let port = if !args.remote_node { v.remove(2) } else { String::from("0") };
     debug!("monerod port: {}", port);
     match port.parse::<u16>() {
         Ok(p) => p,
         Err(_) => 0,
     }
+}
+
+pub fn get_anon_inbound_port() -> u16 {
+    let args = args::Args::parse();
+    args.anon_inbound_port
 }
 
 /// Get monero rpc host from command line argument

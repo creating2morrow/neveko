@@ -162,4 +162,7 @@ pub struct Args {
         default_value = "false"
     )]
     pub i2p_normal: bool,
+    /// anonymous inbound port, must be localhost
+    #[arg(long, help = "Set app marketplace admin port", default_value = "38089")]
+    pub anon_inbound_port: u16,
 }
