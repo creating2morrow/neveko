@@ -46,6 +46,13 @@ pub const NEVEKO_I2P_PROXY_HOST: &str = "NEVEKO_I2P_PROXY_HOST";
 pub const NEVEKO_I2P_TUNNELS_JSON: &str = "NEVEKO_I2P_TUNNELS_JSON";
 /// Environment variable for I2P advanced mode
 pub const NEVEKO_I2P_ADVANCED_MODE: &str = "NEVEKO_I2P_ADVANCED_MODE";
+/// Environment variable for I2P advanced mode
+pub const MONERO_DAEMON_HOST: &str = "MONERO_DAEMON_HOST";
+/// Environment variable for I2P advanced mode
+pub const MONERO_WALLET_RPC_HOST: &str = "MONERO_WALLET_RPC_HOST";
+/// Reference to check if gui set remote node flag
+pub const GUI_REMOTE_NODE: &str = "GUI_REMOTE_NODE";
+pub const GUI_SET_REMOTE_NODE: &str = "1";
 
 /// The latest monero release download
 pub const MONERO_RELEASE_VERSION: &str = "monero-linux-x64-v0.18.2.2.tar.bz2";

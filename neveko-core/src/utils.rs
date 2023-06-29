@@ -88,6 +88,7 @@ pub struct Connections {
     pub blockchain_dir: String,
     pub daemon_host: String,
     pub i2p_proxy_host: String,
+    pub i2p_socks_host: String,
     /// path to manually created tunnels json
     pub i2p_tunnels_json: String,
     pub i2p_zero_dir: String,
@@ -104,8 +105,9 @@ impl Default for Connections {
     fn default() -> Self {
         Connections {
             blockchain_dir: String::from("/home/user/.bitmonero"),
-            daemon_host: String::from("http://localhost:38081"),
-            i2p_proxy_host: String::from("http://localhost:4444"),
+            daemon_host: String::from("http://127.0.0.1:38081"),
+            i2p_proxy_host: String::from("http://127.0.0.1:4444"),
+            i2p_socks_host: String::from("http://127.0.0.1:9051"),
             i2p_tunnels_json: String::from("/home/user/neveko/i2p-manual"),
             i2p_zero_dir: String::from("/home/user/i2p-zero-linux.v1.21"),
             is_remote_node: false,
@@ -114,7 +116,7 @@ impl Default for Connections {
             monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.2.2"),
             rpc_credential: String::from("pass"),
             rpc_username: String::from("user"),
-            rpc_host: String::from("http://localhost:38083"),
+            rpc_host: String::from("http://127.0.0.1:38083"),
         }
     }
 }
@@ -183,7 +185,35 @@ pub fn start_core(conn: &Connections) {
         i2p_advanced,
         "--i2p-proxy-host",
         &conn.i2p_proxy_host,
+        "--i2p-socks-proxy-host",
+        &conn.i2p_socks_host,
     ];
+    if conn.is_i2p_advanced {
+        // set the i2p proxy host for advanced user re-use
+        std::env::set_var(
+            crate::NEVEKO_I2P_PROXY_HOST,
+            &conn.i2p_proxy_host.clone(),
+        );
+        std::env::set_var(
+            crate::NEVEKO_I2P_TUNNELS_JSON,
+            &conn.i2p_tunnels_json.clone(),
+        );
+        std::env::set_var(crate::NEVEKO_I2P_ADVANCED_MODE, String::from("1"));
+    }
+    if conn.is_remote_node {
+        std::env::set_var(
+            crate::MONERO_DAEMON_HOST,
+            &conn.daemon_host.clone(),
+        );
+        std::env::set_var(
+            crate::MONERO_WALLET_RPC_HOST,
+            &conn.rpc_host.clone(),
+        );
+        std::env::set_var(
+            crate::GUI_REMOTE_NODE,
+            crate::GUI_SET_REMOTE_NODE,
+        )
+    }
     let output = std::process::Command::new("./neveko")
         .args(args)
         .spawn()
@@ -715,17 +745,35 @@ pub async fn estimate_fee() -> u128 {
         if v_fee.len() >= 30 {
             break;
         }
-        let r_height = monero::get_height().await;
+        let mut r_height: reqres::XmrDaemonGetHeightResponse = Default::default();
+        let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
+        if remote_var == String::from(crate::GUI_SET_REMOTE_NODE) {
+            let p_height = monero::p_get_height().await;
+            r_height = p_height.unwrap_or(r_height);
+        } else {
+            r_height = monero::get_height().await;
+        }
         if r_height.height == ESTIMATE_FEE_FAILURE as u64 {
             error!("error fetching height");
             return ESTIMATE_FEE_FAILURE;
         }
         height = r_height.height - count;
-        let block = monero::get_block(height).await;
+        let mut block: reqres::XmrDaemonGetBlockResponse = Default::default();
+        if remote_var == String::from(crate::GUI_SET_REMOTE_NODE) {
+            let p_block = monero::p_get_block(height).await;
+            block = p_block.unwrap_or(block);
+        } else {
+            block = monero::get_block(height).await;
+        }
         if block.result.block_header.num_txes > 0 {
-            debug!("fetching {} txs", block.result.block_header.num_txes);
             let tx_hashes: Option<Vec<String>> = block.result.tx_hashes;
-            let transactions = monero::get_transactions(tx_hashes.unwrap()).await;
+            let mut transactions: reqres::XmrDaemonGetTransactionsResponse = Default::default();
+            if remote_var == String::from(crate::GUI_SET_REMOTE_NODE) {
+                let p_txs = monero::p_get_transactions(tx_hashes.unwrap()).await;
+                transactions = p_txs.unwrap_or(transactions);
+            } else {
+                transactions = monero::get_transactions(tx_hashes.unwrap()).await;
+            }
             for tx in transactions.txs_as_json {
                 let pre_fee_split = tx.split("txnFee\":");
                 let mut v1: Vec<String> = pre_fee_split.map(|s| String::from(s)).collect();

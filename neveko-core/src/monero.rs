@@ -13,7 +13,7 @@ use log::{
     info,
     warn,
 };
-use std::process::Command;
+use std::{process::Command, error::Error};
 
 use lazy_static::lazy_static;
 use std::sync::Mutex;
@@ -311,7 +311,12 @@ fn get_monero_location() -> String {
 /// Get monero rpc host from the `--monero-rpc-host` cli arg
 fn get_rpc_host() -> String {
     let args = args::Args::parse();
-    let rpc = String::from(args.monero_rpc_host);
+    let gui_host = std::env::var(crate::MONERO_WALLET_RPC_HOST).unwrap_or(utils::empty_string());
+    let rpc = if gui_host == utils::empty_string() {
+        String::from(args.monero_rpc_host)
+    } else {
+        gui_host
+    };
     format!("{}/json_rpc", rpc)
 }
 
@@ -328,7 +333,12 @@ fn get_rpc_creds() -> RpcLogin {
 
 fn get_rpc_daemon() -> String {
     let args = args::Args::parse();
-    let daemon = String::from(args.monero_rpc_daemon);
+    let gui_host = std::env::var(crate::MONERO_DAEMON_HOST).unwrap_or(utils::empty_string());
+    let daemon = if gui_host == utils::empty_string() {
+        String::from(args.monero_rpc_daemon)
+    } else {
+        gui_host
+    };
     format!("{}/json_rpc", daemon)
 }
 
@@ -1143,6 +1153,7 @@ pub async fn create_address() -> reqres::XmrRpcCreateAddressResponse {
 
 // Daemon requests
 //-------------------------------------------------------------------
+
 /// Performs the xmr daemon 'get_info' method
 pub async fn get_info() -> reqres::XmrDaemonGetInfoResponse {
     info!("fetching daemon info");
@@ -1166,6 +1177,31 @@ pub async fn get_info() -> reqres::XmrDaemonGetInfoResponse {
     }
 }
 
+/// Performs the xmr daemon 'get_info' method
+pub async fn p_get_info() -> Result<reqres::XmrDaemonGetInfoResponse, Box<dyn Error>> {
+    info!("fetching proxy daemon info");
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    let host = get_rpc_daemon();
+    let req = reqres::XmrRpcRequest {
+        jsonrpc: DaemonFields::Version.value(),
+        id: DaemonFields::Id.value(),
+        method: DaemonFields::GetInfo.value(),
+    };
+    match client?.post(host).json(&req).send().await {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrDaemonGetInfoResponse>().await;
+            // add debug log here if needed for adding more info to home screen in gui
+            match res {
+                Ok(res) => Ok(res),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(_) => Ok(Default::default()),
+    }
+}
+
 /// Performs the xmr daemon 'get_height' method
 pub async fn get_height() -> reqres::XmrDaemonGetHeightResponse {
     info!("fetching daemon height");
@@ -1183,6 +1219,28 @@ pub async fn get_height() -> reqres::XmrDaemonGetHeightResponse {
             }
         }
         Err(_) => Default::default(),
+    }
+}
+
+/// Performs the xmr daemon 'get_height' method for remote daemon
+pub async fn p_get_height() -> Result<reqres::XmrDaemonGetHeightResponse, Box<dyn Error>> {
+    info!("fetching proxy daemon height");
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    let args = args::Args::parse();
+    let daemon = String::from(args.monero_rpc_daemon);
+    let req = format!("{}/{}", daemon, DaemonFields::GetHeight.value());
+    match client?.post(req).send().await {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrDaemonGetHeightResponse>().await;
+            // don't log this one. The fee estimator blows up logs (T_T)
+            match res {
+                Ok(res) => Ok(res),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(_) => Ok(Default::default()),
     }
 }
 
@@ -1211,6 +1269,33 @@ pub async fn get_block(height: u64) -> reqres::XmrDaemonGetBlockResponse {
     }
 }
 
+/// Performs the xmr daemon 'get_block' method for remone daemon
+pub async fn p_get_block(height: u64) -> Result<reqres::XmrDaemonGetBlockResponse, Box<dyn Error>> {
+    info!("fetching proxy block at height: {}", height);
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    let host = get_rpc_daemon();
+    let params: reqres::XmrDaemonGetBlockParams = reqres::XmrDaemonGetBlockParams { height };
+    let req = reqres::XmrDaemonGetBlockRequest {
+        jsonrpc: DaemonFields::Version.value(),
+        id: DaemonFields::Id.value(),
+        method: DaemonFields::GetBlock.value(),
+        params,
+    };
+    match client?.post(host).json(&req).send().await {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrDaemonGetBlockResponse>().await;
+            // don't log this one. The fee estimator blows up logs (T_T)
+            match res {
+                Ok(res) => Ok(res),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(_) => Ok(Default::default()),
+    }
+}
+
 /// Performs the xmr daemon 'get_transactions' method
 pub async fn get_transactions(txs_hashes: Vec<String>) -> reqres::XmrDaemonGetTransactionsResponse {
     info!("fetching {} transactions", txs_hashes.len());
@@ -1234,5 +1319,33 @@ pub async fn get_transactions(txs_hashes: Vec<String>) -> reqres::XmrDaemonGetTr
             }
         }
         Err(_) => Default::default(),
+    }
+}
+
+/// Performs the xmr daemon 'get_transactions' method for remote daemon
+pub async fn p_get_transactions(txs_hashes: Vec<String>) -> Result<reqres::XmrDaemonGetTransactionsResponse, Box<dyn Error>> {
+    info!("fetching {} transactions", txs_hashes.len());
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    let args = args::Args::parse();
+    let daemon = String::from(args.monero_rpc_daemon);
+    let url = format!("{}/{}", daemon, DaemonFields::GetTransactions.value());
+    let req = reqres::XmrDaemonGetTransactionsRequest {
+        txs_hashes,
+        decode_as_json: true,
+    };
+    match client?.post(url).json(&req).send().await {
+        Ok(response) => {
+            let res = response
+                .json::<reqres::XmrDaemonGetTransactionsResponse>()
+                .await;
+            // don't log this one. The fee estimator blows up logs (T_T)
+            match res {
+                Ok(res) => Ok(res),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(_) => Ok(Default::default()),
     }
 }

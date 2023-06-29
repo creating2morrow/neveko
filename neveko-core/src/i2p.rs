@@ -94,7 +94,7 @@ async fn find_tunnels() {
     }
     if !has_socks_proxy_tunnel {
         debug!("creating socks proxy tunnel");
-        create_tx_proxy_tunnel();
+        create_socks_proxy_tunnel();
     }
 }
 
@@ -142,14 +142,13 @@ fn create_tunnel() {
 }
 
 /// Create an i2p tunnel for the monero wallet socks proxy
-fn create_tx_proxy_tunnel() {
+fn create_socks_proxy_tunnel() {
     info!("creating monerod socks proxy tunnel");
     let args = args::Args::parse();
     let path = args.i2p_zero_dir;
     let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
         .args([
             "socks.create",
-            "127.0.0.1",
             &format!("{}", get_i2p_socks_proxy_port()),
         ])
         .spawn()
