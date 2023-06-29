@@ -740,12 +740,7 @@ pub async fn estimate_fee() -> u128 {
     let mut height: u64 = 0;
     let mut count: u64 = 1;
     let mut v_fee: Vec<u128> = Vec::new();
-    loop {
-        debug!("current height: {}", height);
-        if v_fee.len() >= 30 {
-            break;
-        }
-        let mut r_height: reqres::XmrDaemonGetHeightResponse = Default::default();
+    let mut r_height: reqres::XmrDaemonGetHeightResponse = Default::default();
         let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
         if remote_var == String::from(crate::GUI_SET_REMOTE_NODE) {
             let p_height = monero::p_get_height().await;
@@ -756,6 +751,11 @@ pub async fn estimate_fee() -> u128 {
         if r_height.height == ESTIMATE_FEE_FAILURE as u64 {
             error!("error fetching height");
             return ESTIMATE_FEE_FAILURE;
+        }
+    loop {
+        debug!("current height: {}", height);
+        if v_fee.len() >= 30 {
+            break;
         }
         height = r_height.height - count;
         let mut block: reqres::XmrDaemonGetBlockResponse = Default::default();
@@ -804,7 +804,7 @@ pub async fn can_transfer(invoice: u128) -> bool {
     monero::close_wallet(&wallet_name, &wallet_password).await;
     let fee = estimate_fee().await;
     if fee == ESTIMATE_FEE_FAILURE {
-        false;
+        return false;
     }
     debug!("fee estimated to: {}", fee);
     debug!("balance: {}", balance.result.unlocked_balance);

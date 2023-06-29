@@ -274,6 +274,11 @@ impl eframe::App for HomeApp {
                             .labelled_by(cm_i2p_proxy_label.id);
                     });
                     ui.horizontal(|ui| {
+                        let cm_i2p_socks_label = ui.label("i2p socks host: \t");
+                        ui.text_edit_singleline(&mut self.connections.i2p_socks_host)
+                            .labelled_by(cm_i2p_socks_label.id);
+                    });
+                    ui.horizontal(|ui| {
                         let cm_i2p_tunnels_label = ui.label("tunnels.json dir:  ");
                         ui.text_edit_singleline(&mut self.connections.i2p_tunnels_json)
                             .labelled_by(cm_i2p_tunnels_label.id);
@@ -301,18 +306,6 @@ impl eframe::App for HomeApp {
                     self.is_editing_connections = false;
                     utils::kill_child_processes(true);
                     utils::start_core(&self.connections);
-                    if self.connections.is_i2p_advanced {
-                        // set the i2p proxy host for advanced user re-use
-                        std::env::set_var(
-                            neveko_core::NEVEKO_I2P_PROXY_HOST,
-                            self.connections.i2p_proxy_host.clone(),
-                        );
-                        std::env::set_var(
-                            neveko_core::NEVEKO_I2P_TUNNELS_JSON,
-                            self.connections.i2p_tunnels_json.clone(),
-                        );
-                        std::env::set_var(neveko_core::NEVEKO_I2P_ADVANCED_MODE, String::from("1"));
-                    }
                     self.is_loading = true;
                     start_core_timeout(self.core_timeout_tx.clone(), ctx.clone());
                 }
@@ -444,8 +437,15 @@ impl eframe::App for HomeApp {
 //-------------------------------------------------------------------------------------------------
 fn send_xmrd_get_info_req(tx: Sender<reqres::XmrDaemonGetInfoResponse>, ctx: egui::Context) {
     tokio::spawn(async move {
-        let info: reqres::XmrDaemonGetInfoResponse = monero::get_info().await;
-        let _ = tx.send(info);
+        let remote_var = std::env::var(neveko_core::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
+        if remote_var == String::from(neveko_core::GUI_SET_REMOTE_NODE) {
+            let p_info  = monero::p_get_info().await;
+            let info = p_info.unwrap_or(Default::default());
+            let _ = tx.send(info);
+        } else {
+           let info = monero::get_info().await;
+           let _ = tx.send(info);
+        }
         ctx.request_repaint();
     });
 }

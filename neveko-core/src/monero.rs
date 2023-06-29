@@ -334,12 +334,11 @@ fn get_rpc_creds() -> RpcLogin {
 fn get_rpc_daemon() -> String {
     let args = args::Args::parse();
     let gui_host = std::env::var(crate::MONERO_DAEMON_HOST).unwrap_or(utils::empty_string());
-    let daemon = if gui_host == utils::empty_string() {
+    if gui_host == utils::empty_string() {
         String::from(args.monero_rpc_daemon)
     } else {
         gui_host
-    };
-    format!("{}/json_rpc", daemon)
+    }
 }
 
 /// Performs rpc 'get_version' method
@@ -1158,7 +1157,7 @@ pub async fn create_address() -> reqres::XmrRpcCreateAddressResponse {
 pub async fn get_info() -> reqres::XmrDaemonGetInfoResponse {
     info!("fetching daemon info");
     let client = reqwest::Client::new();
-    let host = get_rpc_daemon();
+    let host = format!("{}/json_rpc", get_rpc_daemon());
     let req = reqres::XmrRpcRequest {
         jsonrpc: DaemonFields::Version.value(),
         id: DaemonFields::Id.value(),
@@ -1183,7 +1182,7 @@ pub async fn p_get_info() -> Result<reqres::XmrDaemonGetInfoResponse, Box<dyn Er
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
-    let host = get_rpc_daemon();
+    let host = format!("{}/json_rpc", get_rpc_daemon());
     let req = reqres::XmrRpcRequest {
         jsonrpc: DaemonFields::Version.value(),
         id: DaemonFields::Id.value(),
@@ -1206,8 +1205,7 @@ pub async fn p_get_info() -> Result<reqres::XmrDaemonGetInfoResponse, Box<dyn Er
 pub async fn get_height() -> reqres::XmrDaemonGetHeightResponse {
     info!("fetching daemon height");
     let client = reqwest::Client::new();
-    let args = args::Args::parse();
-    let daemon = String::from(args.monero_rpc_daemon);
+    let daemon = get_rpc_daemon();
     let req = format!("{}/{}", daemon, DaemonFields::GetHeight.value());
     match client.post(req).send().await {
         Ok(response) => {
@@ -1228,8 +1226,7 @@ pub async fn p_get_height() -> Result<reqres::XmrDaemonGetHeightResponse, Box<dy
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
-    let args = args::Args::parse();
-    let daemon = String::from(args.monero_rpc_daemon);
+    let daemon = get_rpc_daemon();
     let req = format!("{}/{}", daemon, DaemonFields::GetHeight.value());
     match client?.post(req).send().await {
         Ok(response) => {
@@ -1248,7 +1245,7 @@ pub async fn p_get_height() -> Result<reqres::XmrDaemonGetHeightResponse, Box<dy
 pub async fn get_block(height: u64) -> reqres::XmrDaemonGetBlockResponse {
     info!("fetching block at height: {}", height);
     let client = reqwest::Client::new();
-    let host = get_rpc_daemon();
+    let host = format!("{}/json_rpc", get_rpc_daemon());
     let params: reqres::XmrDaemonGetBlockParams = reqres::XmrDaemonGetBlockParams { height };
     let req = reqres::XmrDaemonGetBlockRequest {
         jsonrpc: DaemonFields::Version.value(),
@@ -1275,7 +1272,7 @@ pub async fn p_get_block(height: u64) -> Result<reqres::XmrDaemonGetBlockRespons
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
-    let host = get_rpc_daemon();
+    let host = format!("{}/json_rpc", get_rpc_daemon());
     let params: reqres::XmrDaemonGetBlockParams = reqres::XmrDaemonGetBlockParams { height };
     let req = reqres::XmrDaemonGetBlockRequest {
         jsonrpc: DaemonFields::Version.value(),
@@ -1300,9 +1297,8 @@ pub async fn p_get_block(height: u64) -> Result<reqres::XmrDaemonGetBlockRespons
 pub async fn get_transactions(txs_hashes: Vec<String>) -> reqres::XmrDaemonGetTransactionsResponse {
     info!("fetching {} transactions", txs_hashes.len());
     let client = reqwest::Client::new();
-    let args = args::Args::parse();
-    let daemon = String::from(args.monero_rpc_daemon);
-    let url = format!("{}/{}", daemon, DaemonFields::GetTransactions.value());
+    let host = get_rpc_daemon();
+    let url = format!("{}/{}", host, DaemonFields::GetTransactions.value());
     let req = reqres::XmrDaemonGetTransactionsRequest {
         txs_hashes,
         decode_as_json: true,
@@ -1328,8 +1324,7 @@ pub async fn p_get_transactions(txs_hashes: Vec<String>) -> Result<reqres::XmrDa
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
-    let args = args::Args::parse();
-    let daemon = String::from(args.monero_rpc_daemon);
+    let daemon = get_rpc_daemon();
     let url = format!("{}/{}", daemon, DaemonFields::GetTransactions.value());
     let req = reqres::XmrDaemonGetTransactionsRequest {
         txs_hashes,
