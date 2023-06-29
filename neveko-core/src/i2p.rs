@@ -64,6 +64,7 @@ impl Default for Tunnels {
 ///
 /// and attempts to extract the app and http proxy tunnel information.
 async fn find_tunnels() {
+    let args = args::Args::parse();
     let app_port = utils::get_app_port();
     let file_path = format!(
         "/home/{}/.i2p-zero/config/tunnels.json",
@@ -76,7 +77,8 @@ async fn find_tunnels() {
     let tx_proxy_port = monero::get_daemon_port();
     let has_http_tunnel = contents.contains(&proxy_port);
     let has_tx_proxy_tunnel = contents.contains(&format!("{}", &tx_proxy_port));
-    if !has_app_tunnel || !has_http_tunnel {
+    let has_anon_inbound_tunnel = contents.contains(&format!("{}", args.anon_inbound_port));
+    if !has_app_tunnel || !has_http_tunnel || !has_anon_inbound_tunnel {
         tokio::time::sleep(Duration::new(120, 0)).await;
     }
     if !has_app_tunnel {
@@ -86,6 +88,10 @@ async fn find_tunnels() {
     if !has_http_tunnel {
         debug!("creating http tunnel");
         create_http_proxy();
+    }
+    if !has_anon_inbound_tunnel {
+        debug!("creating anon inbound tunnel");
+        create_anon_inbound_tunnel();
     }
     let env = utils::get_release_env();
     // only use tx proxy on mainnet
@@ -147,12 +153,28 @@ fn create_tx_proxy_tunnel() {
     let path = args.i2p_zero_dir;
     let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
         .args([
-            "server.create",
+            "socks.create",
             "127.0.0.1",
-            &format!("{}", monero::get_daemon_port()),
+            &format!("{}", utils::get_i2p_wallet_proxy_host()),
         ])
         .spawn()
         .expect("i2p-zero failed to create a tx proxy tunnel");
+    debug!("{:?}", output.stdout);
+}
+
+/// Create an i2p tunnel for the monero tx proxy
+fn create_anon_inbound_tunnel() {
+    info!("creating monerod anon inbound proxy tunnel");
+    let args = args::Args::parse();
+    let path = args.i2p_zero_dir;
+    let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
+        .args([
+            "server.create",
+            "127.0.0.1",
+            &format!("{}", args.anon_inbound_port),
+        ])
+        .spawn()
+        .expect("i2p-zero failed to create a anon inbound tunnel");
     debug!("{:?}", output.stdout);
 }
 

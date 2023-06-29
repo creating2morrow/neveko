@@ -113,6 +113,13 @@ pub struct Args {
         default_value = "http://localhost:4444"
     )]
     pub i2p_proxy_host: String,
+    /// i2p wallet proxy host (i2p socks)
+    #[arg(
+        long,
+        help = "i2p remote node socks proxy host",
+        default_value = "http://localhost:9051"
+    )]
+    pub i2p_socks_proxy_host: String,
     /// Connect wallet rpc for a remote-node, WARNING: may harm privacy
     #[arg(
         long,
@@ -162,7 +169,7 @@ pub struct Args {
         default_value = "false"
     )]
     pub i2p_normal: bool,
-    /// anonymous inbound port, must be localhost
-    #[arg(long, help = "Set app marketplace admin port", default_value = "38089")]
+    /// i2p anonymous inbound port
+    #[arg(long, help = "Set i2p anon inbound connectivity", default_value = "38089")]
     pub anon_inbound_port: u16,
 }

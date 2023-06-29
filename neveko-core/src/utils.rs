@@ -236,6 +236,13 @@ pub fn get_i2p_http_proxy() -> String {
     }
 }
 
+/// wallet proxy host
+pub fn get_i2p_wallet_proxy_host() -> String {
+    let args = args::Args::parse();
+    args.i2p_socks_proxy_host
+}
+
+
 /// app auth port
 pub fn get_app_auth_port() -> u16 {
     let args = args::Args::parse();
