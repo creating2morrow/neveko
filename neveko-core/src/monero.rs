@@ -157,10 +157,17 @@ pub fn start_daemon() {
     let blockchain_dir = get_blockchain_dir();
     let bin_dir = get_monero_location();
     let release_env = utils::get_release_env();
-    let tx_proxy = format!("i2p,{}", utils::get_i2p_wallet_proxy_host());
-    let port = get_anon_inbound_port();
-    let destination = i2p::get_destination(Some(port));
-    let anon_inbound = format!("{},127.0.0.1:{}", destination, port);
+    let mut socks_proxy_host = utils::get_i2p_wallet_proxy_host();
+    if socks_proxy_host.contains("http://") {
+        let values = socks_proxy_host.split("http://");
+        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        socks_proxy_host = v.remove(1);
+    };
+    let tx_proxy = format!("i2p,{}", socks_proxy_host);
+    // proxy host can't have protocol
+    let anon_in_port = get_anon_inbound_port();
+    let destination = i2p::get_destination(Some(anon_in_port));
+    let anon_inbound = format!("{},127.0.0.1:{}", destination, anon_in_port);
     let mut args = vec!["--data-dir", &blockchain_dir, "--detach"];
     if release_env == utils::ReleaseEnvironment::Development {
         args.push("--stagenet");
