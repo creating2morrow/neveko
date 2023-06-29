@@ -734,7 +734,8 @@ fn validate_installation_hash(sw: ExternalSoftware, filename: &String) -> bool {
 ///
 /// Note, it may take more than one block to do this,
 ///
-/// especially on stagenet.
+/// especially on stagenet. Over i2p let's cheat and just FFE
+/// (find first fee).
 pub async fn estimate_fee() -> u128 {
     // loop intializer
     let mut height: u64 = 0;
@@ -742,7 +743,8 @@ pub async fn estimate_fee() -> u128 {
     let mut v_fee: Vec<u128> = Vec::new();
     let mut r_height: reqres::XmrDaemonGetHeightResponse = Default::default();
         let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
-        if remote_var == String::from(crate::GUI_SET_REMOTE_NODE) {
+        let remote_set = remote_var == String::from(crate::GUI_SET_REMOTE_NODE);
+        if remote_set {
             let p_height = monero::p_get_height().await;
             r_height = p_height.unwrap_or(r_height);
         } else {
@@ -757,6 +759,11 @@ pub async fn estimate_fee() -> u128 {
         if v_fee.len() >= 30 {
             break;
         }
+        // TODO(?): determine a more effecient fix than this for slow fee estimation
+        // over i2p
+        if v_fee.len() >= 1 && remote_set {
+            break;
+        }
         height = r_height.height - count;
         let mut block: reqres::XmrDaemonGetBlockResponse = Default::default();
         if remote_var == String::from(crate::GUI_SET_REMOTE_NODE) {
@@ -768,7 +775,7 @@ pub async fn estimate_fee() -> u128 {
         if block.result.block_header.num_txes > 0 {
             let tx_hashes: Option<Vec<String>> = block.result.tx_hashes;
             let mut transactions: reqres::XmrDaemonGetTransactionsResponse = Default::default();
-            if remote_var == String::from(crate::GUI_SET_REMOTE_NODE) {
+            if remote_set {
                 let p_txs = monero::p_get_transactions(tx_hashes.unwrap()).await;
                 transactions = p_txs.unwrap_or(transactions);
             } else {
