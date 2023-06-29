@@ -535,12 +535,12 @@ pub async fn start_up() {
         wallet_password = read_password().unwrap();
         std::env::set_var(crate::MONERO_WALLET_PASSWORD, &wallet_password);
     }
-    gen_app_wallet(&wallet_password).await;
+    gen_app_gpg().await;
+    let env: String = get_release_env().value();
     if !args.i2p_advanced {
         i2p::start().await;
     }
-    gen_app_gpg().await;
-    let env: String = get_release_env().value();
+    gen_app_wallet(&wallet_password).await;
     start_gui();
     {
         tokio::spawn(async {

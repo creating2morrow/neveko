@@ -155,7 +155,7 @@ fn create_tx_proxy_tunnel() {
         .args([
             "socks.create",
             "127.0.0.1",
-            &format!("{}", utils::get_i2p_wallet_proxy_host()),
+            &format!("{}", get_i2p_socks_proxy_port()),
         ])
         .spawn()
         .expect("i2p-zero failed to create a tx proxy tunnel");
@@ -181,6 +181,15 @@ fn create_anon_inbound_tunnel() {
 /// Extract i2p port from command line arg
 fn get_i2p_proxy_port() -> String {
     let proxy_host = utils::get_i2p_http_proxy();
+    let values = proxy_host.split(":");
+    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    let port = v.remove(2);
+    port
+}
+
+/// Extract i2p socks port from command line arg
+fn get_i2p_socks_proxy_port() -> String {
+    let proxy_host = utils::get_i2p_wallet_proxy_host();
     let values = proxy_host.split(":");
     let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
     let port = v.remove(2);
