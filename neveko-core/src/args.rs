@@ -170,6 +170,10 @@ pub struct Args {
     )]
     pub i2p_normal: bool,
     /// i2p anonymous inbound port
-    #[arg(long, help = "Set i2p anon inbound connectivity", default_value = "38089")]
+    #[arg(
+        long,
+        help = "Set i2p anon inbound connectivity",
+        default_value = "38089"
+    )]
     pub anon_inbound_port: u16,
 }

@@ -193,9 +193,15 @@ pub fn start_rpc() {
     let rpc_login = format!("{}:{}", &login.username, &login.credential);
     let release_env = utils::get_release_env();
     let is_dev = release_env == utils::ReleaseEnvironment::Development;
-    let wallet_path = if is_dev { ".neveko/stagenet/wallet/" } else { ".neveko/wallet/" };
+    let wallet_path = if is_dev {
+        ".neveko/stagenet/wallet/"
+    } else {
+        ".neveko/wallet/"
+    };
     let wallet_dir = format!(
-        "/home/{}/{}", std::env::var("USER").unwrap_or(String::from("user")), wallet_path
+        "/home/{}/{}",
+        std::env::var("USER").unwrap_or(String::from("user")),
+        wallet_path
     );
     if cli_args.remote_node && !&daemon_address.contains(".i2p") {
         warn!("invalid i2p monero remote node detected");
@@ -208,24 +214,24 @@ pub fn start_rpc() {
         proxy_host = v.remove(1);
     }
     let mut args = vec![
-            "--rpc-bind-port",
-            &port,
-            "--wallet-dir",
-            &wallet_dir,
-            "--rpc-login",
-            &rpc_login,
-        ];
-        if cli_args.remote_node {
-            args.push("--proxy");
-            args.push(&proxy_host);
-            args.push("--daemon-address");
-            args.push(&daemon_address);
-            args.push("--trusted-daemon");
-            args.push("--daemon-ssl-allow-any-cert");
-        } else {        
-            args.push("--daemon-address");
-            args.push(&daemon_address);
-        }
+        "--rpc-bind-port",
+        &port,
+        "--wallet-dir",
+        &wallet_dir,
+        "--rpc-login",
+        &rpc_login,
+    ];
+    if cli_args.remote_node {
+        args.push("--proxy");
+        args.push(&proxy_host);
+        args.push("--daemon-address");
+        args.push(&daemon_address);
+        args.push("--trusted-daemon");
+        args.push("--daemon-ssl-allow-any-cert");
+    } else {
+        args.push("--daemon-address");
+        args.push(&daemon_address);
+    }
     if is_dev {
         args.push("--stagenet");
         let output = Command::new(format!("{}/monero-wallet-rpc", bin_dir))

@@ -74,11 +74,11 @@ async fn find_tunnels() {
     debug!("i2p tunnels: {}", contents);
     let has_app_tunnel = contents.contains(&format!("{}", app_port));
     let proxy_port = get_i2p_proxy_port();
-    let tx_proxy_port = monero::get_daemon_port();
+    let socks_proxy_port = get_i2p_socks_proxy_port();
     let has_http_tunnel = contents.contains(&proxy_port);
-    let has_tx_proxy_tunnel = contents.contains(&format!("{}", &tx_proxy_port));
+    let has_socks_proxy_tunnel = contents.contains(&format!("{}", &socks_proxy_port));
     let has_anon_inbound_tunnel = contents.contains(&format!("{}", args.anon_inbound_port));
-    if !has_app_tunnel || !has_http_tunnel || !has_anon_inbound_tunnel {
+    if !has_app_tunnel || !has_http_tunnel || !has_anon_inbound_tunnel || !has_socks_proxy_tunnel {
         tokio::time::sleep(Duration::new(120, 0)).await;
     }
     if !has_app_tunnel {
@@ -93,13 +93,9 @@ async fn find_tunnels() {
         debug!("creating anon inbound tunnel");
         create_anon_inbound_tunnel();
     }
-    let env = utils::get_release_env();
-    // only use tx proxy on mainnet
-    if env == utils::ReleaseEnvironment::Production {
-        if !has_tx_proxy_tunnel && !utils::is_using_remote_node() {
-            debug!("creating tx proxy tunnel");
-            create_tx_proxy_tunnel();
-        }
+    if !has_socks_proxy_tunnel {
+        debug!("creating socks proxy tunnel");
+        create_tx_proxy_tunnel();
     }
 }
 
@@ -146,9 +142,9 @@ fn create_tunnel() {
     debug!("{:?}", output.stdout);
 }
 
-/// Create an i2p tunnel for the monero tx proxy
+/// Create an i2p tunnel for the monero wallet socks proxy
 fn create_tx_proxy_tunnel() {
-    info!("creating monerod tx proxy tunnel");
+    info!("creating monerod socks proxy tunnel");
     let args = args::Args::parse();
     let path = args.i2p_zero_dir;
     let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
@@ -158,7 +154,7 @@ fn create_tx_proxy_tunnel() {
             &format!("{}", get_i2p_socks_proxy_port()),
         ])
         .spawn()
-        .expect("i2p-zero failed to create a tx proxy tunnel");
+        .expect("i2p-zero failed to create a socks proxy tunnel");
     debug!("{:?}", output.stdout);
 }
 
