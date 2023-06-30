@@ -2415,7 +2415,7 @@ dependencies = [
 
 [[package]]
 name = "neveko_core"
-version = "0.4.4-alpha"
+version = "0.4.5-alpha"
 dependencies = [
  "chrono",
  "clap",
@@ -2442,7 +2442,7 @@ dependencies = [
 
 [[package]]
 name = "neveko_gui"
-version = "0.4.4-alpha"
+version = "0.4.5-alpha"
 dependencies = [
  "bytemuck",
  "chrono",
