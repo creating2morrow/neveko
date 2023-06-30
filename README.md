@@ -26,7 +26,7 @@ NEVidebla-EKOnomia (invisible economy)
 * `git clone https://github.com/creating2morrow/neveko`
 * `cd neveko && ./scripts/build_all_and_run.sh "-- -h"`
 * Example to start neveko with remote stagenet node / i2p proxy remote for development:
-    * `./scripts/build_all_and_run.sh "-- --monero-rpc-daemon http://xmr3kaacphwkk4z2gp35bdl47lrrnzimmyqj4oliauqrjzqecofa.b32.i2p:38081 --remote-node --monero-location /home/ubuntu/monero-x86_64-linux-gnu-v0.18.2.2/ --monero-location /home/user/monero-x86_64-linux-gnu-v0.18.2.2 --monero-rpc-host http://127.0.0.1:38083 --monero-rpc-username user --monero-rpc-cred pass --remote-node --i2p-advanced --i2p-proxy-host http://x.x.x.x:xxxx --i2p-socks-proxy-host http://x.x.x.x:xxxx"`
+    * `./scripts/build_all_and_run.sh "-- --monero-rpc-daemon http://xmr3kaacphwkk4z2gp35bdl47lrrnzimmyqj4oliauqrjzqecofa.b32.i2p:38081 --remote-node --monero-location /home/ubuntu/monero-x86_64-linux-gnu-v0.18.2.2/ --monero-rpc-host http://127.0.0.1:38083 --monero-rpc-username user --monero-rpc-cred pass --remote-node --i2p-advanced --i2p-proxy-host http://x.x.x.x:xxxx --i2p-socks-proxy-host http://x.x.x.x:xxxx"`
     * the `--monero-location` flag is needed even when using a remote node because
       neveko has its own monero-wallet-rpc instance
     * remote nodes are forced over the `--i2p-proxy-host`
