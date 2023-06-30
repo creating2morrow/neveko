@@ -1,6 +1,6 @@
 [package]
 name = "neveko_gui"
-version = "0.4.5-alpha"
+version = "0.4.6-alpha"
 authors = ["emilk", "creating2morrow"]
 license = "MIT OR Apache-2.0"
 edition = "2021"

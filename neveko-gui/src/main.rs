@@ -39,7 +39,7 @@ fn main() -> Result<(), eframe::Error> {
         })
     });
     eframe::run_native(
-        "neveko-gui-v0.4.5-alpha",
+        "neveko-gui-v0.4.6-alpha",
         options,
         Box::new(|cc| Box::new(neveko_gui::WrapApp::new(cc))),
     )

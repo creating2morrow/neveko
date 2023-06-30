@@ -183,6 +183,8 @@ pub fn start_core(conn: &Connections) {
         env,
         remote_node,
         i2p_advanced,
+        "--i2p-tunnels-json",
+        &conn.i2p_tunnels_json,
         "--i2p-proxy-host",
         &conn.i2p_proxy_host,
         "--i2p-socks-proxy-host",
