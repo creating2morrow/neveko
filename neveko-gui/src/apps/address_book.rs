@@ -712,6 +712,17 @@ fn send_payment_req(
                 signature: utils::empty_string(),
             };
             log::debug!("creating transaction proof for: {}", &ptxp.hash);
+            // if we made it this far we can now request a JWP from our friend
+            // wait a bit for the tx to propogate, i2p takes longer
+            let wait = if std::env::var(neveko_core::GUI_REMOTE_NODE)
+                .unwrap_or(utils::empty_string())
+                == String::from(neveko_core::GUI_SET_REMOTE_NODE)
+            {
+                crate::I2P_PROPAGATION_TIME_IN_SECS_EST
+            } else {
+                crate::PROPAGATION_TIME_IN_SECS_EST
+            };
+            tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
             let get_txp: reqres::XmrRpcGetTxProofResponse = monero::get_tx_proof(ptxp).await;
             // TODO(c2m): error handling on failed tx proof generation
             // use the signature to create the FINALIZED transaction proof
@@ -747,12 +758,6 @@ fn send_payment_req(
                 String::from(&contact),
                 &ftxp.hash
             );
-            // if we made it this far we can now request a JWP from our friend
-            // wait a bit for the tx to propogate
-            tokio::time::sleep(std::time::Duration::from_secs(
-                crate::PROPAGATION_TIME_IN_SECS_EST,
-            ))
-            .await;
             match proof::prove_payment(String::from(&contact), &ftxp).await {
                 Ok(result) => {
                     utils::write_gui_db(

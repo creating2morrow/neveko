@@ -147,10 +147,7 @@ fn create_socks_proxy_tunnel() {
     let args = args::Args::parse();
     let path = args.i2p_zero_dir;
     let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
-        .args([
-            "socks.create",
-            &format!("{}", get_i2p_socks_proxy_port()),
-        ])
+        .args(["socks.create", &format!("{}", get_i2p_socks_proxy_port())])
         .spawn()
         .expect("i2p-zero failed to create a socks proxy tunnel");
     debug!("{:?}", output.stdout);

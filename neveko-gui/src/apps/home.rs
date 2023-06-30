@@ -437,14 +437,15 @@ impl eframe::App for HomeApp {
 //-------------------------------------------------------------------------------------------------
 fn send_xmrd_get_info_req(tx: Sender<reqres::XmrDaemonGetInfoResponse>, ctx: egui::Context) {
     tokio::spawn(async move {
-        let remote_var = std::env::var(neveko_core::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
+        let remote_var =
+            std::env::var(neveko_core::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
         if remote_var == String::from(neveko_core::GUI_SET_REMOTE_NODE) {
-            let p_info  = monero::p_get_info().await;
+            let p_info = monero::p_get_info().await;
             let info = p_info.unwrap_or(Default::default());
             let _ = tx.send(info);
         } else {
-           let info = monero::get_info().await;
-           let _ = tx.send(info);
+            let info = monero::get_info().await;
+            let _ = tx.send(info);
         }
         ctx.request_repaint();
     });

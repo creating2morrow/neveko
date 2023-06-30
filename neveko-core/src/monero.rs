@@ -13,7 +13,10 @@ use log::{
     info,
     warn,
 };
-use std::{process::Command, error::Error};
+use std::{
+    error::Error,
+    process::Command,
+};
 
 use lazy_static::lazy_static;
 use std::sync::Mutex;
@@ -1319,7 +1322,9 @@ pub async fn get_transactions(txs_hashes: Vec<String>) -> reqres::XmrDaemonGetTr
 }
 
 /// Performs the xmr daemon 'get_transactions' method for remote daemon
-pub async fn p_get_transactions(txs_hashes: Vec<String>) -> Result<reqres::XmrDaemonGetTransactionsResponse, Box<dyn Error>> {
+pub async fn p_get_transactions(
+    txs_hashes: Vec<String>,
+) -> Result<reqres::XmrDaemonGetTransactionsResponse, Box<dyn Error>> {
     info!("fetching {} transactions", txs_hashes.len());
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;

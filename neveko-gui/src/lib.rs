@@ -10,6 +10,8 @@ pub const GUI_JWP_DB_KEY:           &str = "gui-jwp";
 pub const GUI_EXP_DB_KEY:           &str = "gui-exp";
 pub const GUI_TX_PROOF_DB_KEY:      &str = "gui-txp";
 pub const GUI_NICK_DB_KEY:          &str = "gui-nick";
+/// Order-Vendor-Lookup for fetching .b32.i2p for order;
+pub const GUI_OVL_DB_KEY:           &str = "gui-ovl";
 pub const GUI_TX_SIGNATURE_DB_KEY:  &str = "gui-txp-sig";
 pub const GUI_TX_HASH_DB_KEY:       &str = "gui-txp-hash";
 pub const GUI_SIGNED_GPG_DB_KEY:    &str = "gui-signed-key";
@@ -36,6 +38,7 @@ pub const CRED_CHECK_INTERVAL: u64 = 5;
 pub const BLOCK_TIME_IN_SECS_EST: u64 = 0x78;
 /// monero estimated propagation time in seconds
 pub const PROPAGATION_TIME_IN_SECS_EST: u64 = 5;
+pub const I2P_PROPAGATION_TIME_IN_SECS_EST: u64 = PROPAGATION_TIME_IN_SECS_EST * 10;
 /// time to wait before giving up on adding a contact
 pub const ADD_CONTACT_TIMEOUT_SECS: u64 = 0x5A;
 /// time to wait before giving up on neveko core

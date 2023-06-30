@@ -190,10 +190,7 @@ pub fn start_core(conn: &Connections) {
     ];
     if conn.is_i2p_advanced {
         // set the i2p proxy host for advanced user re-use
-        std::env::set_var(
-            crate::NEVEKO_I2P_PROXY_HOST,
-            &conn.i2p_proxy_host.clone(),
-        );
+        std::env::set_var(crate::NEVEKO_I2P_PROXY_HOST, &conn.i2p_proxy_host.clone());
         std::env::set_var(
             crate::NEVEKO_I2P_TUNNELS_JSON,
             &conn.i2p_tunnels_json.clone(),
@@ -201,18 +198,9 @@ pub fn start_core(conn: &Connections) {
         std::env::set_var(crate::NEVEKO_I2P_ADVANCED_MODE, String::from("1"));
     }
     if conn.is_remote_node {
-        std::env::set_var(
-            crate::MONERO_DAEMON_HOST,
-            &conn.daemon_host.clone(),
-        );
-        std::env::set_var(
-            crate::MONERO_WALLET_RPC_HOST,
-            &conn.rpc_host.clone(),
-        );
-        std::env::set_var(
-            crate::GUI_REMOTE_NODE,
-            crate::GUI_SET_REMOTE_NODE,
-        )
+        std::env::set_var(crate::MONERO_DAEMON_HOST, &conn.daemon_host.clone());
+        std::env::set_var(crate::MONERO_WALLET_RPC_HOST, &conn.rpc_host.clone());
+        std::env::set_var(crate::GUI_REMOTE_NODE, crate::GUI_SET_REMOTE_NODE)
     }
     let output = std::process::Command::new("./neveko")
         .args(args)
@@ -735,6 +723,7 @@ fn validate_installation_hash(sw: ExternalSoftware, filename: &String) -> bool {
 /// Note, it may take more than one block to do this,
 ///
 /// especially on stagenet. Over i2p let's cheat and just FFE
+///
 /// (find first fee).
 pub async fn estimate_fee() -> u128 {
     // loop intializer
@@ -742,18 +731,18 @@ pub async fn estimate_fee() -> u128 {
     let mut count: u64 = 1;
     let mut v_fee: Vec<u128> = Vec::new();
     let mut r_height: reqres::XmrDaemonGetHeightResponse = Default::default();
-        let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
-        let remote_set = remote_var == String::from(crate::GUI_SET_REMOTE_NODE);
-        if remote_set {
-            let p_height = monero::p_get_height().await;
-            r_height = p_height.unwrap_or(r_height);
-        } else {
-            r_height = monero::get_height().await;
-        }
-        if r_height.height == ESTIMATE_FEE_FAILURE as u64 {
-            error!("error fetching height");
-            return ESTIMATE_FEE_FAILURE;
-        }
+    let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
+    let remote_set = remote_var == String::from(crate::GUI_SET_REMOTE_NODE);
+    if remote_set {
+        let p_height = monero::p_get_height().await;
+        r_height = p_height.unwrap_or(r_height);
+    } else {
+        r_height = monero::get_height().await;
+    }
+    if r_height.height == ESTIMATE_FEE_FAILURE as u64 {
+        error!("error fetching height");
+        return ESTIMATE_FEE_FAILURE;
+    }
     loop {
         debug!("current height: {}", height);
         if v_fee.len() >= 30 {
