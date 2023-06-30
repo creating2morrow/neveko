@@ -33,9 +33,9 @@ NEVEKO Links (Clear)
 git clone https://github.com/creating2morrow/neveko.git
 -----BEGIN PGP SIGNATURE-----
 
-iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZJkJWRwcY3JlYXRpbmdf
-dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NM/uIA/2+g8noFt1+c4NMbnIWG
-FQnsJrnh/Hz0Xa7BW1CkKKJsAP4+TlPFRIGF5aTBzX+4wdPdYbFtxRorCSuIgENs
-QNcYCQ==
-=E/4H
+iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZJ6s8hwcY3JlYXRpbmdf
+dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMlcUBAI5YBgfvl6WhmgUZp6uM
+vWyk4fAuMVbwDnAPc/UW1RxhAQDQsYChUinzAXExOGscIEP2tRhXRXZjhuHFvW4j
+AEnMDQ==
+=MeGl
 -----END PGP SIGNATURE-----
