@@ -256,7 +256,7 @@ async fn validate_proof(txp: &TxProof) -> TxProof {
     let tx: reqres::XmrRpcGetTxByIdResponse = monero::get_transfer_by_txid(&txp.hash).await;
     let unlock_time = tx.result.transfer.unlock_time;
     let tx_type = tx.result.transfer.r#type;
-    let propgated = monero::TransactionType::propogated(tx_type);
+    let propgated = monero::TransactionType::propagated(tx_type);
     if !propgated {
         return Default::default();
     }

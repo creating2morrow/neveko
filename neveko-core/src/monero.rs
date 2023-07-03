@@ -55,7 +55,7 @@ impl TransactionType {
             Self::Pool => String::from("pool"),
         }
     }
-    pub fn propogated(tx_type: String) -> bool {
+    pub fn propagated(tx_type: String) -> bool {
         tx_type == Self::In.value() || tx_type == Self::Pool.value()
     }
 }
