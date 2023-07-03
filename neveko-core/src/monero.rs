@@ -79,6 +79,7 @@ enum RpcFields {
     Make,
     Open,
     Prepare,
+    Refresh,
     SignMultisig,
     SubmitMultisig,
     SweepAll,
@@ -108,6 +109,7 @@ impl RpcFields {
             RpcFields::Make => String::from("make_multisig"),
             RpcFields::Open => String::from("open_wallet"),
             RpcFields::Prepare => String::from("prepare_multisig"),
+            RpcFields::Refresh => String::from("refresh"),
             RpcFields::SignMultisig => String::from("sign_multisig"),
             RpcFields::SubmitMultisig => String::from("submit_multisig"),
             RpcFields::SweepAll => String::from("sweep_all"),
@@ -152,7 +154,7 @@ impl LockTimeLimit {
     }
 }
 
-/// Start monerod from the -`-monero-location` flag
+/// Start monerod from the `--monero-location` flag
 ///
 /// default: /home/$USER/monero-xxx-xxx
 pub fn start_daemon() {
@@ -1153,6 +1155,35 @@ pub async fn create_address() -> reqres::XmrRpcCreateAddressResponse {
     }
 }
 
+/// Performs the xmr rpc 'create_address' method
+pub async fn refresh() -> reqres::XmrRpcRefreshResponse {
+    info!("executing {}", RpcFields::Refresh.value());
+    let client = reqwest::Client::new();
+    let host = get_rpc_host();
+    let req = reqres::XmrRpcRequest {
+        jsonrpc: RpcFields::JsonRpcVersion.value(),
+        id: RpcFields::Id.value(),
+        method: RpcFields::Refresh.value(),
+    };
+    let login: RpcLogin = get_rpc_creds();
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrRpcRefreshResponse>().await;
+            debug!("{} response: {:?}", RpcFields::Refresh.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_) => Default::default(),
+    }
+}
+
 // Daemon requests
 //-------------------------------------------------------------------
 
@@ -1179,7 +1210,7 @@ pub async fn get_info() -> reqres::XmrDaemonGetInfoResponse {
     }
 }
 
-/// Performs the xmr daemon 'get_info' method
+/// Performs the xmr daemon 'get_info' method for proxied daemons
 pub async fn p_get_info() -> Result<reqres::XmrDaemonGetInfoResponse, Box<dyn Error>> {
     info!("fetching proxy daemon info");
     let host = utils::get_i2p_http_proxy();

@@ -505,6 +505,7 @@ pub struct XmrRpcDescribeTranferResult {
 pub struct KeyImageList {
     key_images: Vec<String>,
 }
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcSweepAllResult {
     pub amount_list: Vec<u128>,
@@ -522,6 +523,12 @@ pub struct XmrRpcCreateAddressResult {
     pub address_index: u64,
     pub address_indices: Vec<u64>,
     pub addresses: Vec<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcRefreshResult {
+    pub blocks_fetched: u64,
+    pub received_money: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1088,6 +1095,22 @@ impl Default for XmrRpcCreateAddressResponse {
         }
     }
 }
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcRefreshResponse {
+    pub result: XmrRpcRefreshResult,
+}
+
+impl Default for XmrRpcRefreshResponse {
+    fn default() -> Self {
+        XmrRpcRefreshResponse {
+            result: XmrRpcRefreshResult {
+                blocks_fetched: 0,
+                received_money: false,
+            },
+        }
+    }
+}
 // END XMR Structs
 
 /// Container for the message decryption
@@ -1186,6 +1209,9 @@ pub struct MultisigInfoRequest {
     pub contact: String,
     /// Send empty array on prepare info request
     pub info: Vec<String>,
+    /// flag for mediator to create create multisig wallet for order
+    pub init_mediator: bool,
+    /// valid values are found in lines 21-26 of market.rs
     pub msig_type: String,
     pub orid: String,
 }
@@ -1195,6 +1221,7 @@ impl Default for MultisigInfoRequest {
         MultisigInfoRequest {
             contact: utils::empty_string(),
             info: Vec::new(),
+            init_mediator: false,
             msig_type: utils::empty_string(),
             orid: utils::empty_string(),
         }
