@@ -1155,7 +1155,7 @@ pub async fn create_address() -> reqres::XmrRpcCreateAddressResponse {
     }
 }
 
-/// Performs the xmr rpc 'create_address' method
+/// Performs the xmr rpc 'refresh' method
 pub async fn refresh() -> reqres::XmrRpcRefreshResponse {
     info!("executing {}", RpcFields::Refresh.value());
     let client = reqwest::Client::new();

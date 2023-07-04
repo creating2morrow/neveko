@@ -1,6 +1,6 @@
 [package]
 name = "neveko_market"
-version = "0.4.6-alpha"
+version = "0.4.7-alpha"
 edition = "2021"
 publish = false
 

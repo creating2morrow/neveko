@@ -20,8 +20,8 @@ http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p
   - /pgp.txt - public gpg signing key
   - /index.txt - this page
   - /canary.txt
-  - /download/neveko-x86_64-linux-gnu-v0.4.6-alpha.tar.bz2  - latest neveko download
-  - /download/neveko-x86_64-linux-gnu-v0.4.6-alpha.tar.bz2.sig - detached sig
+  - /download/neveko-x86_64-linux-gnu-v0.4.7-alpha.tar.bz2  - latest neveko download
+  - /download/neveko-x86_64-linux-gnu-v0.4.7-alpha.tar.bz2.sig - detached sig
 
 # Monero remote node (stagenet)
 http://xmr3kaacphwkk4z2gp35bdl47lrrnzimmyqj4oliauqrjzqecofa.b32.i2p
@@ -29,13 +29,12 @@ http://xmr3kaacphwkk4z2gp35bdl47lrrnzimmyqj4oliauqrjzqecofa.b32.i2p
 NEVEKO Links (Clear)
 
 # Github
-
 git clone https://github.com/creating2morrow/neveko.git
 -----BEGIN PGP SIGNATURE-----
 
-iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZJ65KRwcY3JlYXRpbmdf
-dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMWkUBAPhXNAvUp7UlQ4OuixJz
-U9ejuB+/BjURbxVH1P7KozhWAP9+GKiTR2ebmaIVJLN6O6k3KB+GSpgIvaTVbwq5
-DvhbDA==
-=Oe7L
+iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZKO6wBwcY3JlYXRpbmdf
+dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMYu8A/iCgLHliyWgN/mLZuyPd
+a003zMmdJlwJ1Z3NnaYNz931AP9F2mVm8S5Qi9eFwD9amND5IUgq20p7PvOjTH8O
+Uf4DCA==
+=xTJD
 -----END PGP SIGNATURE-----
