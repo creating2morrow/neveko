@@ -1035,7 +1035,7 @@ pub(crate) mod backend {
         pub decorated: Option<bool>,
 
         /// Set to some bool to change window fullscreen.
-        #[cfg(not(target_arch = "wasm32"))] // TODO(c2m): implement fullscreen on web
+        #[cfg(not(target_arch = "wasm32"))]
         pub fullscreen: Option<bool>,
 
         /// Set to true to drag window while primary mouse button is down.

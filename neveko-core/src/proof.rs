@@ -258,6 +258,7 @@ async fn validate_proof(txp: &TxProof) -> TxProof {
     let tx_type = tx.result.transfer.r#type;
     let propgated = monero::TransactionType::propagated(tx_type);
     if !propgated {
+        monero::close_wallet(&wallet_name, &wallet_password).await;
         return Default::default();
     }
     let p = monero::check_tx_proof(txp).await;
@@ -268,6 +269,7 @@ async fn validate_proof(txp: &TxProof) -> TxProof {
         && p.result.confirmations < cth
         && p.result.received >= pth;
     if lgtm {
+        monero::close_wallet(&wallet_name, &wallet_password).await;
         return TxProof {
             subaddress: String::from(&txp.subaddress),
             hash: String::from(&txp.hash),

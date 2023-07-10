@@ -773,8 +773,6 @@ fn send_payment_req(
                         String::from(&contact),
                         format!("{}", unix),
                     );
-                    // TODO(c2m): edge case when proving payment fails to complete
-                    //            case the payment proof data and set retry logic
                     ctx.request_repaint();
                 }
                 _ => log::error!("failed to obtain jwp"),

@@ -154,7 +154,7 @@ impl Default for Orientation {
 pub enum PlotPoints {
     Owned(Vec<PlotPoint>),
     Generator(ExplicitGenerator),
-    // Borrowed(&[PlotPoint]), // TODO(c2m): Lifetimes are tricky in this case.
+    // Borrowed(&[PlotPoint]),
 }
 
 impl Default for PlotPoints {

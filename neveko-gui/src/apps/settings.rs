@@ -29,6 +29,7 @@ impl eframe::App for SettingsApp {
                 "____________________________________________________________________________\n",
             );
             ui.horizontal(|ui| {
+                // TODO(c2m): call monero-wallet-rpc to update as well
                 let sweep_label = ui.label("new credential: \t");
                 ui.text_edit_singleline(&mut self.credential)
                     .labelled_by(sweep_label.id);

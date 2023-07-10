@@ -18,8 +18,6 @@ use std::{
 // TODO(c2m): remove this module and use monero public keys for text encryption
 
 /// Searches for key, returns empty string if none exists
-///
-/// TODO(c2m): add more cli options
 pub fn find_key() -> Result<String, Box<dyn Error>> {
     info!("searching for application gpg key");
     let proto = Protocol::OpenPgp;

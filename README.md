@@ -34,6 +34,12 @@ NEVidebla-EKOnomia (invisible economy)
     * ` ./scripts/build_all_and_run.sh "-- --monero-blockchain-dir=/home/user/.bitmonero --monero-location /home/user/monero-x86_64-linux-gnu-v0.18.2.2 --i2p-zero-dir /home/user/i2p-zero-linux.v1.21/ --monero-blockchain-dir /home/user/.bitmonero"`
     * monerod doesn't need to be running because neveko will start it and monero-wallet-rpc
     * gui will automatically detect monerod, rpc and i2p-zero if neveko core is started first
+* Neveko doesn't write logs to file. Use the command below to write to a log file:
+  ```bash 
+    {NEVEKO_START_CMDS} > neveko.log 2>&1
+  ```
+  * just remember to put cli password in the original window, not the log file window
+  * https://stackoverflow.com/questions/6674327/redirect-all-output-to-file-in-bash
 * gui built with rust [egui](https://docs.rs/egui/latest/egui/)
 
 ## Installation Mananger

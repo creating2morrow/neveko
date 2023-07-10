@@ -660,7 +660,7 @@ impl<'t> TextEdit<'t> {
                             &cursor_range.primary,
                         );
 
-                        let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO(c2m): remove this HACK workaround for https://github.com/emilk/egui/issues/1531
+                        let is_fully_visible = ui.clip_rect().contains_rect(rect);
                         if (response.changed || selection_changed) && !is_fully_visible {
                             ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
                         }

@@ -627,7 +627,7 @@ pub fn stage_cleanup(f: String) {
 ///
 /// software on their own. Note that software pull is over
 ///
-/// clearnet. TODO(c2m): trusted download locations over i2p.
+/// clearnet. TODO(c2m): trusted download locations over tor.
 pub async fn install_software(installations: Installations) -> bool {
     let mut valid_i2p_zero_hash = true;
     let mut valid_xmr_hash = true;
