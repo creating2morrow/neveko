@@ -62,6 +62,8 @@ pub struct MarketApp {
     /// order currently being acted on
     m_order: models::Order,
     orders: Vec<models::Order>,
+    our_prepare_info_tx: Sender<String>,
+    our_prepare_info_rx: Receiver<String>, 
     product_from_vendor: models::Product,
     product_image: egui_extras::RetainedImage,
     products: Vec<models::Product>,
@@ -98,6 +100,7 @@ impl Default for MarketApp {
         let (get_vendor_products_tx, get_vendor_products_rx) = std::sync::mpsc::channel();
         let (get_vendor_product_tx, get_vendor_product_rx) = std::sync::mpsc::channel();
         let (submit_order_tx, submit_order_rx) = std::sync::mpsc::channel();
+        let (our_prepare_info_tx, our_prepare_info_rx) = std::sync::mpsc::channel();
         MarketApp {
             contact_info_rx,
             contact_info_tx,
@@ -126,6 +129,8 @@ impl Default for MarketApp {
             is_window_shopping: false,
             msig: Default::default(),
             m_order: Default::default(),
+            our_prepare_info_rx,
+            our_prepare_info_tx,
             new_order: Default::default(),
             new_order_price: 0,
             new_order_shipping_address: utils::empty_string(),
@@ -224,6 +229,12 @@ impl eframe::App for MarketApp {
             }
         }
 
+        // TODO(c2m): extract from db after initialization
+        if let Ok(our_prepare_info) = self.our_prepare_info_rx.try_recv() {
+            self.msig.prepare_info = our_prepare_info;
+            self.is_loading = false;
+        }
+
         // Vendor status window
         //-----------------------------------------------------------------------------------
         let mut is_showing_vendor_status = self.is_showing_vendor_status;
@@ -287,21 +298,30 @@ impl eframe::App for MarketApp {
             .vscroll(true)
             .show(ctx, |ui| {
                 ui.heading("Multisig Management");
+                if self.is_loading {
+                    ui.add(egui::Spinner::new());
+                    ui.label("msig request in progress...");
+                }
                 ui.horizontal(|ui| {
                     let mediator = ui.label("Mediator: ");
                     let prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
                     if !self.msig.query_mediator {
-                        let mediator_db = utils::search_gui_db(String::from(&prefix), self.m_order.orid.clone());
+                        let mediator_db =
+                            utils::search_gui_db(String::from(&prefix), self.m_order.orid.clone());
                         log::debug!("mediator db: {}", mediator_db);
                         self.msig.has_mediator = mediator_db != utils::empty_string();
                         self.msig.mediator = mediator_db;
                         self.msig.query_mediator = true;
                     } else if self.msig.query_mediator && !self.msig.has_mediator {
                         ui.text_edit_singleline(&mut self.msig.mediator)
-                        .labelled_by(mediator.id);
+                            .labelled_by(mediator.id);
                         ui.label("\t");
                         if ui.button("Set Mediator").clicked() {
-                            utils::write_gui_db(prefix, self.m_order.orid.clone(), self.msig.mediator.clone());
+                            utils::write_gui_db(
+                                prefix,
+                                self.m_order.orid.clone(),
+                                self.msig.mediator.clone(),
+                            );
                             self.msig.has_mediator = true;
                         }
                     } else {
@@ -318,38 +338,47 @@ impl eframe::App for MarketApp {
                 ui.horizontal(|ui| {
                     ui.label("Prepare:  \t\t\t\t\t");
                     if ui.button("Prepare").clicked() {
-                        
+                        self.is_loading = true;
+                        let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                        let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                        let mediator =
+                            utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                        let vendor = utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                        // get prepare multisig info from vendor and mediator
+                        // call prepare multisig and save to db
+                        send_prepare_info_req(
+                            self.our_prepare_info_tx.clone(), 
+                            ctx.clone(),
+                            self.vendor_status.jwp.clone(),
+                            mediator,
+                            &self.m_order.orid.clone(),
+                            vendor,
+                        )
                     }
                 });
                 ui.horizontal(|ui| {
                     ui.label("Make:   \t\t\t\t\t\t");
-                    if ui.button("Make").clicked() {
-                        
-                    }
+                    if ui.button("Make").clicked() {}
                 });
                 ui.horizontal(|ui| {
                     ui.label("Exchange Keys: \t\t");
-                    if ui.button("Exchange").clicked() {
-                        
-                    }
+                    if ui.button("Exchange").clicked() {}
                 });
                 ui.horizontal(|ui| {
                     ui.label("Fund:\t\t\t\t\t\t\t");
-                    if ui.button("Fund").clicked() {
-                        
-                    }
+                    if ui.button("Fund").clicked() {}
                 });
                 ui.horizontal(|ui| {
                     ui.label("Export Info: \t\t\t\t");
-                    if ui.button("Export").clicked() {
-                        
-                    }
+                    if ui.button("Export").clicked() {}
                 });
                 ui.horizontal(|ui| {
                     ui.label("Release Payment: \t");
-                    if ui.button("Sign Txset").clicked() {
-                        
-                    }
+                    if ui.button("Sign Txset").clicked() {}
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Create Dispute: \t\t");
+                    if ui.button("Dispute").clicked() {}
                 });
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
@@ -1225,7 +1254,54 @@ fn submit_order_req(
         let u_order = order.unwrap_or_else(|_| Default::default());
         // cache order request to db
         order::backup(&u_order);
+        let prefix = String::from(crate::GUI_OVL_DB_KEY);
+        let orid = String::from(&u_order.orid);
+        let i2p = String::from(&contact);
+        utils::write_gui_db(prefix, orid, i2p);
         let _ = tx.send(u_order);
         ctx.request_repaint();
     });
+}
+
+fn send_prepare_info_req(
+    tx: Sender<String>,
+    ctx: egui::Context,
+    jwp: String,
+    mediator: String,
+    orid: &String,
+    vendor: String,
+)
+     {
+    let m_orid: String = String::from(orid);
+    let v_orid: String = String::from(orid);
+    tokio::spawn(async move {
+        let prepare_info = monero::prepare_wallet().await;
+            let ref_prepare_info: &String = &prepare_info.result.multisig_info;
+            utils::write_gui_db(
+                String::from(crate::GUI_MSIG_PREPARE_DB_KEY),
+                utils::empty_string(),
+                String::from(ref_prepare_info)
+        );
+        // Request mediator and vendor while we're at it
+        // Will coordinating send this on make requests next
+        log::debug!("constructing {} msig messages", message::PREPARE_MSIG);
+        let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
+            contact: i2p::get_destination(None),
+            info: Vec::new(),
+            init_mediator: false,
+            msig_type: String::from(message::PREPARE_MSIG),
+            orid: String::from(v_orid),
+        };
+        let _v_result = message::d_trigger_msig_info(&vendor, &jwp, &v_msig_request).await;
+        let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
+            contact: i2p::get_destination(None),
+            info: Vec::new(),
+            init_mediator: false,
+            msig_type: String::from(message::PREPARE_MSIG),
+            orid: String::from(m_orid),
+        };
+        let _m_result = message::d_trigger_msig_info(&mediator, &jwp, &m_msig_request).await;
+        let _ = tx.send(String::from(ref_prepare_info));
+    });
+    ctx.request_repaint();
 }

@@ -145,6 +145,10 @@ pub async fn get_multisig_info(
 ) -> Custom<Json<models::Order>> {
     let info: Vec<String> = r_info.info.iter().cloned().collect();
     if r_info.msig_type == String::from(message::PREPARE_MSIG) {
+        // mediator won't have wallet for order yet do that first
+        if r_info.init_mediator {
+            order::init_mediator_wallet(&r_info.orid).await;
+        }
         message::send_prepare_info(&r_info.orid, &r_info.contact).await;
     } else if r_info.msig_type == String::from(message::MAKE_MSIG) {
         message::send_make_info(&r_info.orid, &r_info.contact, info).await;
@@ -156,7 +160,7 @@ pub async fn get_multisig_info(
     Custom(Status::Ok, Json(Default::default()))
 }
 
-/// Recieve multisig messages here
+/// Recieve multisig messages here for vendor order processing
 ///
 /// Protected: true
 #[post("/", data = "<message>")]

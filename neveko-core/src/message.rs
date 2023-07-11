@@ -140,11 +140,12 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
         return Default::default();
     }
     let orid: String = v.remove(0);
-    let customer_info: String = v.remove(0);
-    let mut info = String::from(&customer_info);
-    if sub_type != TXSET_MSIG {
-        let mediator_info: String = v.remove(0);
-        info = format!("{}:{}", customer_info, mediator_info);
+    let a_info: String = v.remove(0);
+    let mut info = String::from(&a_info);
+    // on prepare info customer only receives one set of info
+    if sub_type != TXSET_MSIG || !v.is_empty() {
+        let b_info: String = v.remove(0);
+        info = format!("{}:{}", a_info, b_info);
     }
     bytes = Vec::new();
     debug!("zero decryption bytes: {:?}", bytes);
@@ -174,8 +175,6 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
 /// let s = db::Interface::open();
 /// let key = "prepare-o123-test.b32.i2p";
 /// let info_str = db::Interface::read(&s.env, &s.handle, &key);
-/// let info_split = info_str.split(":");
-/// let mut v_info: Vec<String> = info_split.map(|s| String::from(s)).collect();
 /// ```
 pub async fn rx_multisig(m: Json<Message>) {
     // make sure the message isn't something strange
@@ -207,7 +206,7 @@ pub async fn rx_multisig(m: Json<Message>) {
         &data.sub_type, &data.orid
     );
     // lookup msig message data by {type}-{order id}-{contact .b32.i2p address}
-    // store info as {customer_info}:{mediator_info}
+    // store info as {a_info}:{a_info (optional)}
     let msig_key = format!("{}-{}-{}", &data.sub_type, &data.orid, &m.from);
     db::Interface::async_write(&s.env, &s.handle, &msig_key, &data.info).await;
 }
@@ -562,6 +561,68 @@ pub async fn send_export_info(orid: &String, contact: &String) {
     let j_message: Json<Message> = utils::message_to_json(&message);
     monero::close_wallet(&orid, &wallet_password).await;
     create(j_message, jwp, MessageType::Multisig).await;
+}
+
+/// Customer begins multisig orchestration by requesting the prepare info
+/// 
+/// from the mediator and the vendor. In response they create an encrypted
+/// 
+/// multisig message with the requested data. Cusomter manages multisig by
+/// 
+/// injecting 
+async fn trigger_msig_info_request(
+    contact: String,
+    jwp: String,
+    request: reqres::MultisigInfoRequest,
+) -> Result<Order, Box<dyn Error>> {
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    match client?
+        .post(format!("http://{}/multisig/info", contact))
+        .header("proof", jwp)
+        .json(&request)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<Order>().await;
+            debug!("{} info for order response: {:?}", &request.msig_type, res);
+            match res {
+                Ok(r) => Ok(r),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(e) => {
+            error!("failed to {} info for order due to: {:?}", &request.msig_type, e);
+            Ok(Default::default())
+        }
+    }
+}
+
+/// Deconstruction pass-through so that we can send the request from an async
+/// 
+/// channel in the neveko-gui module.
+pub async fn d_trigger_msig_info(
+    contact: &String,
+    jwp: &String,
+    request: &reqres::MultisigInfoRequest,
+) -> Order {
+    let d_contact: String = String::from(contact);
+    let d_jwp: String = String::from(jwp);
+    let d_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
+        contact: String::from(&request.contact),
+        info: request.info.clone(),
+        init_mediator: request.init_mediator,
+        msig_type: String::from(&request.msig_type),
+        orid: String::from(&request.orid),
+    };
+    let pre = trigger_msig_info_request(d_contact, d_jwp, d_request).await;
+    if pre.is_err() {
+        log::error!("faile to trigger {} info request", request.msig_type);
+        return Default::default();
+    }
+    pre.unwrap_or(Default::default())
 }
 
 // Tests
