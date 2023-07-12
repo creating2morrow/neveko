@@ -488,7 +488,8 @@ fn update_wallet_lock(filename: &String, closing: bool) -> bool {
     }
 }
 
-// TODO(c2m): search the app and use this output to either bail (false) or continue (true)
+// TODO(c2m): search the app and use this output to either bail (false) or
+// continue (true)
 
 /// Performs the xmr rpc 'open_wallet' method
 pub async fn open_wallet(filename: &String, password: &String) -> bool {

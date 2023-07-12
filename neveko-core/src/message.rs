@@ -564,12 +564,12 @@ pub async fn send_export_info(orid: &String, contact: &String) {
 }
 
 /// Customer begins multisig orchestration by requesting the prepare info
-/// 
+///
 /// from the mediator and the vendor. In response they create an encrypted
-/// 
+///
 /// multisig message with the requested data. Cusomter manages multisig by
-/// 
-/// injecting 
+///
+/// injecting
 async fn trigger_msig_info_request(
     contact: String,
     jwp: String,
@@ -594,14 +594,17 @@ async fn trigger_msig_info_request(
             }
         }
         Err(e) => {
-            error!("failed to {} info for order due to: {:?}", &request.msig_type, e);
+            error!(
+                "failed to {} info for order due to: {:?}",
+                &request.msig_type, e
+            );
             Ok(Default::default())
         }
     }
 }
 
 /// Deconstruction pass-through so that we can send the request from an async
-/// 
+///
 /// channel in the neveko-gui module.
 pub async fn d_trigger_msig_info(
     contact: &String,

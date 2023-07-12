@@ -368,8 +368,7 @@ pub async fn transmit_order_request(
 }
 
 pub async fn init_mediator_wallet(orid: &String) {
-    let password = std::env::var(crate::MONERO_WALLET_PASSWORD)
-            .unwrap_or(utils::empty_string());
+    let password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(utils::empty_string());
     let m_wallet = monero::create_wallet(orid, &password).await;
     if !m_wallet {
         log::error!("failed to create mediator wallet");

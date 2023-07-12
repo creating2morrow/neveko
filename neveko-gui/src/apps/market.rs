@@ -63,7 +63,7 @@ pub struct MarketApp {
     m_order: models::Order,
     orders: Vec<models::Order>,
     our_prepare_info_tx: Sender<String>,
-    our_prepare_info_rx: Receiver<String>, 
+    our_prepare_info_rx: Receiver<String>,
     product_from_vendor: models::Product,
     product_image: egui_extras::RetainedImage,
     products: Vec<models::Product>,
@@ -347,7 +347,7 @@ impl eframe::App for MarketApp {
                         // get prepare multisig info from vendor and mediator
                         // call prepare multisig and save to db
                         send_prepare_info_req(
-                            self.our_prepare_info_tx.clone(), 
+                            self.our_prepare_info_tx.clone(),
                             ctx.clone(),
                             self.vendor_status.jwp.clone(),
                             mediator,
@@ -1270,17 +1270,16 @@ fn send_prepare_info_req(
     mediator: String,
     orid: &String,
     vendor: String,
-)
-     {
+) {
     let m_orid: String = String::from(orid);
     let v_orid: String = String::from(orid);
     tokio::spawn(async move {
         let prepare_info = monero::prepare_wallet().await;
-            let ref_prepare_info: &String = &prepare_info.result.multisig_info;
-            utils::write_gui_db(
-                String::from(crate::GUI_MSIG_PREPARE_DB_KEY),
-                utils::empty_string(),
-                String::from(ref_prepare_info)
+        let ref_prepare_info: &String = &prepare_info.result.multisig_info;
+        utils::write_gui_db(
+            String::from(crate::GUI_MSIG_PREPARE_DB_KEY),
+            utils::empty_string(),
+            String::from(ref_prepare_info),
         );
         // Request mediator and vendor while we're at it
         // Will coordinating send this on make requests next

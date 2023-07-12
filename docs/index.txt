@@ -22,6 +22,7 @@ http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p
   - /canary.txt
   - /download/neveko-x86_64-linux-gnu-v0.4.8-alpha.tar.bz2  - latest neveko download
   - /download/neveko-x86_64-linux-gnu-v0.4.8-alpha.tar.bz2.sig - detached sig
+  - /library - knowledge is power
 
 # Monero remote node (stagenet)
 http://xmr3kaacphwkk4z2gp35bdl47lrrnzimmyqj4oliauqrjzqecofa.b32.i2p
@@ -32,9 +33,9 @@ NEVEKO Links (Clear)
 git clone https://github.com/creating2morrow/neveko.git
 -----BEGIN PGP SIGNATURE-----
 
-iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZKxCVRwcY3JlYXRpbmdf
-dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMcAYA/0M4RExS4oWIWbPG7y4K
-jtPK0MErKQV+jWQNujT/oyZEAQD6Lq2DLG3lRS4DycEfukH8U53WEVCPfAWDoHFW
-8v3vDA==
-=PrlK
+iJIEARYKADoWIQQEoRcoLQbE3ctKJgFaPK5QG49jTAUCZK3bORwcY3JlYXRpbmdf
+dG9tb3Jyb3dAcHJvdG9uLm1lAAoJEFo8rlAbj2NMc8EA/2VekgaXzCQ7nyTs1Ysl
+7zDhyVUf2LcnDYub/l7Uj5DoAQDgk9pmuR/n4NXdFTMMBpvQFhaxGq5tpQFgL5ma
+cw6KDw==
+=VxhW
 -----END PGP SIGNATURE-----
