@@ -116,6 +116,11 @@ pub fn encrypt(name: String, body: &Vec<u8>) -> Result<Vec<u8>, Box<dyn Error>> 
 }
 
 pub fn decrypt(mid: &String, body: &Vec<u8>) -> Result<Vec<u8>, Box<dyn Error>> {
+    // bad things will happen if we get empty bytes
+    if body.is_empty() {
+        log::error!("no bytes to decrypt");
+        return Ok(Vec::new());
+    }
     let proto = Protocol::OpenPgp;
     let mut ctx = Context::from_protocol(proto)?;
     ctx.set_armor(true);

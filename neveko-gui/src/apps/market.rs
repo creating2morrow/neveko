@@ -229,7 +229,6 @@ impl eframe::App for MarketApp {
             }
         }
 
-        // TODO(c2m): extract from db after initialization
         if let Ok(our_prepare_info) = self.our_prepare_info_rx.try_recv() {
             self.msig.prepare_info = our_prepare_info;
             self.is_loading = false;
@@ -349,7 +348,6 @@ impl eframe::App for MarketApp {
                         send_prepare_info_req(
                             self.our_prepare_info_tx.clone(),
                             ctx.clone(),
-                            self.vendor_status.jwp.clone(),
                             mediator,
                             &self.m_order.orid.clone(),
                             vendor,
@@ -1266,19 +1264,36 @@ fn submit_order_req(
 fn send_prepare_info_req(
     tx: Sender<String>,
     ctx: egui::Context,
-    jwp: String,
     mediator: String,
     orid: &String,
     vendor: String,
 ) {
     let m_orid: String = String::from(orid);
     let v_orid: String = String::from(orid);
+    let w_orid: String = String::from(orid);
     tokio::spawn(async move {
+        let m_jwp: String = utils::search_gui_db(
+            String::from(crate::GUI_JWP_DB_KEY),
+            String::from(&mediator),
+        );
+        let v_jwp: String = utils::search_gui_db(
+            String::from(crate::GUI_JWP_DB_KEY),
+            String::from(&vendor),
+        );
+        let wallet_password =
+            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+        monero::create_wallet(&w_orid, &wallet_password).await;
+        let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
+        if !m_wallet {
+            log::error!("failed to open wallet");
+            return;
+        }
         let prepare_info = monero::prepare_wallet().await;
+        monero::close_wallet(&w_orid, &wallet_password).await;
         let ref_prepare_info: &String = &prepare_info.result.multisig_info;
         utils::write_gui_db(
             String::from(crate::GUI_MSIG_PREPARE_DB_KEY),
-            utils::empty_string(),
+            String::from(&w_orid),
             String::from(ref_prepare_info),
         );
         // Request mediator and vendor while we're at it
@@ -1291,15 +1306,15 @@ fn send_prepare_info_req(
             msig_type: String::from(message::PREPARE_MSIG),
             orid: String::from(v_orid),
         };
-        let _v_result = message::d_trigger_msig_info(&vendor, &jwp, &v_msig_request).await;
+        let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
         let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
             contact: i2p::get_destination(None),
             info: Vec::new(),
-            init_mediator: false,
+            init_mediator: true,
             msig_type: String::from(message::PREPARE_MSIG),
             orid: String::from(m_orid),
         };
-        let _m_result = message::d_trigger_msig_info(&mediator, &jwp, &m_msig_request).await;
+        let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
         let _ = tx.send(String::from(ref_prepare_info));
     });
     ctx.request_repaint();

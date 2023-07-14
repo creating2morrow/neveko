@@ -49,7 +49,7 @@
 * the `check status` button will show current jwp for each contact
 * `clear stale jwp` will purge data in case of timeout issues
 * don't keep large amounts in neveko just enough for fees and jwps
-* once a valid jwp is created (takes a few minutes) the `compose` button will be visible
+* once a valid jwp is created (takes a few seconds) the `compose` button will be visible
 * you need to click `check status` on contacts before sending to refresh jwp expiration check
 * draft a plain text message, dont be shy
 * verify recipient (.b32.i2p address) and press `send`
