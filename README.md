@@ -108,13 +108,6 @@ most of the complex logic stays in neveko-core, exported from [lib.rs](./neveko-
 
 [the manual](./docs/man.md)
 
-## Library
-
-* hosting various hacking, networking, IT etc. related resources
-* http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p/library/Books
-* have a request for a new book? send a message to nevekonet I2P inspIRC #random
-* see `light-reading` for curated (< 1mb) in-browser reading over i2p
-
 ## Donations
 
 This is just a hobby project but if anything here is useful donations are much appreciated!

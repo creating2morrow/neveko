@@ -125,6 +125,7 @@ pub async fn rx(m: Json<Message>) {
 
 /// Parse the multisig message type and info
 fn parse_multisig_message(mid: String) -> MultisigMessageData {
+    // TODO(c2m): manual parsing and db testing
     let d: reqres::DecryptedMessageBody = decrypt_body(mid);
     let mut bytes = hex::decode(d.body.into_bytes()).unwrap_or(Vec::new());
     let decoded = String::from_utf8(bytes).unwrap_or(utils::empty_string());

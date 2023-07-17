@@ -5,6 +5,7 @@ use std::sync::mpsc::{
 };
 
 pub struct MultisigManagement {
+    pub completed_prepare: bool,
     pub exchange_multisig_keys: String,
     pub export_info: String,
     pub has_mediator: bool,
@@ -19,6 +20,7 @@ pub struct MultisigManagement {
 impl Default for MultisigManagement {
     fn default() -> Self {
         MultisigManagement {
+            completed_prepare: false,
             exchange_multisig_keys: utils::empty_string(),
             export_info: utils::empty_string(),
             has_mediator: false,
@@ -353,31 +355,40 @@ impl eframe::App for MarketApp {
                             vendor,
                         )
                     }
+                    if ui.button("Check").clicked() {
+                        let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                        let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                        let mediator =
+                            utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                        let vendor = utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                        let is_prepared = prepared_msg(&mediator, &self.m_order.orid, &vendor);
+                        self.msig.completed_prepare = is_prepared;
+                    }
                 });
-                ui.horizontal(|ui| {
-                    ui.label("Make:   \t\t\t\t\t\t");
-                    if ui.button("Make").clicked() {}
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Exchange Keys: \t\t");
-                    if ui.button("Exchange").clicked() {}
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Fund:\t\t\t\t\t\t\t");
-                    if ui.button("Fund").clicked() {}
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Export Info: \t\t\t\t");
-                    if ui.button("Export").clicked() {}
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Release Payment: \t");
-                    if ui.button("Sign Txset").clicked() {}
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Create Dispute: \t\t");
-                    if ui.button("Dispute").clicked() {}
-                });
+                // ui.horizontal(|ui| {
+                //     ui.label("Make:   \t\t\t\t\t\t");
+                //     if ui.button("Make").clicked() {}
+                // });
+                // ui.horizontal(|ui| {
+                //     ui.label("Exchange Keys: \t\t");
+                //     if ui.button("Exchange").clicked() {}
+                // });
+                // ui.horizontal(|ui| {
+                //     ui.label("Fund:\t\t\t\t\t\t\t");
+                //     if ui.button("Fund").clicked() {}
+                // });
+                // ui.horizontal(|ui| {
+                //     ui.label("Export Info: \t\t\t\t");
+                //     if ui.button("Export").clicked() {}
+                // });
+                // ui.horizontal(|ui| {
+                //     ui.label("Release Payment: \t");
+                //     if ui.button("Sign Txset").clicked() {}
+                // });
+                // ui.horizontal(|ui| {
+                //     ui.label("Create Dispute: \t\t");
+                //     if ui.button("Dispute").clicked() {}
+                // });
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
                     self.is_managing_multisig = false;
@@ -1156,6 +1167,7 @@ impl eframe::App for MarketApp {
     }
 }
 
+// Async fn requests
 fn _refresh_on_delete_product_req(_tx: Sender<bool>, _ctx: egui::Context) {
     tokio::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -1298,6 +1310,8 @@ fn send_prepare_info_req(
         );
         // Request mediator and vendor while we're at it
         // Will coordinating send this on make requests next
+
+        // TODO(c2m): check for partial completion to avoid duplicate requests
         log::debug!("constructing {} msig messages", message::PREPARE_MSIG);
         let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
             contact: i2p::get_destination(None),
@@ -1318,4 +1332,18 @@ fn send_prepare_info_req(
         let _ = tx.send(String::from(ref_prepare_info));
     });
     ctx.request_repaint();
+}
+
+// End Async fn requests
+
+fn prepared_msg(mediator: &String, orid: &String, vendor: &String,) -> bool {
+    let s = db::Interface::open();
+    let m_msig_key = format!("{}-{}-{}", message::PREPARE_MSIG, orid, mediator);
+    let v_msig_key = format!("{}-{}-{}", message::PREPARE_MSIG, orid, vendor);
+    let m_prepare = db::Interface::read(&s.env, &s.handle, &m_msig_key);
+    let v_prepare = db::Interface::read(&s.env, &s.handle, &v_msig_key);
+    log::debug!("mediator prepare info: {}", &m_prepare);
+    log::debug!("vendor prepare info: {}", &v_prepare);
+    m_prepare != utils::empty_string() && v_prepare != utils::empty_string()
+
 }
