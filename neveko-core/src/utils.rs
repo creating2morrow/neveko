@@ -549,7 +549,9 @@ pub async fn start_up() {
     let mut wallet_password =
         std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(empty_string());
     if wallet_password == empty_string() {
-        print!("enter a password for monero-wallet-rpc: ");
+        print!(
+            "MONERO_WALLET_PASSWORD not set, enter neveko wallet password for monero-wallet-rpc: "
+        );
         std::io::stdout().flush().unwrap();
         wallet_password = read_password().unwrap();
         std::env::set_var(crate::MONERO_WALLET_PASSWORD, &wallet_password);

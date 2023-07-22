@@ -132,7 +132,7 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
     let values = decoded.split(":");
     let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
     let sub_type: String = v.remove(0);
-    let valid_length = if sub_type == TXSET_MSIG {
+    let valid_length = if sub_type == TXSET_MSIG || sub_type == PREPARE_MSIG {
         VALID_MSIG_MSG_LENGTH - 2
     } else {
         VALID_MSIG_MSG_LENGTH - 1
@@ -143,8 +143,9 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
     let orid: String = v.remove(0);
     let a_info: String = v.remove(0);
     let mut info = String::from(&a_info);
-    // on prepare info customer only receives one set of info
-    if sub_type != TXSET_MSIG || !v.is_empty() {
+    // on prepare info and txset msig messages customer only receives one set of
+    // info
+    if !v.is_empty() {
         let b_info: String = v.remove(0);
         info = format!("{}:{}", a_info, b_info);
     }
@@ -197,10 +198,21 @@ pub async fn rx_multisig(m: Json<Message>) {
         created: chrono::offset::Utc::now().timestamp(),
         to: String::from(&m.to),
     };
-    debug!("insert multisig message: {:?}", &new_message);
-    let s = db::Interface::open();
+    let s = db::Interface::async_open().await;
     let k = &new_message.mid;
     db::Interface::async_write(&s.env, &s.handle, k, &Message::to_db(&new_message)).await;
+    // in order to retrieve all msig messages, write keys to with msigl
+    let list_key = crate::MSIG_MESSAGE_LIST_DB_KEY;
+    let r = db::Interface::async_read(&s.env, &s.handle, &String::from(list_key)).await;
+    if r == utils::empty_string() {
+        debug!("creating msig message index");
+    }
+    let msg_list = [r, String::from(&f_mid)].join(",");
+    debug!(
+        "writing msig message index {} for id: {}",
+        msg_list, list_key
+    );
+    db::Interface::async_write(&s.env, &s.handle, &String::from(list_key), &msg_list).await;
     let data: MultisigMessageData = parse_multisig_message(new_message.mid);
     debug!(
         "writing multisig message type {} for order {}",
@@ -208,8 +220,9 @@ pub async fn rx_multisig(m: Json<Message>) {
     );
     // lookup msig message data by {type}-{order id}-{contact .b32.i2p address}
     // store info as {a_info}:{a_info (optional)}
+    let s_msig = db::Interface::async_open().await;
     let msig_key = format!("{}-{}-{}", &data.sub_type, &data.orid, &m.from);
-    db::Interface::async_write(&s.env, &s.handle, &msig_key, &data.info).await;
+    db::Interface::async_write(&s_msig.env, &s_msig.handle, &msig_key, &data.info).await;
 }
 
 /// Message lookup
@@ -440,7 +453,7 @@ pub async fn retry_fts() {
                 let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &message.to);
                 let jwp = db::Interface::read(&s.env, &s.handle, &k);
                 if jwp != utils::empty_string() {
-                    let m_type = if message.mid.contains("misg") {
+                    let m_type = if message.mid.contains("msig") {
                         MessageType::Multisig
                     } else {
                         MessageType::Normal
@@ -467,7 +480,14 @@ fn is_fts_clear(r: String) -> bool {
     let v_mid = r.split(",");
     let v: Vec<String> = v_mid.map(|s| String::from(s)).collect();
     debug!("fts contents: {:#?}", v);
-    v.len() >= 2 && v[v.len() - 1] == utils::empty_string() && v[0] == utils::empty_string()
+    let limit = v.len() <= 1;
+    if !limit {
+        return v.len() >= 2
+            && v[v.len() - 1] == utils::empty_string()
+            && v[0] == utils::empty_string();
+    } else {
+        return limit;
+    }
 }
 
 /// Encrypts and sends the output from the monero-rpc
@@ -623,7 +643,7 @@ pub async fn d_trigger_msig_info(
     };
     let pre = trigger_msig_info_request(d_contact, d_jwp, d_request).await;
     if pre.is_err() {
-        log::error!("faile to trigger {} info request", request.msig_type);
+        log::error!("failed to trigger {} info request", request.msig_type);
         return Default::default();
     }
     pre.unwrap_or(Default::default())

@@ -336,39 +336,45 @@ impl eframe::App for MarketApp {
                         }
                     }
                 });
-                ui.horizontal(|ui| {
-                    ui.label("Prepare:  \t\t\t\t\t");
-                    if ui.button("Prepare").clicked() {
-                        self.is_loading = true;
-                        let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
-                        let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                        let mediator =
-                            utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
-                        let vendor = utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
-                        // get prepare multisig info from vendor and mediator
-                        // call prepare multisig and save to db
-                        send_prepare_info_req(
-                            self.our_prepare_info_tx.clone(),
-                            ctx.clone(),
-                            mediator,
-                            &self.m_order.orid.clone(),
-                            vendor,
-                        )
-                    }
-                    if ui.button("Check").clicked() {
-                        let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
-                        let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                        let mediator =
-                            utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
-                        let vendor = utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
-                        let is_prepared = prepared_msg(&mediator, &self.m_order.orid, &vendor);
-                        self.msig.completed_prepare = is_prepared;
-                    }
-                });
-                // ui.horizontal(|ui| {
-                //     ui.label("Make:   \t\t\t\t\t\t");
-                //     if ui.button("Make").clicked() {}
-                // });
+                if !self.msig.completed_prepare {
+                    ui.horizontal(|ui| {
+                        ui.label("Prepare:  \t\t\t\t\t");
+                        if ui.button("Prepare").clicked() {
+                            self.is_loading = true;
+                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                            let mediator =
+                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let vendor =
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                            // get prepare multisig info from vendor and mediator
+                            // call prepare multisig and save to db
+                            send_prepare_info_req(
+                                self.our_prepare_info_tx.clone(),
+                                ctx.clone(),
+                                mediator,
+                                &self.m_order.orid.clone(),
+                                vendor,
+                            )
+                        }
+                        if ui.button("Check").clicked() {
+                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                            let mediator =
+                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let vendor =
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                            let is_prepared = prepared_msg(&mediator, &self.m_order.orid, &vendor);
+                            self.msig.completed_prepare = is_prepared;
+                        }
+                    });
+                }
+                if self.msig.completed_prepare {
+                    ui.horizontal(|ui| {
+                        ui.label("Make:   \t\t\t\t\t\t");
+                        if ui.button("Make").clicked() {}
+                    });
+                }
                 // ui.horizontal(|ui| {
                 //     ui.label("Exchange Keys: \t\t");
                 //     if ui.button("Exchange").clicked() {}
@@ -1284,14 +1290,10 @@ fn send_prepare_info_req(
     let v_orid: String = String::from(orid);
     let w_orid: String = String::from(orid);
     tokio::spawn(async move {
-        let m_jwp: String = utils::search_gui_db(
-            String::from(crate::GUI_JWP_DB_KEY),
-            String::from(&mediator),
-        );
-        let v_jwp: String = utils::search_gui_db(
-            String::from(crate::GUI_JWP_DB_KEY),
-            String::from(&vendor),
-        );
+        let m_jwp: String =
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
+        let v_jwp: String =
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
         let wallet_password =
             std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
         monero::create_wallet(&w_orid, &wallet_password).await;
@@ -1311,24 +1313,49 @@ fn send_prepare_info_req(
         // Request mediator and vendor while we're at it
         // Will coordinating send this on make requests next
 
-        // TODO(c2m): check for partial completion to avoid duplicate requests
-        log::debug!("constructing {} msig messages", message::PREPARE_MSIG);
-        let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-            contact: i2p::get_destination(None),
-            info: Vec::new(),
-            init_mediator: false,
-            msig_type: String::from(message::PREPARE_MSIG),
-            orid: String::from(v_orid),
-        };
-        let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
-        let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-            contact: i2p::get_destination(None),
-            info: Vec::new(),
-            init_mediator: true,
-            msig_type: String::from(message::PREPARE_MSIG),
-            orid: String::from(m_orid),
-        };
-        let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
+        let s = db::Interface::open();
+        let m_msig_key = format!(
+            "{}-{}-{}",
+            message::PREPARE_MSIG,
+            String::from(&m_orid),
+            mediator
+        );
+        let v_msig_key = format!(
+            "{}-{}-{}",
+            message::PREPARE_MSIG,
+            String::from(&v_orid),
+            vendor
+        );
+        let m_prepare = db::Interface::read(&s.env, &s.handle, &m_msig_key);
+        let v_prepare = db::Interface::read(&s.env, &s.handle, &v_msig_key);
+        if v_prepare == utils::empty_string() {
+            log::debug!(
+                "constructing vendor {} msig messages",
+                message::PREPARE_MSIG
+            );
+            let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
+                contact: i2p::get_destination(None),
+                info: Vec::new(),
+                init_mediator: false,
+                msig_type: String::from(message::PREPARE_MSIG),
+                orid: String::from(v_orid),
+            };
+            let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
+        }
+        if m_prepare == utils::empty_string() {
+            log::debug!(
+                "constructing mediator {} msig messages",
+                message::PREPARE_MSIG
+            );
+            let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
+                contact: i2p::get_destination(None),
+                info: Vec::new(),
+                init_mediator: true,
+                msig_type: String::from(message::PREPARE_MSIG),
+                orid: String::from(m_orid),
+            };
+            let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
+        }
         let _ = tx.send(String::from(ref_prepare_info));
     });
     ctx.request_repaint();
@@ -1336,14 +1363,11 @@ fn send_prepare_info_req(
 
 // End Async fn requests
 
-fn prepared_msg(mediator: &String, orid: &String, vendor: &String,) -> bool {
+fn prepared_msg(mediator: &String, orid: &String, vendor: &String) -> bool {
     let s = db::Interface::open();
     let m_msig_key = format!("{}-{}-{}", message::PREPARE_MSIG, orid, mediator);
     let v_msig_key = format!("{}-{}-{}", message::PREPARE_MSIG, orid, vendor);
     let m_prepare = db::Interface::read(&s.env, &s.handle, &m_msig_key);
     let v_prepare = db::Interface::read(&s.env, &s.handle, &v_msig_key);
-    log::debug!("mediator prepare info: {}", &m_prepare);
-    log::debug!("vendor prepare info: {}", &v_prepare);
     m_prepare != utils::empty_string() && v_prepare != utils::empty_string()
-
 }
