@@ -6,48 +6,40 @@
 
 * vendor adds a new product with description and price
 * customer orders product
-* vendor creates order, multisig wallet and prepares it
+* vendor creates order, multisig wallet
 
 |        | prepare | make | exchange |
 |--      |--       |--    |--        |        
-|vend    |     X   |      |          |          
+|vend    |         |      |          |          
 |cust    |         |      |          |          
 |med     |         |      |          |          
 
-* customer saves prepare info from vendor, creates multisig wallet
+* customer creates multisig wallet and prepares while collecting participant info
 
 |        | prepare | make | exchange |
 |--      |--       |--    |--        |        
 |vend    |     X   |      |          |          
 |cust    |     X   |      |          |          
-|med     |         |      |          |          
+|med     |     x   |      |          |          
 
-* customer sends both prepare infos to mediator
-* mediator creates multisig wallet, prepares and makes it
-
-|        | prepare | make | exchange |
-|--      |--       |--    |--        |
-|vend    |     X   |      |          |
-|cust    |     X   |      |          |
-|med     |     X   |   X  |          |
-
-* customer makes multisig wallet and sends both outputs to vendor
+* customer makes and sends both prepare infos to mediator and vendor
+* participants all make_info
 
 |        | prepare | make | exchange |
 |--      |--       |--    |--        |
-|vend    |     X   |      |          |
-|cust    |     X   |   X  |          |
+|vend    |     X   |   x  |          |
+|cust    |     X   |   x  |          |
 |med     |     X   |   X  |          |
 
-* vendor makes and calls to exchange multisig keys
+* customer calls to exchange multisig keys and collects outputs again
 
 |        | prepare | make | exchange |
 |--      |--       |--    |--        |
-|vend    |     X   |   X  |      X   |
-|cust    |     X   |   X  |          |
+|vend    |     X   |   X  |          |
+|cust    |     X   |   X  |      X   |
 |med     |     X   |   X  |          |
 
-* customer sends output to mediator who then exchanges multisig keys
+* customer sends output to participants who then exchange multisig keys
 
 |        | prepare | make | exchange |
 |--      |--       |--    |--        |
@@ -55,7 +47,7 @@
 |cust    |     X   |   X  |      X   |
 |med     |     X   |   X  |      X   |
         
-* customer funds wallet and exports to vendor and mediator
+* customer funds wallet and exports info to vendor and mediator
 * vendor and mediator import multisig info
 * customer signs multisig txset and sends to mediator
 * mediator requests tracking number from vendor
