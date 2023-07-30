@@ -284,10 +284,11 @@ impl eframe::App for AddressBookApp {
                             self.is_approving_jwp = false;
                         }
                     }
-                    if ui.button("Exit").clicked() {
-                        self.approve_payment = false;
-                        self.is_loading = false;
-                    }
+                }
+                // TODO(c2m): add payment timeout error handling to prevent infinite loading window
+                if ui.button("Exit").clicked() {
+                    self.approve_payment = false;
+                    self.is_loading = false;
                 }
             });
 
