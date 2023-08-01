@@ -24,7 +24,7 @@ pub const MAKE_MSIG: &str = "make";
 pub const PREPARE_MSIG: &str = "prepare";
 pub const SIGN_MSIG: &str = "sign";
 pub const TXSET_MSIG: &str = "txset";
-pub const VALID_MSIG_MSG_LENGTH: usize = 4;
+pub const VALID_MSIG_MSG_LENGTH: usize = 3;
 
 #[derive(PartialEq)]
 pub enum MessageType {
@@ -125,21 +125,16 @@ pub async fn rx(m: Json<Message>) {
 
 /// Parse the multisig message type and info
 fn parse_multisig_message(mid: String) -> MultisigMessageData {
-    // TODO(c2m): manual parsing and db testing
     let d: reqres::DecryptedMessageBody = decrypt_body(mid);
     let mut bytes = hex::decode(d.body.into_bytes()).unwrap_or(Vec::new());
     let decoded = String::from_utf8(bytes).unwrap_or(utils::empty_string());
     let values = decoded.split(":");
     let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
-    let sub_type: String = v.remove(0);
-    let valid_length = if sub_type == TXSET_MSIG || sub_type == PREPARE_MSIG {
-        VALID_MSIG_MSG_LENGTH - 2
-    } else {
-        VALID_MSIG_MSG_LENGTH - 1
-    };
-    if v.len() != valid_length {
+    if v.len() != VALID_MSIG_MSG_LENGTH {
+        error!("invalid msig message length");
         return Default::default();
     }
+    let sub_type: String = v.remove(0);
     let orid: String = v.remove(0);
     let a_info: String = v.remove(0);
     let mut info = String::from(&a_info);
