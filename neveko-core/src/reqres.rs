@@ -1211,6 +1211,8 @@ pub struct MultisigInfoRequest {
     pub info: Vec<String>,
     /// flag for mediator to create create multisig wallet for order
     pub init_mediator: bool,
+    /// We need to know when the first kex round occurs
+    pub kex_init: bool,
     /// valid values are found in lines 21-26 of market.rs
     pub msig_type: String,
     pub orid: String,
@@ -1222,6 +1224,7 @@ impl Default for MultisigInfoRequest {
             contact: utils::empty_string(),
             info: Vec::new(),
             init_mediator: false,
+            kex_init: false,
             msig_type: utils::empty_string(),
             orid: utils::empty_string(),
         }

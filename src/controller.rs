@@ -155,7 +155,7 @@ pub async fn get_multisig_info(
     } else if r_info.msig_type == String::from(message::EXPORT_MSIG) {
         message::send_export_info(&r_info.orid, &r_info.contact).await;
     } else {
-        message::send_exchange_info(&r_info.orid, &r_info.contact, info).await;
+        message::send_exchange_info(&r_info.orid, &r_info.contact, info, r_info.kex_init).await;
     }
     Custom(Status::Ok, Json(Default::default()))
 }

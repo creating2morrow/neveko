@@ -18,7 +18,8 @@ use reqwest::StatusCode;
 use rocket::serde::json::Json;
 use std::error::Error;
 
-pub const EXCHANGE_MSIG: &str = "exchange";
+pub const KEX_ONE_MSIG: &str = "kexone";
+pub const KEX_TWO_MSIG: &str = "kextwo";
 pub const EXPORT_MSIG: &str = "export";
 pub const MAKE_MSIG: &str = "make";
 pub const PREPARE_MSIG: &str = "prepare";
@@ -539,7 +540,7 @@ pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) 
 /// Encrypts and sends the output from the monero-rpc
 ///
 /// `exchange_multisig_keys` method.
-pub async fn send_exchange_info(orid: &String, contact: &String, info: Vec<String>) {
+pub async fn send_exchange_info(orid: &String, contact: &String, info: Vec<String>, kex_init: bool) {
     let s = db::Interface::open();
     let wallet_name = String::from(orid);
     let wallet_password =
@@ -548,10 +549,16 @@ pub async fn send_exchange_info(orid: &String, contact: &String, info: Vec<Strin
     let exchange_info = monero::exchange_multisig_keys(false, info, &wallet_password).await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
-    let body_str = format!(
+    let mut body_str = format!(
         "{}:{}:{}",
-        EXCHANGE_MSIG, orid, &exchange_info.result.multisig_info
+        KEX_ONE_MSIG, orid, &exchange_info.result.multisig_info
     );
+    if !kex_init {
+        body_str = format!(
+            "{}:{}:{}",
+            KEX_TWO_MSIG, orid, &exchange_info.result.address
+        );
+    }
     let message: Message = Message {
         body: body_str.into_bytes(),
         created: chrono::Utc::now().timestamp(),
@@ -641,6 +648,7 @@ pub async fn d_trigger_msig_info(
         contact: String::from(&request.contact),
         info: request.info.clone(),
         init_mediator: request.init_mediator,
+        kex_init: request.kex_init,
         msig_type: String::from(&request.msig_type),
         orid: String::from(&request.orid),
     };

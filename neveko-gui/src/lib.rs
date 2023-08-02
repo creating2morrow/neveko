@@ -17,7 +17,8 @@ pub const GUI_TX_HASH_DB_KEY:       &str = "gui-txp-hash";
 pub const GUI_SIGNED_GPG_DB_KEY:    &str = "gui-signed-key";
 pub const GUI_TX_SUBADDRESS_DB_KEY: &str = "gui-txp-subaddress";
 
-pub const GUI_MSIG_EK_DB_KEY:       &str = "gui-ek";
+pub const GUI_MSIG_KEX_ONE_DB_KEY:  &str = "gui-kex-1";
+pub const GUI_MSIG_KEX_TWO_DB_KEY:  &str = "gui-kex-2";
 pub const GUI_MSIG_INFO_DB_KEY:     &str = "gui-info";
 pub const GUI_MSIG_MAKE_DB_KEY:     &str = "gui-make";
 pub const GUI_MSIG_MEDIATOR_DB_KEY: &str = "gui-mediator";

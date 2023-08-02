@@ -5,6 +5,8 @@ use std::sync::mpsc::{
 };
 
 pub struct MultisigManagement {
+    pub completed_kex_init: bool,
+    pub completed_kex_final: bool,
     pub completed_prepare: bool,
     pub completed_make: bool,
     pub exchange_multisig_keys: String,
@@ -21,6 +23,8 @@ pub struct MultisigManagement {
 impl Default for MultisigManagement {
     fn default() -> Self {
         MultisigManagement {
+            completed_kex_init: false,
+            completed_kex_final: false,
             completed_prepare: false,
             completed_make: false,
             exchange_multisig_keys: utils::empty_string(),
@@ -420,10 +424,76 @@ impl eframe::App for MarketApp {
                         }
                     });
                 }
-                // ui.horizontal(|ui| {
-                //     ui.label("Exchange Keys: \t\t");
-                //     if ui.button("Exchange").clicked() {}
-                // });
+                if self.msig.completed_make {
+                    ui.horizontal(|ui| {
+                        ui.label("Kex Exchange Initial:  \t\t\t");
+                        if ui.button("KEX-INIT").clicked() {
+                            self.is_loading = true;
+                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                            let mediator =
+                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let vendor =
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                            // get kex round one info from vendor and mediator
+                            // call make multisig and save to db
+                            send_kex_initial_req(
+                                self.our_make_info_tx.clone(),
+                                ctx.clone(),
+                                mediator,
+                                &self.m_order.orid.clone(),
+                                vendor,
+                            )
+                        }
+                        if ui.button("Check").clicked() {
+                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                            let mediator =
+                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let vendor =
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                            let sub_type = String::from(message::KEX_ONE_MSIG);
+                            let is_made = 
+                                validate_msig_step(&mediator, &self.m_order.orid, &vendor, &sub_type);
+                            self.msig.completed_kex_init = is_made;
+                        }
+                    });
+                }
+                if self.msig.completed_kex_init {
+                    ui.horizontal(|ui| {
+                        ui.label("Kex Exchange Final:  \t\t\t");
+                        if ui.button("KEX-FINAL").clicked() {
+                            self.is_loading = true;
+                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                            let mediator =
+                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let vendor =
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                            // get kex round one info from vendor and mediator
+                            // call make multisig and save to db
+                            send_kex_final_req(
+                                self.our_make_info_tx.clone(),
+                                ctx.clone(),
+                                mediator,
+                                &self.m_order.orid.clone(),
+                                vendor,
+                            )
+                        }
+                        if ui.button("Check").clicked() {
+                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                            let mediator =
+                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let vendor =
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                            let sub_type = String::from(message::KEX_TWO_MSIG);
+                            let is_made = 
+                                validate_msig_step(&mediator, &self.m_order.orid, &vendor, &sub_type);
+                            self.msig.completed_kex_final = is_made;
+                        }
+                    });
+                }
                 // ui.horizontal(|ui| {
                 //     ui.label("Fund:\t\t\t\t\t\t\t");
                 //     if ui.button("Fund").clicked() {}
@@ -1383,6 +1453,7 @@ fn send_prepare_info_req(
                 contact: i2p::get_destination(None),
                 info: Vec::new(),
                 init_mediator: false,
+                kex_init: false,
                 msig_type: String::from(message::PREPARE_MSIG),
                 orid: String::from(v_orid),
             };
@@ -1397,6 +1468,7 @@ fn send_prepare_info_req(
                 contact: i2p::get_destination(None),
                 info: Vec::new(),
                 init_mediator: true,
+                kex_init: false,
                 msig_type: String::from(message::PREPARE_MSIG),
                 orid: String::from(m_orid),
             };
@@ -1494,6 +1566,7 @@ fn send_make_info_req(
                 contact: i2p::get_destination(None),
                 info: v_prepare_info_send,
                 init_mediator: false,
+                kex_init:false,
                 msig_type: String::from(message::MAKE_MSIG),
                 orid: String::from(v_orid),
             };
@@ -1508,12 +1581,234 @@ fn send_make_info_req(
                 contact: i2p::get_destination(None),
                 info: m_prepare_info_send,
                 init_mediator: false,
+                kex_init: false,
                 msig_type: String::from(message::MAKE_MSIG),
                 orid: String::from(m_orid),
             };
             let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
         }
         let _ = tx.send(String::from(&local_make));
+    });
+    ctx.request_repaint();
+}
+
+fn send_kex_initial_req(
+    tx: Sender<String>,
+    ctx: egui::Context,
+    mediator: String,
+    orid: &String,
+    vendor: String,
+) {
+    let m_orid: String = String::from(orid);
+    let v_orid: String = String::from(orid);
+    let w_orid: String = String::from(orid);
+    tokio::spawn(async move {
+        let m_jwp: String =
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
+        let v_jwp: String =
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
+        let wallet_password =
+            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+        let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
+        if !m_wallet {
+            monero::close_wallet(&w_orid, &wallet_password).await;
+            log::error!("failed to open wallet");
+            let _ = tx.send(utils::empty_string());
+            return;
+        }
+        let mut kex_init_prep = Vec::new();
+        let mut m_kex_init_send = Vec::new();
+        let mut v_kex_init_send = Vec::new();
+        // we need to send our info to mediator and vendor so they can perform
+        // kex final one and send the reponse (info) back
+        let c_kex_init = utils::search_gui_db(
+            String::from(crate::GUI_MSIG_MAKE_DB_KEY),
+            String::from(&w_orid),
+        );
+        let s = db::Interface::async_open().await;
+        let m_msig_key = format!("{}-{}-{}", message::MAKE_MSIG, String::from(&m_orid), mediator);
+        let v_msig_key = format!("{}-{}-{}", message::MAKE_MSIG, String::from(&v_orid), vendor);
+        let m_kex_init = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_kex_init = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
+        kex_init_prep.push(String::from(&m_kex_init));
+        kex_init_prep.push(String::from(&v_kex_init));
+        m_kex_init_send.push(String::from(&c_kex_init));
+        m_kex_init_send.push(String::from(&v_kex_init));
+        v_kex_init_send.push(String::from(&m_kex_init));
+        v_kex_init_send.push(String::from(&c_kex_init));
+        let local_kex_init = utils::search_gui_db(
+            String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
+            String::from(&w_orid),
+        );
+        if local_kex_init == utils::empty_string() {
+            let kex_out = monero::exchange_multisig_keys(false, kex_init_prep, &wallet_password).await;
+            monero::close_wallet(&w_orid, &wallet_password).await;
+            let ref_kex_info: &String = &kex_out.result.multisig_info;
+            if String::from(ref_kex_info) != utils::empty_string() {
+                utils::write_gui_db(
+                    String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
+                    String::from(&w_orid),
+                    String::from(ref_kex_info),
+                );
+            }
+        }
+        // Request mediator and vendor while we're at it
+        // Will coordinating send this on kex round two next
+        let s = db::Interface::async_open().await;
+        let m_msig_key = format!(
+            "{}-{}-{}",
+            message::KEX_ONE_MSIG,
+            String::from(&m_orid),
+            mediator
+        );
+        let v_msig_key = format!(
+            "{}-{}-{}",
+            message::KEX_ONE_MSIG,
+            String::from(&v_orid),
+            vendor
+        );
+        let m_kex_init = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_kex_init = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
+        if v_kex_init == utils::empty_string() {
+            log::debug!(
+                "constructing vendor {} msig messages",
+                message::KEX_ONE_MSIG
+            );
+            let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
+                contact: i2p::get_destination(None),
+                info: v_kex_init_send,
+                init_mediator: false,
+                kex_init: true,
+                msig_type: String::from(message::KEX_ONE_MSIG),
+                orid: String::from(v_orid),
+            };
+            let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
+        }
+        if m_kex_init == utils::empty_string() {
+            log::debug!(
+                "constructing mediator {} msig messages",
+                message::KEX_ONE_MSIG
+            );
+            let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
+                contact: i2p::get_destination(None),
+                info: m_kex_init_send,
+                init_mediator: false,
+                kex_init: true,
+                msig_type: String::from(message::KEX_ONE_MSIG),
+                orid: String::from(m_orid),
+            };
+            let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
+        }
+        let _ = tx.send(String::from(&local_kex_init));
+    });
+    ctx.request_repaint();
+}
+
+fn send_kex_final_req(
+    tx: Sender<String>,
+    ctx: egui::Context,
+    mediator: String,
+    orid: &String,
+    vendor: String,
+) {
+    let m_orid: String = String::from(orid);
+    let v_orid: String = String::from(orid);
+    let w_orid: String = String::from(orid);
+    tokio::spawn(async move {
+        let m_jwp: String =
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
+        let v_jwp: String =
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
+        let wallet_password =
+            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+        let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
+        if !m_wallet {
+            monero::close_wallet(&w_orid, &wallet_password).await;
+            log::error!("failed to open wallet");
+            let _ = tx.send(utils::empty_string());
+            return;
+        }
+        let mut kex_final_prep = Vec::new();
+        let mut m_kex_final_send = Vec::new();
+        let mut v_kex_final_send = Vec::new();
+        let c_kex_final = utils::search_gui_db(
+            String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
+            String::from(&w_orid),
+        );
+        let s = db::Interface::async_open().await;
+        let m_msig_key = format!("{}-{}-{}", message::KEX_ONE_MSIG, String::from(&m_orid), mediator);
+        let v_msig_key = format!("{}-{}-{}", message::KEX_ONE_MSIG, String::from(&v_orid), vendor);
+        let m_kex_final = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_kex_final = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
+        kex_final_prep.push(String::from(&m_kex_final));
+        kex_final_prep.push(String::from(&v_kex_final));
+        m_kex_final_send.push(String::from(&c_kex_final));
+        m_kex_final_send.push(String::from(&v_kex_final));
+        v_kex_final_send.push(String::from(&m_kex_final));
+        v_kex_final_send.push(String::from(&c_kex_final));
+        let local_kex_final = utils::search_gui_db(
+            String::from(crate::GUI_MSIG_KEX_TWO_DB_KEY),
+            String::from(&w_orid),
+        );
+        if local_kex_final == utils::empty_string() {
+            let kex_out = monero::exchange_multisig_keys(false, kex_final_prep, &wallet_password).await;
+            monero::close_wallet(&w_orid, &wallet_password).await;
+            let ref_kex_info: &String = &kex_out.result.address;
+            if String::from(ref_kex_info) != utils::empty_string() {
+                utils::write_gui_db(
+                    String::from(crate::GUI_MSIG_KEX_TWO_DB_KEY),
+                    String::from(&w_orid),
+                    String::from(ref_kex_info),
+                );
+            }
+        }
+        // we can verify all good if the senders all send back the correct wallet address
+        let s = db::Interface::async_open().await;
+        let m_msig_key = format!(
+            "{}-{}-{}",
+            message::KEX_TWO_MSIG,
+            String::from(&m_orid),
+            mediator
+        );
+        let v_msig_key = format!(
+            "{}-{}-{}",
+            message::KEX_TWO_MSIG,
+            String::from(&v_orid),
+            vendor
+        );
+        let m_kex_final = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_kex_final = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
+        if v_kex_final == utils::empty_string() {
+            log::debug!(
+                "constructing vendor {} msig messages",
+                message::KEX_ONE_MSIG
+            );
+            let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
+                contact: i2p::get_destination(None),
+                info: v_kex_final_send,
+                init_mediator: false,
+                kex_init: false,
+                msig_type: String::from(message::KEX_ONE_MSIG),
+                orid: String::from(v_orid),
+            };
+            let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
+        }
+        if m_kex_final == utils::empty_string() {
+            log::debug!(
+                "constructing mediator {} msig messages",
+                message::KEX_ONE_MSIG
+            );
+            let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
+                contact: i2p::get_destination(None),
+                info: m_kex_final_send,
+                init_mediator: false,
+                kex_init: true,
+                msig_type: String::from(message::KEX_ONE_MSIG),
+                orid: String::from(m_orid),
+            };
+            let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
+        }
+        let _ = tx.send(String::from(&local_kex_final));
     });
     ctx.request_repaint();
 }
