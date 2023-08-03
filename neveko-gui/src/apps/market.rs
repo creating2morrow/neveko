@@ -389,7 +389,7 @@ impl eframe::App for MarketApp {
                         }
                     });
                 }
-                if self.msig.completed_prepare {
+                if self.msig.completed_prepare && !self.msig.completed_make {
                     ui.horizontal(|ui| {
                         ui.label("Make:   \t\t\t\t\t\t");
                         if ui.button("Make").clicked() {
@@ -424,7 +424,7 @@ impl eframe::App for MarketApp {
                         }
                     });
                 }
-                if self.msig.completed_make {
+                if self.msig.completed_make && !self.msig.completed_kex_init {
                     ui.horizontal(|ui| {
                         ui.label("Kex Exchange Initial:  \t\t\t");
                         if ui.button("KEX-INIT").clicked() {
@@ -459,7 +459,7 @@ impl eframe::App for MarketApp {
                         }
                     });
                 }
-                if self.msig.completed_kex_init {
+                if self.msig.completed_kex_init && !self.msig.completed_kex_final {
                     ui.horizontal(|ui| {
                         ui.label("Kex Exchange Final:  \t\t\t");
                         if ui.button("KEX-FINAL").clicked() {

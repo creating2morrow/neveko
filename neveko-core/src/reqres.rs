@@ -45,11 +45,6 @@ pub struct XmrRpcMakeParams {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct XmrRpcFinalizeParams {
-    pub multisig_info: Vec<String>,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcImportParams {
     pub info: Vec<String>,
 }
@@ -222,14 +217,6 @@ pub struct XmrRpcMakeRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct XmrRpcFinalizeRequest {
-    pub jsonrpc: String,
-    pub id: String,
-    pub method: String,
-    pub params: XmrRpcFinalizeParams,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcImportRequest {
     pub jsonrpc: String,
     pub id: String,
@@ -335,11 +322,6 @@ pub struct XmrRpcVerifyResult {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct XmrRpcVersionResult {
     pub version: u32,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct XmrRpcFinalizeResult {
-    pub address: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -860,21 +842,6 @@ impl Default for XmrRpcMakeResponse {
             result: XmrRpcMakeResult {
                 address: utils::empty_string(),
                 multisig_info: utils::empty_string(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
-pub struct XmrRpcFinalizeResponse {
-    pub result: XmrRpcFinalizeResult,
-}
-
-impl Default for XmrRpcFinalizeResponse {
-    fn default() -> Self {
-        XmrRpcFinalizeResponse {
-            result: XmrRpcFinalizeResult {
-                address: utils::empty_string(),
             },
         }
     }
