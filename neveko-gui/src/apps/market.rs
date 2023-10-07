@@ -1418,6 +1418,8 @@ fn send_prepare_info_req(
             let _ = tx.send(utils::empty_string());
             return;
         }
+        // enable multisig
+        monero::enable_experimental_multisig(&w_orid);
         let prepare_info = monero::prepare_wallet().await;
         monero::close_wallet(&w_orid, &wallet_password).await;
         let ref_prepare_info: &String = &prepare_info.result.multisig_info;

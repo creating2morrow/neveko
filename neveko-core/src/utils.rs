@@ -528,6 +528,7 @@ fn start_gui() {
 /// Put all app pre-checks here
 pub async fn start_up() {
     info!("neveko is starting up");
+    warn!("monero multising is experimental and usage of neveko may lead to loss of funds");
     let args = args::Args::parse();
     if args.remote_access {
         start_micro_servers();

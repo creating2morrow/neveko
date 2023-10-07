@@ -1383,3 +1383,20 @@ pub async fn p_get_transactions(
         Err(_) => Ok(Default::default()),
     }
 }
+
+/// enable multisig - `monero-wallet-cli --password <> --wallet-file <> set enable-multisig-experimental 1`
+pub fn enable_experimental_multisig(wallet_file: &String) {
+    let bin_dir = get_monero_location();
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    let args = vec![
+        "--password",       &wallet_password, 
+        "--wallet-file",    &wallet_file,
+        "set", "enable-mulitsig-experimental", "1"
+    ];
+    let output = Command::new(format!("{}/monero-wallet-cli", bin_dir))
+            .args(args)
+            .spawn()
+            .expect("failed to enable experimental msig");
+    debug!("{:?}", output.stdout);
+}

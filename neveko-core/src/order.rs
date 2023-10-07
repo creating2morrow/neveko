@@ -68,6 +68,8 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
         monero::close_wallet(&orid, &wallet_password).await;
         return Default::default();
     }
+    // enable multisig
+    monero::enable_experimental_multisig(&orid);
     debug!("insert order: {:?}", &new_order);
     let s = db::Interface::open();
     let k = &new_order.orid;
@@ -373,4 +375,6 @@ pub async fn init_mediator_wallet(orid: &String) {
     if !m_wallet {
         log::error!("failed to create mediator wallet");
     }
+    // enable multisig
+    monero::enable_experimental_multisig(&orid);
 }
