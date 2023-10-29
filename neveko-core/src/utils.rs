@@ -113,7 +113,7 @@ impl Default for Connections {
             is_remote_node: false,
             is_i2p_advanced: false,
             mainnet: false,
-            monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.2.2"),
+            monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.3.1"),
             rpc_credential: String::from("pass"),
             rpc_username: String::from("user"),
             rpc_host: String::from("http://127.0.0.1:38083"),

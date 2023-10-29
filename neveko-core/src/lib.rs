@@ -56,9 +56,9 @@ pub const GUI_REMOTE_NODE: &str = "GUI_REMOTE_NODE";
 pub const GUI_SET_REMOTE_NODE: &str = "1";
 
 /// The latest monero release download
-pub const MONERO_RELEASE_VERSION: &str = "monero-linux-x64-v0.18.2.2.tar.bz2";
+pub const MONERO_RELEASE_VERSION: &str = "monero-linux-x64-v0.18.3.1.tar.bz2";
 pub const MONERO_RELEASE_HASH: &str =
-    "186800de18f67cca8475ce392168aabeb5709a8f8058b0f7919d7c693786d56b";
+    "23af572fdfe3459b9ab97e2e9aa7e3c11021c955d6064b801a27d7e8c21ae09d";
 /// The latest i2p-zero release version
 pub const I2P_ZERO_RELEASE_VERSION: &str = "v1.21";
 pub const I2P_ZERO_RELEASH_HASH: &str =
