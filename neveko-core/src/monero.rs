@@ -14,8 +14,9 @@ use log::{
     warn,
 };
 use std::{
+    io::Write,
     error::Error,
-    process::Command,
+    process::{Command, Stdio}
 };
 
 use lazy_static::lazy_static;
@@ -1386,17 +1387,38 @@ pub async fn p_get_transactions(
 
 /// enable multisig - `monero-wallet-cli --password <> --wallet-file <> set enable-multisig-experimental 1`
 pub fn enable_experimental_multisig(wallet_file: &String) {
+    warn!("Enabling experimental multisig...");
     let bin_dir = get_monero_location();
+    let user = std::env::var("USER").unwrap_or(utils::empty_string());
+    let file_path = format!("/home/{}/.{}/stagenet/wallet/{}", user, crate::APP_NAME, &wallet_file);
     let wallet_password =
         std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
-    let args = vec![
-        "--password",       &wallet_password, 
-        "--wallet-file",    &wallet_file,
-        "set", "enable-mulitsig-experimental", "1"
-    ];
-    let output = Command::new(format!("{}/monero-wallet-cli", bin_dir))
+    let release_env = utils::get_release_env();
+    let args = if release_env == utils::ReleaseEnvironment::Production {
+        vec![
+            "--password",       &wallet_password, 
+            "--wallet-file",    &file_path,
+            "set", "enable-multisig-experimental", "1"
+        ]
+    } else { 
+        vec![
+            "--stagenet",
+            "--password",       &wallet_password, 
+            "--wallet-file",    &file_path,
+            "set", "enable-multisig-experimental", "1"
+        ]
+    };
+    let mut output = Command::new(format!("{}/monero-wallet-cli", bin_dir))
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
             .args(args)
             .spawn()
             .expect("failed to enable experimental msig");
-    debug!("{:?}", output.stdout);
+    let _ = std::io::stdout().flush();
+    let mut stdin = output.stdin.take().expect("Failed to open stdin");
+    std::thread::spawn(move || {
+        stdin.write_all(&wallet_password.as_bytes()).expect("Failed to write to stdin");
+    });
+    let d_output = output.wait_with_output().expect("Failed to read stdout");
+    debug!("{:?}", d_output);
 }
