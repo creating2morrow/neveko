@@ -1390,9 +1390,8 @@ pub fn enable_experimental_multisig(wallet_file: &String) {
     warn!("Enabling experimental multisig...");
     let bin_dir = get_monero_location();
     let user = std::env::var("USER").unwrap_or(utils::empty_string());
-    let file_path = format!("/home/{}/.{}/stagenet/wallet/{}", user, crate::APP_NAME, &wallet_file);
-    let wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    let file_path = format!("/home/{}/.{}/stagenet/wallet/{}", &user, crate::APP_NAME, &wallet_file);
+    let wallet_password = utils::empty_string();
     let release_env = utils::get_release_env();
     let args = if release_env == utils::ReleaseEnvironment::Production {
         vec![
@@ -1408,7 +1407,7 @@ pub fn enable_experimental_multisig(wallet_file: &String) {
             "set", "enable-multisig-experimental", "1"
         ]
     };
-    let mut output = Command::new(format!("{}/monero-wallet-cli", bin_dir))
+    let mut output = Command::new(format!("/home/{}/{}/monero-wallet-cli", &user, bin_dir))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .args(args)

@@ -1409,8 +1409,7 @@ fn send_prepare_info_req(
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
-        let wallet_password =
-            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+        let wallet_password = utils::empty_string();
         monero::create_wallet(&w_orid, &wallet_password).await;
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
