@@ -69,6 +69,7 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
         return Default::default();
     }
     // enable multisig
+    monero::close_wallet(&orid, &wallet_password).await;
     monero::enable_experimental_multisig(&orid);
     debug!("insert order: {:?}", &new_order);
     let s = db::Interface::open();
@@ -83,7 +84,6 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     let order_list = [r, String::from(&orid)].join(",");
     debug!("writing order index {} for id: {}", order_list, list_key);
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &order_list);
-    monero::close_wallet(&orid, &wallet_password).await;
     new_order
 }
 
@@ -376,5 +376,6 @@ pub async fn init_mediator_wallet(orid: &String) {
         log::error!("failed to create mediator wallet");
     }
     // enable multisig
+    monero::close_wallet(&orid, &password).await;
     monero::enable_experimental_multisig(&orid);
 }
