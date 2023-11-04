@@ -426,7 +426,7 @@ impl eframe::App for MarketApp {
                 }
                 if self.msig.completed_make && !self.msig.completed_kex_init {
                     ui.horizontal(|ui| {
-                        ui.label("Kex Exchange Initial:  \t\t\t");
+                        ui.label("Key Exchange Initial:  \t\t\t");
                         if ui.button("KEX-INIT").clicked() {
                             self.is_loading = true;
                             let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
@@ -461,7 +461,7 @@ impl eframe::App for MarketApp {
                 }
                 if self.msig.completed_kex_init && !self.msig.completed_kex_final {
                     ui.horizontal(|ui| {
-                        ui.label("Kex Exchange Final:  \t\t\t");
+                        ui.label("Key Exchange Final:  \t\t\t");
                         if ui.button("KEX-FINAL").clicked() {
                             self.is_loading = true;
                             let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
@@ -1414,6 +1414,7 @@ fn send_prepare_info_req(
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
             log::error!("failed to open wallet");
+            monero::close_wallet(&w_orid, &wallet_password).await;
             let _ = tx.send(utils::empty_string());
             return;
         }

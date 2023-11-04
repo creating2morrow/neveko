@@ -49,6 +49,7 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     let ts = chrono::offset::Utc::now().timestamp();
     let orid: String = format!("{}{}", crate::ORDER_DB_KEY, utils::generate_rnd());
     let r_subaddress = monero::create_address().await;
+    monero::close_wallet(&wallet_name, &wallet_password).await;
     let subaddress = r_subaddress.result.address;
     let new_order = Order {
         orid: String::from(&orid),
@@ -62,14 +63,15 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
         ..Default::default()
     };
     debug!("insert order: {:?}", new_order);
-    let m_wallet = monero::create_wallet(&orid, &utils::empty_string()).await;
+    let order_wallet_password = utils::empty_string();
+    let m_wallet = monero::create_wallet(&orid, &order_wallet_password).await;
     if !m_wallet {
         error!("error creating msig wallet for order {}", &orid);
         monero::close_wallet(&orid, &wallet_password).await;
         return Default::default();
     }
     // enable multisig
-    monero::close_wallet(&orid, &wallet_password).await;
+    monero::close_wallet(&orid, &order_wallet_password).await;
     monero::enable_experimental_multisig(&orid);
     debug!("insert order: {:?}", &new_order);
     let s = db::Interface::open();

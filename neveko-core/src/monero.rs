@@ -311,7 +311,8 @@ fn get_blockchain_dir() -> String {
 /// Get monero download location
 fn get_monero_location() -> String {
     let args = args::Args::parse();
-    String::from(args.monero_location)
+    let user = std::env::var("USER").unwrap_or(utils::empty_string());
+    format!("/home/{}/{}", &user, &args.monero_location)
 }
 
 /// Get monero rpc host from the `--monero-rpc-host` cli arg
@@ -1407,7 +1408,7 @@ pub fn enable_experimental_multisig(wallet_file: &String) {
             "set", "enable-multisig-experimental", "1"
         ]
     };
-    let mut output = Command::new(format!("/home/{}/{}/monero-wallet-cli", &user, bin_dir))
+    let mut output = Command::new(format!("{}/monero-wallet-cli", bin_dir))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .args(args)
