@@ -492,8 +492,7 @@ fn is_fts_clear(r: String) -> bool {
 pub async fn send_prepare_info(orid: &String, contact: &String) {
     let s = db::Interface::open();
     let wallet_name = String::from(orid);
-    let wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    let wallet_password = utils::empty_string();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let prepare_info = monero::prepare_wallet().await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
@@ -519,8 +518,7 @@ pub async fn send_prepare_info(orid: &String, contact: &String) {
 pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) {
     let s = db::Interface::open();
     let wallet_name = String::from(orid);
-    let wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    let wallet_password = utils::empty_string();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let make_info = monero::make_wallet(info).await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
@@ -543,8 +541,7 @@ pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) 
 pub async fn send_exchange_info(orid: &String, contact: &String, info: Vec<String>, kex_init: bool) {
     let s = db::Interface::open();
     let wallet_name = String::from(orid);
-    let wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    let wallet_password = utils::empty_string();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let exchange_info = monero::exchange_multisig_keys(false, info, &wallet_password).await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
@@ -576,8 +573,7 @@ pub async fn send_exchange_info(orid: &String, contact: &String, info: Vec<Strin
 pub async fn send_export_info(orid: &String, contact: &String) {
     let s = db::Interface::open();
     let wallet_name = String::from(orid);
-    let wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    let wallet_password = utils::empty_string();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let exchange_info = monero::export_multisig_info().await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);

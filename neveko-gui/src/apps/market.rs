@@ -1497,8 +1497,7 @@ fn send_make_info_req(
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
-        let wallet_password =
-            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+        let wallet_password = utils::empty_string();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
             monero::close_wallet(&w_orid, &wallet_password).await;
@@ -1610,8 +1609,7 @@ fn send_kex_initial_req(
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
-        let wallet_password =
-            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+        let wallet_password = utils::empty_string();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
             monero::close_wallet(&w_orid, &wallet_password).await;
@@ -1722,8 +1720,7 @@ fn send_kex_final_req(
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
-        let wallet_password =
-            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+        let wallet_password = utils::empty_string();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
             monero::close_wallet(&w_orid, &wallet_password).await;
