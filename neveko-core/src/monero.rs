@@ -633,9 +633,11 @@ pub async fn get_address() -> reqres::XmrRpcAddressResponse {
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcAddressResponse>().await;
-            debug!("{} response: {:?}", RpcFields::Address.value(), res);
             match res {
-                Ok(res) => res,
+                Ok(res) => {
+                    debug!("{} count: {}", RpcFields::Address.value(), &res.result.addresses.len());
+                    res
+                },
                 _ => Default::default(),
             }
         }
