@@ -513,6 +513,14 @@ pub struct XmrRpcRefreshResult {
     pub received_money: bool,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcIsMultisigResult {
+    pub multisig: bool,
+    pub ready: bool,
+    pub threshold: u16,
+    pub total: u16,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct XmrDaemonGetInfoResult {
     pub adjusted_time: u64,
@@ -1074,6 +1082,24 @@ impl Default for XmrRpcRefreshResponse {
             result: XmrRpcRefreshResult {
                 blocks_fetched: 0,
                 received_money: false,
+            },
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcIsMultisigResponse {
+    pub result: XmrRpcIsMultisigResult,
+}
+
+impl Default for XmrRpcIsMultisigResponse {
+    fn default() -> Self {
+        XmrRpcIsMultisigResponse {
+            result: XmrRpcIsMultisigResult {
+                multisig: false,
+                ready: false,
+                threshold: 0,
+                total: 0,
             },
         }
     }

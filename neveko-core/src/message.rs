@@ -538,7 +538,12 @@ pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) 
 /// Encrypts and sends the output from the monero-rpc
 ///
 /// `exchange_multisig_keys` method.
-pub async fn send_exchange_info(orid: &String, contact: &String, info: Vec<String>, kex_init: bool) {
+pub async fn send_exchange_info(
+    orid: &String,
+    contact: &String,
+    info: Vec<String>,
+    kex_init: bool,
+) {
     let s = db::Interface::open();
     let wallet_name = String::from(orid);
     let wallet_password = utils::empty_string();
@@ -594,9 +599,9 @@ pub async fn send_export_info(orid: &String, contact: &String) {
 ///
 /// from the mediator and the vendor. In response they create an encrypted
 ///
-/// multisig message with the requested data. Cusomter manages multisig by
+/// multisig message with the requested data. Customer manages multisig by
 ///
-/// injecting
+/// injecting...
 async fn trigger_msig_info_request(
     contact: String,
     jwp: String,

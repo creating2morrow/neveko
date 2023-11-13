@@ -309,6 +309,7 @@ impl eframe::App for HomeApp {
                     self.connections.is_i2p_advanced = !self.connections.is_i2p_advanced;
                     log::debug!("is i2p advanced mode: {}", self.connections.is_i2p_advanced);
                 }
+                // TODO: mainnet
                 // let mut is_mainnet = self.connections.mainnet;
                 // if ui.checkbox(&mut is_mainnet, "mainnet").changed() {
                 //     self.connections.mainnet = !self.connections.mainnet;

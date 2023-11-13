@@ -14,9 +14,12 @@ use log::{
     warn,
 };
 use std::{
-    io::Write,
     error::Error,
-    process::{Command, Stdio}
+    io::Write,
+    process::{
+        Command,
+        Stdio,
+    },
 };
 
 use lazy_static::lazy_static;
@@ -76,6 +79,7 @@ enum RpcFields {
     GetVersion,
     Id,
     Import,
+    IsMultisig,
     JsonRpcVersion,
     Make,
     Open,
@@ -106,6 +110,7 @@ impl RpcFields {
             RpcFields::GetVersion => String::from("get_version"),
             RpcFields::Id => String::from("0"),
             RpcFields::Import => String::from("import_multisig_info"),
+            RpcFields::IsMultisig => String::from("is_multisig"),
             RpcFields::JsonRpcVersion => String::from("2.0"),
             RpcFields::Make => String::from("make_multisig"),
             RpcFields::Open => String::from("open_wallet"),
@@ -635,9 +640,13 @@ pub async fn get_address() -> reqres::XmrRpcAddressResponse {
             let res = response.json::<reqres::XmrRpcAddressResponse>().await;
             match res {
                 Ok(res) => {
-                    debug!("{} count: {}", RpcFields::Address.value(), &res.result.addresses.len());
+                    debug!(
+                        "{} count: {}",
+                        RpcFields::Address.value(),
+                        &res.result.addresses.len()
+                    );
                     res
-                },
+                }
                 _ => Default::default(),
             }
         }
@@ -1191,6 +1200,35 @@ pub async fn refresh() -> reqres::XmrRpcRefreshResponse {
     }
 }
 
+/// Performs the xmr rpc 'is_multisig' method
+pub async fn is_multisig() -> reqres::XmrRpcIsMultisigResponse {
+    info!("executing {}", RpcFields::IsMultisig.value());
+    let client = reqwest::Client::new();
+    let host = get_rpc_host();
+    let req = reqres::XmrRpcRequest {
+        jsonrpc: RpcFields::JsonRpcVersion.value(),
+        id: RpcFields::Id.value(),
+        method: RpcFields::IsMultisig.value(),
+    };
+    let login: RpcLogin = get_rpc_creds();
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrRpcIsMultisigResponse>().await;
+            debug!("{} response: {:?}", RpcFields::IsMultisig.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_) => Default::default(),
+    }
+}
+
 // Daemon requests
 //-------------------------------------------------------------------
 
@@ -1388,38 +1426,54 @@ pub async fn p_get_transactions(
     }
 }
 
-/// enable multisig - `monero-wallet-cli --password <> --wallet-file <> set enable-multisig-experimental 1`
+/// enable multisig - `monero-wallet-cli --password <> --wallet-file <> set
+/// enable-multisig-experimental 1`
 pub fn enable_experimental_multisig(wallet_file: &String) {
     warn!("Enabling experimental multisig...");
     let bin_dir = get_monero_location();
     let user = std::env::var("USER").unwrap_or(utils::empty_string());
-    let file_path = format!("/home/{}/.{}/stagenet/wallet/{}", &user, crate::APP_NAME, &wallet_file);
+    let file_path = format!(
+        "/home/{}/.{}/stagenet/wallet/{}",
+        &user,
+        crate::APP_NAME,
+        &wallet_file
+    );
     let wallet_password = utils::empty_string();
     let release_env = utils::get_release_env();
     let args = if release_env == utils::ReleaseEnvironment::Production {
         vec![
-            "--password",       &wallet_password, 
-            "--wallet-file",    &file_path,
-            "set", "enable-multisig-experimental", "1"
+            "--password",
+            &wallet_password,
+            "--wallet-file",
+            &file_path,
+            "set",
+            "enable-multisig-experimental",
+            "1",
         ]
-    } else { 
+    } else {
         vec![
             "--stagenet",
-            "--password",       &wallet_password, 
-            "--wallet-file",    &file_path,
-            "set", "enable-multisig-experimental", "1"
+            "--password",
+            &wallet_password,
+            "--wallet-file",
+            &file_path,
+            "set",
+            "enable-multisig-experimental",
+            "1",
         ]
     };
     let mut output = Command::new(format!("{}/monero-wallet-cli", bin_dir))
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .args(args)
-            .spawn()
-            .expect("failed to enable experimental msig");
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .args(args)
+        .spawn()
+        .expect("failed to enable experimental msig");
     let _ = std::io::stdout().flush();
     let mut stdin = output.stdin.take().expect("Failed to open stdin");
     std::thread::spawn(move || {
-        stdin.write_all(&wallet_password.as_bytes()).expect("Failed to write to stdin");
+        stdin
+            .write_all(&wallet_password.as_bytes())
+            .expect("Failed to write to stdin");
     });
     let d_output = output.wait_with_output().expect("Failed to read stdout");
     debug!("{:?}", d_output);

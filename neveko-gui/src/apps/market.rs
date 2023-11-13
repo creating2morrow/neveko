@@ -1,4 +1,6 @@
+use image::Luma;
 use neveko_core::*;
+use qrcode::QrCode;
 use std::sync::mpsc::{
     Receiver,
     Sender,
@@ -7,6 +9,7 @@ use std::sync::mpsc::{
 pub struct MultisigManagement {
     pub completed_kex_init: bool,
     pub completed_kex_final: bool,
+    pub completed_funding: bool,
     pub completed_prepare: bool,
     pub completed_make: bool,
     pub exchange_multisig_keys: String,
@@ -25,6 +28,7 @@ impl Default for MultisigManagement {
         MultisigManagement {
             completed_kex_init: false,
             completed_kex_final: false,
+            completed_funding: false,
             completed_prepare: false,
             completed_make: false,
             exchange_multisig_keys: utils::empty_string(),
@@ -53,6 +57,7 @@ pub struct MarketApp {
     get_vendor_product_rx: Receiver<models::Product>,
     is_loading: bool,
     is_ordering: bool,
+    is_order_qr_set: bool,
     is_pinging: bool,
     is_customer_viewing_orders: bool,
     is_managing_multisig: bool,
@@ -61,6 +66,7 @@ pub struct MarketApp {
     is_showing_product_image: bool,
     is_showing_product_update: bool,
     is_showing_orders: bool,
+    is_showing_order_qr: bool,
     is_showing_vendor_status: bool,
     is_showing_vendors: bool,
     is_timeout: bool,
@@ -70,6 +76,9 @@ pub struct MarketApp {
     /// order currently being acted on
     m_order: models::Order,
     orders: Vec<models::Order>,
+    order_xmr_address: String,
+    order_qr: egui_extras::RetainedImage,
+    order_qr_init: bool,
     our_make_info_tx: Sender<String>,
     our_make_info_rx: Receiver<String>,
     our_prepare_info_tx: Sender<String>,
@@ -95,6 +104,8 @@ pub struct MarketApp {
     s_order: models::Order,
     vendor_status: utils::ContactStatus,
     vendors: Vec<models::Contact>,
+    order_xmr_address_tx: Sender<reqres::XmrRpcAddressResponse>,
+    order_xmr_address_rx: Receiver<reqres::XmrRpcAddressResponse>,
 }
 
 impl Default for MarketApp {
@@ -112,6 +123,8 @@ impl Default for MarketApp {
         let (submit_order_tx, submit_order_rx) = std::sync::mpsc::channel();
         let (our_prepare_info_tx, our_prepare_info_rx) = std::sync::mpsc::channel();
         let (our_make_info_tx, our_make_info_rx) = std::sync::mpsc::channel();
+        let (order_xmr_address_tx, order_xmr_address_rx) = std::sync::mpsc::channel();
+        let contents = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
         MarketApp {
             contact_info_rx,
             contact_info_tx,
@@ -127,9 +140,11 @@ impl Default for MarketApp {
             is_loading: false,
             is_managing_multisig: false,
             is_ordering: false,
+            is_order_qr_set: false,
             is_pinging: false,
             is_product_image_set: false,
             is_showing_orders: false,
+            is_showing_order_qr: false,
             is_showing_products: false,
             is_showing_product_image: false,
             is_showing_product_update: false,
@@ -140,6 +155,11 @@ impl Default for MarketApp {
             is_window_shopping: false,
             msig: Default::default(),
             m_order: Default::default(),
+            order_xmr_address: utils::empty_string(),
+            order_xmr_address_rx,
+            order_xmr_address_tx,
+            order_qr: egui_extras::RetainedImage::from_image_bytes("qr.png", &contents).unwrap(),
+            order_qr_init: false,
             our_make_info_rx,
             our_make_info_tx,
             our_prepare_info_rx,
@@ -252,6 +272,12 @@ impl eframe::App for MarketApp {
             self.is_loading = false;
         }
 
+        if let Ok(a) = self.order_xmr_address_rx.try_recv() {
+            self.order_xmr_address = a.result.address;
+            if self.order_xmr_address != utils::empty_string() {
+                self.is_showing_order_qr = true;
+            }
+        }
         // Vendor status window
         //-----------------------------------------------------------------------------------
         let mut is_showing_vendor_status = self.is_showing_vendor_status;
@@ -383,8 +409,12 @@ impl eframe::App for MarketApp {
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                             let sub_type = String::from(message::PREPARE_MSIG);
-                            let is_prepared = 
-                                validate_msig_step(&mediator, &self.m_order.orid, &vendor, &sub_type);
+                            let is_prepared = validate_msig_step(
+                                &mediator,
+                                &self.m_order.orid,
+                                &vendor,
+                                &sub_type,
+                            );
                             self.msig.completed_prepare = is_prepared;
                         }
                     });
@@ -418,8 +448,12 @@ impl eframe::App for MarketApp {
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                             let sub_type = String::from(message::MAKE_MSIG);
-                            let is_made = 
-                                validate_msig_step(&mediator, &self.m_order.orid, &vendor, &sub_type);
+                            let is_made = validate_msig_step(
+                                &mediator,
+                                &self.m_order.orid,
+                                &vendor,
+                                &sub_type,
+                            );
                             self.msig.completed_make = is_made;
                         }
                     });
@@ -453,8 +487,12 @@ impl eframe::App for MarketApp {
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                             let sub_type = String::from(message::KEX_ONE_MSIG);
-                            let is_made = 
-                                validate_msig_step(&mediator, &self.m_order.orid, &vendor, &sub_type);
+                            let is_made = validate_msig_step(
+                                &mediator,
+                                &self.m_order.orid,
+                                &vendor,
+                                &sub_type,
+                            );
                             self.msig.completed_kex_init = is_made;
                         }
                     });
@@ -488,16 +526,33 @@ impl eframe::App for MarketApp {
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                             let sub_type = String::from(message::KEX_TWO_MSIG);
-                            let is_made = 
-                                validate_msig_step(&mediator, &self.m_order.orid, &vendor, &sub_type);
+                            let is_made = validate_msig_step(
+                                &mediator,
+                                &self.m_order.orid,
+                                &vendor,
+                                &sub_type,
+                            );
                             self.msig.completed_kex_final = is_made;
                         }
                     });
                 }
-                // ui.horizontal(|ui| {
-                //     ui.label("Fund:\t\t\t\t\t\t\t");
-                //     if ui.button("Fund").clicked() {}
-                // });
+                if self.msig.completed_kex_final && !self.msig.completed_funding {
+                    ui.horizontal(|ui| {
+                        ui.label("Fund:\t\t\t\t\t\t\t");
+                        if ui.button("Fund").clicked() {
+                            set_order_address(
+                                &self.m_order.orid,
+                                self.order_xmr_address_tx.clone(),
+                                ctx.clone(),
+                            );
+                        }
+                        if ui.button("Check").clicked() {
+                            // is the wallet multisig completed?
+                            // the customer doesn't pay fees on orders
+                            // ensure the balance of the order wallet matches the order total
+                        }
+                    });
+                }
                 // ui.horizontal(|ui| {
                 //     ui.label("Export Info: \t\t\t\t");
                 //     if ui.button("Export").clicked() {}
@@ -514,6 +569,39 @@ impl eframe::App for MarketApp {
                 if ui.button("Exit").clicked() {
                     self.is_managing_multisig = false;
                     self.is_loading = false;
+                }
+            });
+
+        // Order Wallet QR
+        //-----------------------------------------------------------------------------------
+        let mut is_showing_order_qr = self.is_showing_order_qr;
+        egui::Window::new("order wallet qr")
+            .open(&mut is_showing_order_qr)
+            .title_bar(false)
+            .vscroll(true)
+            .show(ctx, |ui| {
+                if !self.is_order_qr_set && self.order_xmr_address != utils::empty_string() {
+                    let code = QrCode::new(&self.order_xmr_address.clone()).unwrap();
+                    let image = code.render::<Luma<u8>>().build();
+                    let file_path = format!(
+                        "/home/{}/.neveko/qr.png",
+                        std::env::var("USER").unwrap_or(String::from("user"))
+                    );
+                    image.save(&file_path).unwrap();
+                    self.order_qr_init = true;
+                    self.is_order_qr_set = true;
+                    let contents = std::fs::read(&file_path).unwrap_or(Vec::new());
+                    self.order_qr =
+                        egui_extras::RetainedImage::from_image_bytes("qr.png", &contents).unwrap();
+                    ctx.request_repaint();
+                }
+                self.order_qr.show(ui);
+                let address_label = ui.label("copy: \t");
+                ui.text_edit_singleline(&mut self.order_xmr_address)
+                    .labelled_by(address_label.id);
+                ui.label("\n");
+                if ui.button("Exit").clicked() {
+                    self.is_showing_order_qr = false;
                 }
             });
 
@@ -1510,13 +1598,23 @@ fn send_make_info_req(
         let mut v_prepare_info_send = Vec::new();
         // we need to send our info to mediator and vendor so they can perform
         // make_multisig and send the reponse (String) back
-        let c_prepare= utils::search_gui_db(
+        let c_prepare = utils::search_gui_db(
             String::from(crate::GUI_MSIG_PREPARE_DB_KEY),
             String::from(&w_orid),
         );
         let s = db::Interface::async_open().await;
-        let m_msig_key = format!("{}-{}-{}", message::PREPARE_MSIG, String::from(&m_orid), mediator);
-        let v_msig_key = format!("{}-{}-{}", message::PREPARE_MSIG, String::from(&v_orid), vendor);
+        let m_msig_key = format!(
+            "{}-{}-{}",
+            message::PREPARE_MSIG,
+            String::from(&m_orid),
+            mediator
+        );
+        let v_msig_key = format!(
+            "{}-{}-{}",
+            message::PREPARE_MSIG,
+            String::from(&v_orid),
+            vendor
+        );
         let m_prepare = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
         let v_prepare = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
         prepare_info_prep.push(String::from(&m_prepare));
@@ -1560,25 +1658,19 @@ fn send_make_info_req(
         let m_make = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
         let v_make = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
         if v_make == utils::empty_string() {
-            log::debug!(
-                "constructing vendor {} msig messages",
-                message::MAKE_MSIG
-            );
+            log::debug!("constructing vendor {} msig messages", message::MAKE_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: v_prepare_info_send,
                 init_mediator: false,
-                kex_init:false,
+                kex_init: false,
                 msig_type: String::from(message::MAKE_MSIG),
                 orid: String::from(v_orid),
             };
             let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
         }
         if m_make == utils::empty_string() {
-            log::debug!(
-                "constructing mediator {} msig messages",
-                message::MAKE_MSIG
-            );
+            log::debug!("constructing mediator {} msig messages", message::MAKE_MSIG);
             let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: m_prepare_info_send,
@@ -1627,8 +1719,18 @@ fn send_kex_initial_req(
             String::from(&w_orid),
         );
         let s = db::Interface::async_open().await;
-        let m_msig_key = format!("{}-{}-{}", message::MAKE_MSIG, String::from(&m_orid), mediator);
-        let v_msig_key = format!("{}-{}-{}", message::MAKE_MSIG, String::from(&v_orid), vendor);
+        let m_msig_key = format!(
+            "{}-{}-{}",
+            message::MAKE_MSIG,
+            String::from(&m_orid),
+            mediator
+        );
+        let v_msig_key = format!(
+            "{}-{}-{}",
+            message::MAKE_MSIG,
+            String::from(&v_orid),
+            vendor
+        );
         let m_kex_init = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
         let v_kex_init = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
         kex_init_prep.push(String::from(&m_kex_init));
@@ -1642,7 +1744,8 @@ fn send_kex_initial_req(
             String::from(&w_orid),
         );
         if local_kex_init == utils::empty_string() {
-            let kex_out = monero::exchange_multisig_keys(false, kex_init_prep, &wallet_password).await;
+            let kex_out =
+                monero::exchange_multisig_keys(false, kex_init_prep, &wallet_password).await;
             monero::close_wallet(&w_orid, &wallet_password).await;
             let ref_kex_info: &String = &kex_out.result.multisig_info;
             if String::from(ref_kex_info) != utils::empty_string() {
@@ -1736,8 +1839,18 @@ fn send_kex_final_req(
             String::from(&w_orid),
         );
         let s = db::Interface::async_open().await;
-        let m_msig_key = format!("{}-{}-{}", message::KEX_ONE_MSIG, String::from(&m_orid), mediator);
-        let v_msig_key = format!("{}-{}-{}", message::KEX_ONE_MSIG, String::from(&v_orid), vendor);
+        let m_msig_key = format!(
+            "{}-{}-{}",
+            message::KEX_ONE_MSIG,
+            String::from(&m_orid),
+            mediator
+        );
+        let v_msig_key = format!(
+            "{}-{}-{}",
+            message::KEX_ONE_MSIG,
+            String::from(&v_orid),
+            vendor
+        );
         let m_kex_final = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
         let v_kex_final = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
         kex_final_prep.push(String::from(&m_kex_final));
@@ -1751,7 +1864,8 @@ fn send_kex_final_req(
             String::from(&w_orid),
         );
         if local_kex_final == utils::empty_string() {
-            let kex_out = monero::exchange_multisig_keys(false, kex_final_prep, &wallet_password).await;
+            let kex_out =
+                monero::exchange_multisig_keys(false, kex_final_prep, &wallet_password).await;
             monero::close_wallet(&w_orid, &wallet_password).await;
             let ref_kex_info: &String = &kex_out.result.address;
             if String::from(ref_kex_info) != utils::empty_string() {
@@ -1781,14 +1895,14 @@ fn send_kex_final_req(
         if v_kex_final == utils::empty_string() {
             log::debug!(
                 "constructing vendor {} msig messages",
-                message::KEX_ONE_MSIG
+                message::KEX_TWO_MSIG
             );
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: v_kex_final_send,
                 init_mediator: false,
                 kex_init: false,
-                msig_type: String::from(message::KEX_ONE_MSIG),
+                msig_type: String::from(message::KEX_TWO_MSIG),
                 orid: String::from(v_orid),
             };
             let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
@@ -1796,14 +1910,14 @@ fn send_kex_final_req(
         if m_kex_final == utils::empty_string() {
             log::debug!(
                 "constructing mediator {} msig messages",
-                message::KEX_ONE_MSIG
+                message::KEX_TWO_MSIG
             );
             let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: m_kex_final_send,
                 init_mediator: false,
-                kex_init: true,
-                msig_type: String::from(message::KEX_ONE_MSIG),
+                kex_init: false,
+                msig_type: String::from(message::KEX_TWO_MSIG),
                 orid: String::from(m_orid),
             };
             let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
@@ -1813,9 +1927,25 @@ fn send_kex_final_req(
     ctx.request_repaint();
 }
 
+fn set_order_address(orid: &String, tx: Sender<reqres::XmrRpcAddressResponse>, ctx: egui::Context) {
+    let order_id = String::from(orid);
+    tokio::spawn(async move {
+        let wallet_password = utils::empty_string();
+        monero::open_wallet(&order_id, &wallet_password).await;
+        let address: reqres::XmrRpcAddressResponse = monero::get_address().await;
+        monero::close_wallet(&order_id, &wallet_password).await;
+        let _ = tx.send(address);
+        ctx.request_repaint();
+    });
+}
 // End Async fn requests
 
-fn validate_msig_step(mediator: &String, orid: &String, vendor: &String, sub_type: &String) -> bool {
+fn validate_msig_step(
+    mediator: &String,
+    orid: &String,
+    vendor: &String,
+    sub_type: &String,
+) -> bool {
     let s = db::Interface::open();
     let m_msig_key = format!("{}-{}-{}", sub_type, orid, mediator);
     let v_msig_key = format!("{}-{}-{}", sub_type, orid, vendor);
