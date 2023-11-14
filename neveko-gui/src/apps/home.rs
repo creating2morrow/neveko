@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 use eframe::egui;
+use egui::RichText;
 use image::Luma;
 use neveko_core::*;
 use qrcode::QrCode;
@@ -397,6 +398,14 @@ impl eframe::App for HomeApp {
             if self.connections.is_i2p_advanced {
                 str_i2p_status = String::from("remote proxy");
             }
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new("⚠ Experimental Multisig ⚠")
+                        .small()
+                        .color(ui.visuals().warn_fg_color),
+                )
+                .on_hover_text("monero multisig is experimental and usage of neveko may lead to loss of funds.");
+            });
             ui.horizontal(|ui| {
                 self.logo_i2p.show(ui);
                 ui.horizontal(|ui| {

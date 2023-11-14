@@ -197,7 +197,7 @@ pub async fn request_shipment(
 ///
 /// vendor's subaddress. After that the vendor will submit the
 ///
-/// transaction and return the encrypted delivery information.
+/// transaction.
 ///
 /// Protected: true
 #[post("/finalize/<orid>")]

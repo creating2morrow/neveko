@@ -57,6 +57,9 @@ pub struct MarketApp {
     get_vendor_product_rx: Receiver<models::Product>,
     is_loading: bool,
     is_ordering: bool,
+    is_order_funded: bool,
+    order_funded_tx: Sender<bool>,
+    order_funded_rx: Receiver<bool>,
     is_order_qr_set: bool,
     is_pinging: bool,
     is_customer_viewing_orders: bool,
@@ -124,6 +127,7 @@ impl Default for MarketApp {
         let (our_prepare_info_tx, our_prepare_info_rx) = std::sync::mpsc::channel();
         let (our_make_info_tx, our_make_info_rx) = std::sync::mpsc::channel();
         let (order_xmr_address_tx, order_xmr_address_rx) = std::sync::mpsc::channel();
+        let (order_funded_tx, order_funded_rx) = std::sync::mpsc::channel();
         let contents = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
         MarketApp {
             contact_info_rx,
@@ -140,6 +144,9 @@ impl Default for MarketApp {
             is_loading: false,
             is_managing_multisig: false,
             is_ordering: false,
+            is_order_funded: false,
+            order_funded_rx,
+            order_funded_tx,
             is_order_qr_set: false,
             is_pinging: false,
             is_product_image_set: false,
@@ -278,6 +285,11 @@ impl eframe::App for MarketApp {
                 self.is_showing_order_qr = true;
             }
         }
+
+        if let Ok(funded) = self.order_funded_rx.try_recv() {
+            self.is_order_funded = funded;
+        }
+        
         // Vendor status window
         //-----------------------------------------------------------------------------------
         let mut is_showing_vendor_status = self.is_showing_vendor_status;
@@ -550,6 +562,15 @@ impl eframe::App for MarketApp {
                             // is the wallet multisig completed?
                             // the customer doesn't pay fees on orders
                             // ensure the balance of the order wallet matches the order total
+                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                            let contact =
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                            verify_order_wallet_funded(
+                                &contact,
+                                &self.m_order.orid,
+                                self.order_funded_tx.clone(),
+                                ctx.clone()
+                            )
                         }
                     });
                 }
@@ -1440,7 +1461,7 @@ fn send_product_from_vendor_req(
         let result = product::get_vendor_product(contact, jwp, pid).await;
         if result.is_ok() {
             let product: models::Product = result.unwrap();
-            log::info!("retreived product {}", &product.pid);
+            log::info!("retrieved product {}", &product.pid);
             let _ = tx.send(product);
             ctx.request_repaint();
         }
@@ -1935,6 +1956,41 @@ fn set_order_address(orid: &String, tx: Sender<reqres::XmrRpcAddressResponse>, c
         let address: reqres::XmrRpcAddressResponse = monero::get_address().await;
         monero::close_wallet(&order_id, &wallet_password).await;
         let _ = tx.send(address);
+        ctx.request_repaint();
+    });
+}
+
+fn verify_order_wallet_funded(contact: &String, orid: &String, tx: Sender<bool>, ctx: egui::Context) {
+    let order_id = String::from(orid);
+    let l_contact = String::from(contact);
+    tokio::spawn(async move {
+        let wallet_password = utils::empty_string();
+        monero::open_wallet(&order_id, &wallet_password).await;
+        let pre_bal = monero::get_balance().await;
+        let is_msig_res = monero::is_multisig().await;
+        if !is_msig_res.result.multisig || !is_msig_res.result.ready {
+            let _ = tx.send(false);
+            return;
+        }
+        monero::close_wallet(&order_id, &wallet_password).await;
+        let order = order::find(&order_id);
+        let vendor = String::from(&l_contact);
+        let v_jwp: String =
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
+        let opid = String::from(&order.pid);
+        let result = product::get_vendor_product(vendor, v_jwp, opid).await;
+        if !result.is_ok() {
+            let _ = tx.send(false);
+            return;
+        }
+        let product: models::Product = result.unwrap();
+        log::info!("retrieved product {}", &product.pid);
+        let total = &order.quantity & &product.price;
+        if pre_bal.result.balance < total {
+            let _ = tx.send(false);
+            return;
+        }
+        let _ = tx.send(true);
         ctx.request_repaint();
     });
 }
