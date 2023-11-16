@@ -1,3 +1,4 @@
+use egui::RichText;
 use image::Luma;
 use neveko_core::*;
 use qrcode::QrCode;
@@ -9,6 +10,7 @@ use std::sync::mpsc::{
 pub struct MultisigManagement {
     pub completed_kex_init: bool,
     pub completed_kex_final: bool,
+    pub completed_export: bool,
     pub completed_funding: bool,
     pub completed_prepare: bool,
     pub completed_make: bool,
@@ -28,6 +30,7 @@ impl Default for MultisigManagement {
         MultisigManagement {
             completed_kex_init: false,
             completed_kex_final: false,
+            completed_export: false,
             completed_funding: false,
             completed_prepare: false,
             completed_make: false,
@@ -57,7 +60,6 @@ pub struct MarketApp {
     get_vendor_product_rx: Receiver<models::Product>,
     is_loading: bool,
     is_ordering: bool,
-    is_order_funded: bool,
     order_funded_tx: Sender<bool>,
     order_funded_rx: Receiver<bool>,
     is_order_qr_set: bool,
@@ -144,7 +146,6 @@ impl Default for MarketApp {
             is_loading: false,
             is_managing_multisig: false,
             is_ordering: false,
-            is_order_funded: false,
             order_funded_rx,
             order_funded_tx,
             is_order_qr_set: false,
@@ -287,7 +288,7 @@ impl eframe::App for MarketApp {
         }
 
         if let Ok(funded) = self.order_funded_rx.try_recv() {
-            self.is_order_funded = funded;
+            self.msig.completed_funding = funded;
         }
         
         // Vendor status window
@@ -574,9 +575,34 @@ impl eframe::App for MarketApp {
                         }
                     });
                 }
+                // if self.msig.completed_funding && !self.msig.completed_export {
+                //     ui.horizontal(|ui| {
+                //         ui.label("Export Info: \t\t\t\t");
+                //         if ui.button("Export").clicked() {
+                //             self.is_loading = true;
+                //             let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                //             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                //             let mediator =
+                //                 utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                //             let vendor =
+                //                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                //             // not much orchestration here afaik, just send the output to the other participants
+                //             // TODO(c2m): 'idk remember why this tx.clone() is being reused' but not nothing breaks for now...
+                //             send_export_info_req(
+                //                 self.our_make_info_tx.clone(),
+                //                 ctx.clone(),
+                //                 mediator,
+                //                 &self.m_order.orid.clone(),
+                //                 vendor,
+                //             )
+                //         }
+                //         if ui.button("Check").clicked() {}
+                //     });
+                // }
+                // TODO(c2m): there is no API that orchestrates importing the info after customer collects it
                 // ui.horizontal(|ui| {
-                //     ui.label("Export Info: \t\t\t\t");
-                //     if ui.button("Export").clicked() {}
+                //     ui.label("Import Info: \t");
+                //     if ui.button("Update").clicked() {}
                 // });
                 // ui.horizontal(|ui| {
                 //     ui.label("Release Payment: \t");
@@ -1296,6 +1322,14 @@ impl eframe::App for MarketApp {
         // Market Dashboard Main window
         //-----------------------------------------------------------------------------------
         egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new("⚠ Experimental Multisig ⚠")
+                        .small()
+                        .color(ui.visuals().warn_fg_color),
+                )
+                .on_hover_text("monero multisig is experimental and usage of neveko may lead to loss of funds.");
+            });
             if ui.button("Refresh").clicked() {
                 self.products = product::find_all();
                 self.orders = order::find_all();
@@ -1966,6 +2000,7 @@ fn verify_order_wallet_funded(contact: &String, orid: &String, tx: Sender<bool>,
     tokio::spawn(async move {
         let wallet_password = utils::empty_string();
         monero::open_wallet(&order_id, &wallet_password).await;
+        let _ = monero::refresh().await;
         let pre_bal = monero::get_balance().await;
         let is_msig_res = monero::is_multisig().await;
         if !is_msig_res.result.multisig || !is_msig_res.result.ready {
@@ -1993,6 +2028,90 @@ fn verify_order_wallet_funded(contact: &String, orid: &String, tx: Sender<bool>,
         let _ = tx.send(true);
         ctx.request_repaint();
     });
+}
+
+fn send_export_info_req(
+    tx: Sender<String>,
+    ctx: egui::Context,
+    mediator: String,
+    orid: &String,
+    vendor: String,
+) {
+    let m_orid: String = String::from(orid);
+    let v_orid: String = String::from(orid);
+    let w_orid: String = String::from(orid);
+    tokio::spawn(async move {
+        let m_jwp: String =
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
+        let v_jwp: String =
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
+        let wallet_password = utils::empty_string();
+        monero::create_wallet(&w_orid, &wallet_password).await;
+        let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
+        if !m_wallet {
+            log::error!("failed to open wallet");
+            monero::close_wallet(&w_orid, &wallet_password).await;
+            let _ = tx.send(utils::empty_string());
+            return;
+        }
+
+        let export_info = monero::export_multisig_info().await;
+        let ref_export_info: &String = &export_info.result.info;
+        utils::write_gui_db(
+            String::from(crate::GUI_MSIG_EXPORT_DB_KEY),
+            String::from(&w_orid),
+            String::from(ref_export_info),
+        );
+        // Request mediator and vendor while we're at it
+        // Will coordinating send this on make requests next
+        let s = db::Interface::async_open().await;
+        let m_msig_key = format!(
+            "{}-{}-{}",
+            message::EXPORT_MSIG,
+            String::from(&m_orid),
+            mediator
+        );
+        let v_msig_key = format!(
+            "{}-{}-{}",
+            message::EXPORT_MSIG,
+            String::from(&v_orid),
+            vendor
+        );
+        let m_export = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_export = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
+        if v_export == utils::empty_string() {
+            log::debug!(
+                "constructing vendor {} msig messages",
+                message::EXPORT_MSIG
+            );
+            let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
+                contact: i2p::get_destination(None),
+                info: Vec::new(),
+                init_mediator: false,
+                kex_init: false,
+                msig_type: String::from(message::EXPORT_MSIG),
+                orid: String::from(v_orid),
+            };
+            let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
+        }
+        if m_export == utils::empty_string() {
+            log::debug!(
+                "constructing mediator {} msig messages",
+                message::EXPORT_MSIG
+            );
+            let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
+                contact: i2p::get_destination(None),
+                info: Vec::new(),
+                init_mediator: false,
+                kex_init: false,
+                msig_type: String::from(message::EXPORT_MSIG),
+                orid: String::from(m_orid),
+            };
+            let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
+        }
+        let _ = tx.send(String::from(ref_export_info));
+    });
+    ctx.request_repaint();
 }
 // End Async fn requests
 

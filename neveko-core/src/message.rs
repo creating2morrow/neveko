@@ -21,6 +21,7 @@ use std::error::Error;
 pub const KEX_ONE_MSIG: &str = "kexone";
 pub const KEX_TWO_MSIG: &str = "kextwo";
 pub const EXPORT_MSIG: &str = "export";
+pub const IMPORT_MSIG: &str = "import";
 pub const MAKE_MSIG: &str = "make";
 pub const PREPARE_MSIG: &str = "prepare";
 pub const SIGN_MSIG: &str = "sign";
@@ -594,6 +595,8 @@ pub async fn send_export_info(orid: &String, contact: &String) {
     monero::close_wallet(&orid, &wallet_password).await;
     create(j_message, jwp, MessageType::Multisig).await;
 }
+
+// TODO: import multisig_info
 
 /// Customer begins multisig orchestration by requesting the prepare info
 ///

@@ -492,6 +492,7 @@ impl Order {
         Order {
             orid,
             cid: String::from(&o.cid),
+            // fml, the mediator .b32 isn't getting sent to vendor on order creation TODO(c2m): fix it
             pid: String::from(&o.pid),
             cust_kex_1: String::from(&o.cust_kex_1),
             cust_kex_2: String::from(&o.cust_kex_2),

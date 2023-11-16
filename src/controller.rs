@@ -136,6 +136,8 @@ pub async fn retrieve_order(
 }
 
 /// Send multisig info for contact's order
+/// 
+/// TODO: import info too
 ///
 /// Protected: true
 #[post("/", data = "<r_info>")]

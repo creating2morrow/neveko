@@ -19,7 +19,8 @@ pub const GUI_TX_SUBADDRESS_DB_KEY: &str = "gui-txp-subaddress";
 
 pub const GUI_MSIG_KEX_ONE_DB_KEY:  &str = "gui-kex-1";
 pub const GUI_MSIG_KEX_TWO_DB_KEY:  &str = "gui-kex-2";
-pub const GUI_MSIG_INFO_DB_KEY:     &str = "gui-info";
+pub const GUI_MSIG_EXPORT_DB_KEY:   &str = "gui-export";
+pub const GUI_MSIG_IMPORT_DB_KEY:   &str = "gui-import";
 pub const GUI_MSIG_MAKE_DB_KEY:     &str = "gui-make";
 pub const GUI_MSIG_MEDIATOR_DB_KEY: &str = "gui-mediator";
 pub const GUI_MSIG_PREPARE_DB_KEY:  &str = "gui-prepare";
