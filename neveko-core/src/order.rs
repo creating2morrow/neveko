@@ -19,7 +19,7 @@ use log::{
 };
 use rocket::serde::json::Json;
 
-enum StatusType {
+pub enum StatusType {
     _Cancelled,
     Delivered,
     MultisigMissing,
@@ -74,18 +74,21 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     monero::close_wallet(&orid, &order_wallet_password).await;
     monero::enable_experimental_multisig(&orid);
     debug!("insert order: {:?}", &new_order);
-    let s = db::Interface::open();
+    let s = db::Interface::async_open().await;
+    // inject mediator separately, modifying the order model is mendokusai
+    let mediator_k = format!("{}-{}", crate::MEDIATOR_DB_KEY, &orid);
+    db::Interface::async_write(&s.env, &s.handle, &mediator_k, &j_order.mediator).await;
     let k = &new_order.orid;
-    db::Interface::write(&s.env, &s.handle, k, &Order::to_db(&new_order));
+    db::Interface::async_write(&s.env, &s.handle, k, &Order::to_db(&new_order)).await;
     // in order to retrieve all orders, write keys to with ol
     let list_key = crate::ORDER_LIST_DB_KEY;
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
+    let r = db::Interface::async_read(&s.env, &s.handle, &String::from(list_key)).await;
     if r == utils::empty_string() {
         debug!("creating order index");
     }
     let order_list = [r, String::from(&orid)].join(",");
     debug!("writing order index {} for id: {}", order_list, list_key);
-    db::Interface::write(&s.env, &s.handle, &String::from(list_key), &order_list);
+    db::Interface::async_write(&s.env, &s.handle, &String::from(list_key), &order_list).await;
     new_order
 }
 

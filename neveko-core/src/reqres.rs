@@ -1179,6 +1179,7 @@ impl Default for ErrorResponse {
 #[serde(crate = "rocket::serde")]
 pub struct OrderRequest {
     pub cid: String,
+    pub mediator: String,
     pub pid: String,
     pub ship_address: Vec<u8>,
     pub quantity: u128,
@@ -1188,6 +1189,7 @@ impl Default for OrderRequest {
     fn default() -> Self {
         OrderRequest {
             cid: utils::empty_string(),
+            mediator: utils::empty_string(),
             pid: utils::empty_string(),
             ship_address: Vec::new(),
             quantity: 0,

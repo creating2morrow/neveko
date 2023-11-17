@@ -340,6 +340,7 @@ pub fn product_to_json(m: &models::Product) -> Json<models::Product> {
 pub fn order_to_json(o: &reqres::OrderRequest) -> Json<reqres::OrderRequest> {
     let r_order: reqres::OrderRequest = reqres::OrderRequest {
         cid: String::from(&o.cid),
+        mediator: String::from(&o.mediator),
         pid: String::from(&o.pid),
         ship_address: o.ship_address.iter().cloned().collect(),
         quantity: o.quantity,

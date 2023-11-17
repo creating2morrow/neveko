@@ -100,6 +100,7 @@ NEVidebla-EKOnomia (invisible economy)
     * can be overriden with remote node
     * use the `--remote-node` flag
 * [monero-wallet-rpc](https://www.getmonero.org/downloads/#cli) - (not included) interface for xmr wallet ops
+* [monero-wallet-cli](https://www.getmonero.org/downloads/#cli) - enable experimental multisig
 * [i2p-zero](https://github.com/creating2morrow/i2p-zero/releases/tag/v1.21-neveko) - (not included) tunnel creation and http proxy
 
 most of the complex logic stays in neveko-core, exported from [lib.rs](./neveko-core/src/lib.rs)

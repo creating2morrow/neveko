@@ -7,7 +7,7 @@ use crate::{
     models::*,
     monero,
     reqres,
-    utils,
+    utils, order,
 };
 use log::{
     debug,
@@ -596,7 +596,28 @@ pub async fn send_export_info(orid: &String, contact: &String) {
     create(j_message, jwp, MessageType::Multisig).await;
 }
 
-// TODO: import multisig_info
+/// The customer or vendor (dispute only) needs to export
+/// 
+/// multisig info after funding. Once the info is imported
+/// 
+/// successfully the order needs to be updated to `MultisigComplete`.
+pub async fn send_import_info(orid: &String, info: &Vec<String>) {
+    let wallet_name = String::from(orid);
+    let wallet_password = utils::empty_string();
+    monero::open_wallet(&wallet_name, &wallet_password).await;
+    let pre_import = monero::import_multisig_info(info.to_vec()).await;
+    monero::close_wallet(&orid, &wallet_password).await;
+    if pre_import.result.n_outputs == 0 {
+        error!("unable to import multisig info for order: {}", orid);
+        return;
+    }
+    let mut old_order = order::find(orid);
+    let status = order::StatusType::MulitsigComplete.value();
+    old_order.status = String::from(&status);
+    let j_old_order = Json(old_order);
+    order::modify(j_old_order);
+    debug!("order: {} updated to: {}", orid, status);
+}
 
 /// Customer begins multisig orchestration by requesting the prepare info
 ///

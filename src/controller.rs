@@ -136,8 +136,6 @@ pub async fn retrieve_order(
 }
 
 /// Send multisig info for contact's order
-/// 
-/// TODO: import info too
 ///
 /// Protected: true
 #[post("/", data = "<r_info>")]
@@ -156,6 +154,8 @@ pub async fn get_multisig_info(
         message::send_make_info(&r_info.orid, &r_info.contact, info).await;
     } else if r_info.msig_type == String::from(message::EXPORT_MSIG) {
         message::send_export_info(&r_info.orid, &r_info.contact).await;
+    } else if r_info.msig_type == String::from(message::EXPORT_MSIG) {
+        message::send_import_info(&r_info.orid, &r_info.info).await;
     } else {
         message::send_exchange_info(&r_info.orid, &r_info.contact, info, r_info.kex_init).await;
     }

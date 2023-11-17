@@ -345,7 +345,7 @@ impl eframe::App for MarketApp {
                 }
             });
 
-        // Multisig Management window
+        // Customer Multisig Management window
         //-----------------------------------------------------------------------------------
         let mut is_managing_multisig = self.is_managing_multisig;
         egui::Window::new("msig")
@@ -575,43 +575,42 @@ impl eframe::App for MarketApp {
                         }
                     });
                 }
-                // if self.msig.completed_funding && !self.msig.completed_export {
-                //     ui.horizontal(|ui| {
-                //         ui.label("Export Info: \t\t\t\t");
-                //         if ui.button("Export").clicked() {
-                //             self.is_loading = true;
-                //             let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
-                //             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                //             let mediator =
-                //                 utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
-                //             let vendor =
-                //                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
-                //             // not much orchestration here afaik, just send the output to the other participants
-                //             // TODO(c2m): 'idk remember why this tx.clone() is being reused' but not nothing breaks for now...
-                //             send_export_info_req(
-                //                 self.our_make_info_tx.clone(),
-                //                 ctx.clone(),
-                //                 mediator,
-                //                 &self.m_order.orid.clone(),
-                //                 vendor,
-                //             )
-                //         }
-                //         if ui.button("Check").clicked() {}
-                //     });
-                // }
-                // TODO(c2m): there is no API that orchestrates importing the info after customer collects it
-                // ui.horizontal(|ui| {
-                //     ui.label("Import Info: \t");
-                //     if ui.button("Update").clicked() {}
-                // });
-                // ui.horizontal(|ui| {
-                //     ui.label("Release Payment: \t");
-                //     if ui.button("Sign Txset").clicked() {}
-                // });
-                // ui.horizontal(|ui| {
-                //     ui.label("Create Dispute: \t\t");
-                //     if ui.button("Dispute").clicked() {}
-                // });
+                if self.msig.completed_funding && !self.msig.completed_export {
+                    ui.horizontal(|ui| {
+                        ui.label("Export Info: \t\t\t\t");
+                        if ui.button("Export").clicked() {
+                            self.is_loading = true;
+                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                            let mediator =
+                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let vendor =
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                            // not much orchestration here afaik, just send the output to the other participants
+                            // TODO(c2m): 'idk remember why this tx.clone() is being reused' but not nothing breaks for now...
+                            send_import_info_req(
+                                self.our_make_info_tx.clone(),
+                                ctx.clone(),
+                                mediator,
+                                &self.m_order.orid.clone(),
+                                vendor,
+                            )
+                        }
+                        if ui.button("Check").clicked() {}
+                    });
+                }
+                ui.horizontal(|ui| {
+                    ui.label("Import Info: \t");
+                    if ui.button("Update").clicked() {}
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Release Payment: \t");
+                    if ui.button("Sign Txset").clicked() {}
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Create Dispute: \t\t");
+                    if ui.button("Dispute").clicked() {}
+                });
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
                     self.is_managing_multisig = false;
@@ -748,8 +747,12 @@ impl eframe::App for MarketApp {
                     ui.add(egui::Spinner::new());
                     ui.label("loading...");
                 }
-                ui.label(format!("cid: {}", self.new_order.cid));
-                ui.label(format!("pid: {}", self.new_order.pid));
+                let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                let mediator =
+                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                ui.label(format!("customer id: {}", self.new_order.cid));
+                ui.label(format!("mediator id: {}", mediator));
+                ui.label(format!("product id: {}", self.new_order.pid));
                 ui.horizontal(|ui| {
                     let shipping_name = ui.label("shipping address: ");
                     ui.text_edit_singleline(&mut self.new_order_shipping_address)
@@ -779,6 +782,8 @@ impl eframe::App for MarketApp {
                             gpg::encrypt(self.vendor_status.i2p.clone(), &address_bytes);
                         let new_order = reqres::OrderRequest {
                             cid: String::from(&self.new_order.cid),
+                            // TODO: inject mediator for vendor dispute handling
+                            mediator: String::from(&mediator),
                             pid: String::from(&self.new_order.pid),
                             ship_address: encrypted_shipping_address.unwrap_or(Vec::new()),
                             quantity: qty,
@@ -2030,7 +2035,7 @@ fn verify_order_wallet_funded(contact: &String, orid: &String, tx: Sender<bool>,
     });
 }
 
-fn send_export_info_req(
+fn send_import_info_req(
     tx: Sender<String>,
     ctx: egui::Context,
     mediator: String,
@@ -2046,7 +2051,6 @@ fn send_export_info_req(
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
         let wallet_password = utils::empty_string();
-        monero::create_wallet(&w_orid, &wallet_password).await;
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
             log::error!("failed to open wallet");
@@ -2054,7 +2058,6 @@ fn send_export_info_req(
             let _ = tx.send(utils::empty_string());
             return;
         }
-
         let export_info = monero::export_multisig_info().await;
         let ref_export_info: &String = &export_info.result.info;
         utils::write_gui_db(
@@ -2089,7 +2092,7 @@ fn send_export_info_req(
                 info: Vec::new(),
                 init_mediator: false,
                 kex_init: false,
-                msig_type: String::from(message::EXPORT_MSIG),
+                msig_type: String::from(message::IMPORT_MSIG),
                 orid: String::from(v_orid),
             };
             let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;

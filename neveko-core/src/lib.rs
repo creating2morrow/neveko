@@ -34,6 +34,7 @@ pub const PRODUCT_LIST_DB_KEY:          &str = "pl";
 pub const RX_MESSAGE_DB_KEY:            &str = "rx";
 pub const FTS_DB_KEY:                   &str = "fts"; 
 pub const CUSTOMER_ORDER_LIST_DB_KEY:   &str = "olc";
+pub const MEDIATOR_DB_KEY:              &str = "med8";
 pub const MSIG_MESSAGE_DB_KEY:          &str = "msig";
 pub const MSIG_MESSAGE_LIST_DB_KEY:     &str = "msigl";
 pub const FTS_JWP_DB_KEY:               &str = "fts-jwp";
