@@ -580,37 +580,41 @@ impl eframe::App for MarketApp {
                         ui.label("Export Info: \t\t\t\t");
                         if ui.button("Export").clicked() {
                             self.is_loading = true;
-                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                            let mediator =
-                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
-                            // not much orchestration here afaik, just send the output to the other participants
+                            // not much orchestration here afaik, just send the output to the vendor
                             // TODO(c2m): 'idk remember why this tx.clone() is being reused' but not nothing breaks for now...
                             send_import_info_req(
                                 self.our_make_info_tx.clone(),
                                 ctx.clone(),
-                                mediator,
                                 &self.m_order.orid.clone(),
                                 vendor,
                             )
                         }
-                        if ui.button("Check").clicked() {}
+                        if ui.button("Check").clicked() {
+                            let info = utils::search_gui_db(
+                                String::from(crate::GUI_MSIG_EXPORT_DB_KEY),
+                                String::from(&self.m_order.orid.clone()),
+                            );
+                            if info != utils::empty_string() {
+                                self.msig.completed_export = true;
+                            }
+                        }
                     });
                 }
-                ui.horizontal(|ui| {
-                    ui.label("Import Info: \t");
-                    if ui.button("Update").clicked() {}
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Release Payment: \t");
-                    if ui.button("Sign Txset").clicked() {}
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Create Dispute: \t\t");
-                    if ui.button("Dispute").clicked() {}
-                });
+                // ui.horizontal(|ui| {
+                //     ui.label("Import Info: \t");
+                //     if ui.button("Update").clicked() {}
+                // });
+                // ui.horizontal(|ui| {
+                //     ui.label("Release Payment: \t");
+                //     if ui.button("Sign Txset").clicked() {}
+                // });
+                // ui.horizontal(|ui| {
+                //     ui.label("Create Dispute: \t\t");
+                //     if ui.button("Dispute").clicked() {}
+                // });
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
                     self.is_managing_multisig = false;
@@ -2038,16 +2042,12 @@ fn verify_order_wallet_funded(contact: &String, orid: &String, tx: Sender<bool>,
 fn send_import_info_req(
     tx: Sender<String>,
     ctx: egui::Context,
-    mediator: String,
     orid: &String,
     vendor: String,
 ) {
-    let m_orid: String = String::from(orid);
     let v_orid: String = String::from(orid);
     let w_orid: String = String::from(orid);
     tokio::spawn(async move {
-        let m_jwp: String =
-            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
         let wallet_password = utils::empty_string();
@@ -2065,22 +2065,15 @@ fn send_import_info_req(
             String::from(&w_orid),
             String::from(ref_export_info),
         );
-        // Request mediator and vendor while we're at it
+        // Request vendor while we're at it
         // Will coordinating send this on make requests next
         let s = db::Interface::async_open().await;
-        let m_msig_key = format!(
-            "{}-{}-{}",
-            message::EXPORT_MSIG,
-            String::from(&m_orid),
-            mediator
-        );
         let v_msig_key = format!(
             "{}-{}-{}",
             message::EXPORT_MSIG,
             String::from(&v_orid),
             vendor
         );
-        let m_export = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
         let v_export = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
         if v_export == utils::empty_string() {
             log::debug!(
@@ -2096,21 +2089,6 @@ fn send_import_info_req(
                 orid: String::from(v_orid),
             };
             let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
-        }
-        if m_export == utils::empty_string() {
-            log::debug!(
-                "constructing mediator {} msig messages",
-                message::EXPORT_MSIG
-            );
-            let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-                contact: i2p::get_destination(None),
-                info: Vec::new(),
-                init_mediator: false,
-                kex_init: false,
-                msig_type: String::from(message::EXPORT_MSIG),
-                orid: String::from(m_orid),
-            };
-            let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
         }
         let _ = tx.send(String::from(ref_export_info));
     });
@@ -2129,7 +2107,7 @@ fn validate_msig_step(
     let v_msig_key = format!("{}-{}-{}", sub_type, orid, vendor);
     let m_info = db::Interface::read(&s.env, &s.handle, &m_msig_key);
     let v_info = db::Interface::read(&s.env, &s.handle, &v_msig_key);
-    log::debug!("mediator info: {}", &m_info);
-    log::debug!("vendor info: {}", &v_info);
+    log::debug!("{} mediator info: {}", sub_type, &m_info);
+    log::debug!("{} vendor info: {}", sub_type, &v_info);
     m_info != utils::empty_string() && v_info != utils::empty_string()
 }
