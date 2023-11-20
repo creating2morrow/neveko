@@ -289,6 +289,7 @@ impl eframe::App for MarketApp {
 
         if let Ok(funded) = self.order_funded_rx.try_recv() {
             self.msig.completed_funding = funded;
+            self.is_loading = false;
         }
         
         // Vendor status window
@@ -563,6 +564,7 @@ impl eframe::App for MarketApp {
                             // is the wallet multisig completed?
                             // the customer doesn't pay fees on orders
                             // ensure the balance of the order wallet matches the order total
+                            self.is_loading = true;
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let contact =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
@@ -603,10 +605,6 @@ impl eframe::App for MarketApp {
                         }
                     });
                 }
-                // ui.horizontal(|ui| {
-                //     ui.label("Import Info: \t");
-                //     if ui.button("Update").clicked() {}
-                // });
                 // ui.horizontal(|ui| {
                 //     ui.label("Release Payment: \t");
                 //     if ui.button("Sign Txset").clicked() {}
@@ -2058,7 +2056,9 @@ fn send_import_info_req(
             let _ = tx.send(utils::empty_string());
             return;
         }
+        let mut info: Vec<String> = Vec::new();
         let export_info = monero::export_multisig_info().await;
+        info.push(String::from(&export_info.result.info));
         let ref_export_info: &String = &export_info.result.info;
         utils::write_gui_db(
             String::from(crate::GUI_MSIG_EXPORT_DB_KEY),
@@ -2082,7 +2082,7 @@ fn send_import_info_req(
             );
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
-                info: Vec::new(),
+                info,
                 init_mediator: false,
                 kex_init: false,
                 msig_type: String::from(message::IMPORT_MSIG),
