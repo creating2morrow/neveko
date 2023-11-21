@@ -265,8 +265,10 @@ impl eframe::App for AddressBookApp {
                 ui.label(format!("pay to: {}", address));
                 ui.label(format!("amount: {} piconero(s)", amount));
                 ui.label(format!("expiration: {} blocks", expire));
+                let show_approve = self.s_invoice.address != utils::empty_string()
+                    && self.can_transfer && !self.is_estimating_fee;
                 if !self.is_loading {
-                    if self.s_invoice.address != utils::empty_string() && self.can_transfer {
+                    if show_approve {
                         if ui.button("Approve").clicked() {
                             // activate xmr "transfer", check the hash, update db and refresh
                             // Note it is simply disabled on insufficient funds as calcd by fee
@@ -289,6 +291,7 @@ impl eframe::App for AddressBookApp {
                 if ui.button("Exit").clicked() {
                     self.approve_payment = false;
                     self.is_loading = false;
+                    self.is_approving_jwp = false;
                 }
             });
 
@@ -329,6 +332,7 @@ impl eframe::App for AddressBookApp {
                     && self.status.txp == utils::empty_string()
                 {
                     if ui.button("Create JWP").clicked() {
+                        self.s_invoice = Default::default();
                         send_invoice_req(
                             self.invoice_tx.clone(),
                             ctx.clone(),
@@ -388,6 +392,7 @@ impl eframe::App for AddressBookApp {
                 if ui.button("Exit").clicked() {
                     self.showing_status = false;
                     self.is_loading = false;
+                    self.is_approving_jwp = false;
                 }
             });
 
