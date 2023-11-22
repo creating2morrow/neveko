@@ -521,6 +521,11 @@ pub struct XmrRpcIsMultisigResult {
     pub total: u16,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcGetHeightResult {
+    pub height: u64
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct XmrDaemonGetInfoResult {
     pub adjusted_time: u64,
@@ -1104,6 +1109,21 @@ impl Default for XmrRpcIsMultisigResponse {
         }
     }
 }
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcGetHeightResponse {
+    pub result: XmrRpcGetHeightResult,
+}
+
+impl Default for XmrRpcGetHeightResponse {
+    fn default() -> Self {
+        XmrRpcGetHeightResponse {
+            result: XmrRpcGetHeightResult {
+                height: 0,
+            },
+        }
+    }
+}
 // END XMR Structs
 
 /// Container for the message decryption
@@ -1248,7 +1268,7 @@ impl Default for SignAndSubmitRequest {
 #[serde(crate = "rocket::serde")]
 pub struct FinalizeOrderResponse {
     pub orid: String,
-    /// This is encrypted by the vendors NEVEKO gpg key
+    /// This is encrypted by the customer NEVEKO gpg key
     pub delivery_info: Vec<u8>,
 }
 

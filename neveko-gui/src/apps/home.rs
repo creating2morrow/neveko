@@ -16,6 +16,7 @@ use std::{
 pub struct HomeApp {
     /// blocks fetched during last wallet refresh
     blocks_fetched: u64,
+    wallet_height: u64,
     connections: utils::Connections,
     core_timeout_tx: Sender<bool>,
     core_timeout_rx: Receiver<bool>,
@@ -45,6 +46,8 @@ pub struct HomeApp {
     xmr_rpc_ver_rx: Receiver<reqres::XmrRpcVersionResponse>,
     can_refresh_tx: Sender<bool>,
     can_refresh_rx: Receiver<bool>,
+    wallet_height_tx: Sender<reqres::XmrRpcGetHeightResponse>,
+    wallet_height_rx: Receiver<reqres::XmrRpcGetHeightResponse>,
     wallet_refresh_tx: Sender<reqres::XmrRpcRefreshResponse>,
     wallet_refresh_rx: Receiver<reqres::XmrRpcRefreshResponse>,
     pub qr: egui_extras::RetainedImage,
@@ -81,6 +84,7 @@ impl Default for HomeApp {
         let (xmr_address_tx, xmr_address_rx) = std::sync::mpsc::channel();
         let (xmr_balance_tx, xmr_balance_rx) = std::sync::mpsc::channel();
         let (wallet_refresh_tx, wallet_refresh_rx) = std::sync::mpsc::channel();
+        let (wallet_height_tx, wallet_height_rx) = std::sync::mpsc::channel();
         let (can_refresh_tx, can_refresh_rx) = std::sync::mpsc::channel();
         let (i2p_status_tx, i2p_status_rx) = std::sync::mpsc::channel();
         let (installation_tx, installation_rx) = std::sync::mpsc::channel();
@@ -97,6 +101,7 @@ impl Default for HomeApp {
         let c_i2p_logo = std::fs::read("./assets/i2p.png").unwrap_or(Vec::new());
         let logo_i2p =
             egui_extras::RetainedImage::from_image_bytes("./assets/i2p.png", &c_i2p_logo).unwrap();
+        let wallet_height = 0;
         Self {
             blocks_fetched,
             connections,
@@ -128,6 +133,9 @@ impl Default for HomeApp {
             can_refresh_rx,
             can_refresh_tx,
             qr: egui_extras::RetainedImage::from_image_bytes("qr.png", &contents).unwrap(),
+            wallet_height,
+            wallet_height_rx,
+            wallet_height_tx,
             wallet_refresh_rx,
             wallet_refresh_tx,
             // state of self defaults
@@ -152,6 +160,9 @@ impl eframe::App for HomeApp {
         }
         if let Ok(address) = self.xmr_address_rx.try_recv() {
             self.s_xmr_address = address;
+        }
+        if let Ok(wallet_height) = self.wallet_height_rx.try_recv() {
+            self.wallet_height = wallet_height.result.height;
         }
         if let Ok(wallet_refresh) = self.wallet_refresh_rx.try_recv() {
             self.blocks_fetched = wallet_refresh.result.blocks_fetched;
@@ -373,6 +384,7 @@ impl eframe::App for HomeApp {
                         self.xmr_address_tx.clone(),
                         self.xmr_balance_tx.clone(),
                         self.wallet_refresh_tx.clone(),
+                        self.wallet_height_tx.clone(),
                         ctx.clone()
                     );
                     send_i2p_status_req(self.i2p_status_tx.clone(), ctx.clone());
@@ -415,14 +427,17 @@ impl eframe::App for HomeApp {
                 self.logo_xmr.show(ui);
                 let address = &self.s_xmr_address.result.address;
                 let blocks_fetched = self.blocks_fetched;
+                let height = self.wallet_height;
                 let unlocked_balance = self.s_xmr_balance.result.unlocked_balance;
                 let locked_balance = self.s_xmr_balance.result.balance - unlocked_balance;
                 let unlock_time = self.s_xmr_balance.result.blocks_to_unlock * crate::BLOCK_TIME_IN_SECS_EST;
                 let xmrd_info: &reqres::XmrDaemonGetInfoResult = &self.s_xmrd_get_info.result;
+                let sync = if xmrd_info.height != 0 { (height / xmrd_info.height) * 100 } else { 0 };
                 let free_space = xmrd_info.free_space / crate::BYTES_IN_GB;
                 let db_size = xmrd_info.database_size / crate::BYTES_IN_GB;
-                ui.label(format!("- rpc version: {}\n- blocks fetched: {}\n- address: {}\n- balance: {} piconero(s)\n- locked balance: {} piconero(s)\n- unlock time (secs): {}\n- daemon info\n\t- net type: {}\n\t- current hash: {}\n\t- height: {}\n\t- synced: {}\n\t- blockchain size : ~{} GB\n\t- free space : ~{} GB\n\t- version: {}\n", 
-                    self.s_xmr_rpc_ver.result.version, blocks_fetched, address, unlocked_balance, locked_balance,
+                let ver = self.s_xmr_rpc_ver.result.version;
+                ui.label(format!("- rpc version: {}\n- height: {}%\n- blocks fetched: {}\n- address: {}\n- balance: {} piconero(s)\n- locked balance: {} piconero(s)\n- unlock time (secs): {}\n- daemon info\n\t- net type: {}\n\t- current hash: {}\n\t- height: {}\n\t- synced: {}\n\t- blockchain size : ~{} GB\n\t- free space : ~{} GB\n\t- version: {}\n", 
+                    ver, sync, blocks_fetched, address, unlocked_balance, locked_balance,
                     unlock_time, xmrd_info.nettype, xmrd_info.top_block_hash, xmrd_info.height, xmrd_info.synchronized,
                     db_size, free_space, xmrd_info.version));
             });
@@ -482,6 +497,7 @@ fn send_wallet_req(
     address_tx: Sender<reqres::XmrRpcAddressResponse>,
     balance_tx: Sender<reqres::XmrRpcBalanceResponse>,
     wallet_refresh_tx: Sender<reqres::XmrRpcRefreshResponse>,
+    wallet_height_tx: Sender<reqres::XmrRpcGetHeightResponse>,
     ctx: egui::Context,
 ) {
     tokio::spawn(async move {
@@ -490,13 +506,14 @@ fn send_wallet_req(
             std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
         monero::open_wallet(&wallet_name, &wallet_password).await;
         let address: reqres::XmrRpcAddressResponse = monero::get_address().await;
-        // hope this fixes wallet not refreshing on initial startup bug
         let refresh: reqres::XmrRpcRefreshResponse = monero::refresh().await;
         let balance: reqres::XmrRpcBalanceResponse = monero::get_balance().await;
+        let wallet_height: reqres::XmrRpcGetHeightResponse = monero::get_wallet_height().await;
         monero::close_wallet(&wallet_name, &wallet_password).await;
         let _ = address_tx.send(address);
         let _ = balance_tx.send(balance);
         let _ = wallet_refresh_tx.send(refresh);
+        let _ = wallet_height_tx.send(wallet_height);
         ctx.request_repaint();
     });
 }

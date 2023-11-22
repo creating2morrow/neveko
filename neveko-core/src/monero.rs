@@ -74,6 +74,7 @@ enum RpcFields {
     DescribeTransfer,
     ExchangeMultisigKeys,
     Export,
+    GetHeight,
     GetTxProof,
     GetTxById,
     GetVersion,
@@ -105,6 +106,7 @@ impl RpcFields {
             RpcFields::DescribeTransfer => String::from("describe_transfer"),
             RpcFields::ExchangeMultisigKeys => String::from("exchange_multisig_keys"),
             RpcFields::Export => String::from("export_multisig_info"),
+            RpcFields::GetHeight => String::from("get_height"),
             RpcFields::GetTxProof => String::from("get_tx_proof"),
             RpcFields::GetTxById => String::from("get_transfer_by_txid"),
             RpcFields::GetVersion => String::from("get_version"),
@@ -1229,6 +1231,34 @@ pub async fn is_multisig() -> reqres::XmrRpcIsMultisigResponse {
     }
 }
 
+pub async fn get_wallet_height() -> reqres::XmrRpcGetHeightResponse {
+    info!("executing wallet {}", RpcFields::GetHeight.value());
+    let client = reqwest::Client::new();
+    let host = get_rpc_host();
+    let req = reqres::XmrRpcRequest {
+        jsonrpc: RpcFields::JsonRpcVersion.value(),
+        id: RpcFields::Id.value(),
+        method: RpcFields::GetHeight.value(),
+    };
+    let login: RpcLogin = get_rpc_creds();
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrRpcGetHeightResponse>().await;
+            debug!("{} response: {:?}", RpcFields::GetHeight.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_) => Default::default(),
+    }
+}
+
 // Daemon requests
 //-------------------------------------------------------------------
 
@@ -1425,6 +1455,8 @@ pub async fn p_get_transactions(
         Err(_) => Ok(Default::default()),
     }
 }
+
+// End XMR daemon methods
 
 /// enable multisig - `monero-wallet-cli --password <> --wallet-file <> set
 /// enable-multisig-experimental 1`
