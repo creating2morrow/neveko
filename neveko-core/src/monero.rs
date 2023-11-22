@@ -68,6 +68,7 @@ enum RpcFields {
     Address,
     Balance,
     CheckTxProof,
+    ChangeWalletPassword,
     Close,
     CreateAddress,
     CreateWallet,
@@ -99,6 +100,7 @@ impl RpcFields {
         match *self {
             RpcFields::Address => String::from("get_address"),
             RpcFields::Balance => String::from("get_balance"),
+            RpcFields::ChangeWalletPassword => String::from("change_wallet_password"),
             RpcFields::CheckTxProof => String::from("check_tx_proof"),
             RpcFields::Close => String::from("close_wallet"),
             RpcFields::CreateAddress => String::from("create_address"),
@@ -576,6 +578,49 @@ pub async fn close_wallet(filename: &String, password: &String) -> bool {
             debug!("{} response: {:?}", RpcFields::Close.value(), res);
             match res {
                 Ok(_) => true,
+                _ => false,
+            }
+        }
+        Err(_) => false,
+    }
+}
+
+/// Performs the xmr rpc 'change_wallet_password' method
+pub async fn change_wallet_password(new_password: &String) -> bool {
+    info!("executing {}", RpcFields::ChangeWalletPassword.value());
+    let old_password: String = 
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    let new_password: String = String::from(new_password);
+    let client = reqwest::Client::new();
+    let host = get_rpc_host();
+    let params = reqres::XmrRpcChangePasswordParams {
+        old_password,
+        new_password,
+    };
+    let req = reqres::XmrRpcChangePasswordRequest {
+        jsonrpc: RpcFields::JsonRpcVersion.value(),
+        id: RpcFields::Id.value(),
+        method: RpcFields::ChangeWalletPassword.value(),
+        params,
+    };
+    let login: RpcLogin = get_rpc_creds();
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
+        Ok(response) => {
+            // The result from wallet operation is empty
+            let res = response.text().await;
+            debug!("{} response: {:?}", RpcFields::ChangeWalletPassword.value(), res);
+            match res {
+                Ok(r) => {
+                    if r.contains("-1") {
+                        return false;
+                    }
+                    return true;
+                }
                 _ => false,
             }
         }

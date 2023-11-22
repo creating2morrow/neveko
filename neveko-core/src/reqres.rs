@@ -146,6 +146,12 @@ pub struct XmrDaemonGetBlockParams {
     pub height: u64,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcChangePasswordParams {
+    pub old_password: String,
+    pub new_password: String,
+}
+
 // requests
 #[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcValidateAddressRequest {
@@ -302,6 +308,14 @@ pub struct XmrRpcCreateAddressRequest {
     pub id: String,
     pub method: String,
     pub params: XmrRpcCreateAddressParams,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcChangePasswordRequest {
+    pub jsonrpc: String,
+    pub id: String,
+    pub method: String,
+    pub params: XmrRpcChangePasswordParams,
 }
 
 // results
