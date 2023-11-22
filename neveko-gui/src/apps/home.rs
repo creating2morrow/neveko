@@ -436,7 +436,7 @@ impl eframe::App for HomeApp {
                 let free_space = xmrd_info.free_space / crate::BYTES_IN_GB;
                 let db_size = xmrd_info.database_size / crate::BYTES_IN_GB;
                 let ver = self.s_xmr_rpc_ver.result.version;
-                ui.label(format!("- rpc version: {}\n- height: {}%\n- blocks fetched: {}\n- address: {}\n- balance: {} piconero(s)\n- locked balance: {} piconero(s)\n- unlock time (secs): {}\n- daemon info\n\t- net type: {}\n\t- current hash: {}\n\t- height: {}\n\t- synced: {}\n\t- blockchain size : ~{} GB\n\t- free space : ~{} GB\n\t- version: {}\n", 
+                ui.label(format!("- rpc version: {}\n- wallet sync: {}%\n- blocks fetched: {}\n- address: {}\n- balance: {} piconero(s)\n- locked balance: {} piconero(s)\n- unlock time (secs): {}\n- daemon info\n\t- net type: {}\n\t- current hash: {}\n\t- height: {}\n\t- synced: {}\n\t- blockchain size : ~{} GB\n\t- free space : ~{} GB\n\t- version: {}\n", 
                     ver, sync, blocks_fetched, address, unlocked_balance, locked_balance,
                     unlock_time, xmrd_info.nettype, xmrd_info.top_block_hash, xmrd_info.height, xmrd_info.synchronized,
                     db_size, free_space, xmrd_info.version));
