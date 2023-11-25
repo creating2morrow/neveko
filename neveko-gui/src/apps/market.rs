@@ -13,6 +13,7 @@ pub struct MultisigManagement {
     pub completed_export: bool,
     pub completed_funding: bool,
     pub completed_prepare: bool,
+    pub completed_shipping_request: bool,
     pub completed_make: bool,
     pub exchange_multisig_keys: String,
     pub export_info: String,
@@ -33,6 +34,7 @@ impl Default for MultisigManagement {
             completed_export: false,
             completed_funding: false,
             completed_prepare: false,
+            completed_shipping_request: false,
             completed_make: false,
             exchange_multisig_keys: utils::empty_string(),
             export_info: utils::empty_string(),
@@ -291,7 +293,7 @@ impl eframe::App for MarketApp {
             self.msig.completed_funding = funded;
             self.is_loading = false;
         }
-        
+
         // Vendor status window
         //-----------------------------------------------------------------------------------
         let mut is_showing_vendor_status = self.is_showing_vendor_status;
@@ -394,6 +396,7 @@ impl eframe::App for MarketApp {
                         }
                     }
                 });
+                // msig mgmt gaurds
                 if !self.msig.completed_prepare {
                     ui.horizontal(|ui| {
                         ui.label("Prepare:  \t\t\t\t\t");
@@ -572,7 +575,7 @@ impl eframe::App for MarketApp {
                                 &contact,
                                 &self.m_order.orid,
                                 self.order_funded_tx.clone(),
-                                ctx.clone()
+                                ctx.clone(),
                             )
                         }
                     });
@@ -586,7 +589,8 @@ impl eframe::App for MarketApp {
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                             // not much orchestration here afaik, just send the output to the vendor
-                            // TODO(c2m): 'idk remember why this tx.clone() is being reused' but not nothing breaks for now...
+                            // TODO(c2m): 'idk remember why this tx.clone() is being reused' but not
+                            // nothing breaks for now...
                             send_import_info_req(
                                 self.our_make_info_tx.clone(),
                                 ctx.clone(),
@@ -603,6 +607,19 @@ impl eframe::App for MarketApp {
                                 self.msig.completed_export = true;
                             }
                         }
+                    });
+                }
+
+                // TODO: implement SOR (secure order retrieval) validate order is MultisigComplete
+                //       cache the new order and then implement the async shipping request
+                //       use SOR to cache the order and validate order is status Shipped
+                //       also the sign api is missing hahaha
+
+                if self.msig.completed_export && !self.msig.completed_shipping_request {
+                    ui.horizontal(|ui| {
+                        ui.label("Request Shipping: \t");
+                        if ui.button("Send").clicked() {}
+                        if ui.button("Check").clicked() {}
                     });
                 }
                 // ui.horizontal(|ui| {
@@ -750,8 +767,7 @@ impl eframe::App for MarketApp {
                     ui.label("loading...");
                 }
                 let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
-                let mediator =
-                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                let mediator = utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
                 ui.label(format!("customer id: {}", self.new_order.cid));
                 ui.label(format!("mediator id: {}", mediator));
                 ui.label(format!("product id: {}", self.new_order.pid));
@@ -2001,7 +2017,12 @@ fn set_order_address(orid: &String, tx: Sender<reqres::XmrRpcAddressResponse>, c
     });
 }
 
-fn verify_order_wallet_funded(contact: &String, orid: &String, tx: Sender<bool>, ctx: egui::Context) {
+fn verify_order_wallet_funded(
+    contact: &String,
+    orid: &String,
+    tx: Sender<bool>,
+    ctx: egui::Context,
+) {
     let order_id = String::from(orid);
     let l_contact = String::from(contact);
     tokio::spawn(async move {
@@ -2037,12 +2058,7 @@ fn verify_order_wallet_funded(contact: &String, orid: &String, tx: Sender<bool>,
     });
 }
 
-fn send_import_info_req(
-    tx: Sender<String>,
-    ctx: egui::Context,
-    orid: &String,
-    vendor: String,
-) {
+fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, vendor: String) {
     let v_orid: String = String::from(orid);
     let w_orid: String = String::from(orid);
     tokio::spawn(async move {
@@ -2076,10 +2092,7 @@ fn send_import_info_req(
         );
         let v_export = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
         if v_export == utils::empty_string() {
-            log::debug!(
-                "constructing vendor {} msig messages",
-                message::EXPORT_MSIG
-            );
+            log::debug!("constructing vendor {} msig messages", message::EXPORT_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info,

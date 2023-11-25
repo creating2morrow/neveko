@@ -176,9 +176,9 @@ pub async fn rx_multisig_message(
 
 /// Customer can request shipment after the wallet is funded
 ///
-/// with the amount of the order. The vendor will then request export
+/// with the amount of the order. The vendor will then  check
 ///
-/// multisig info, check balance and sanity check `unlock_time`.
+/// balance and sanity check `unlock_time`.
 ///
 /// Protected: true
 #[post("/ship/<orid>")]

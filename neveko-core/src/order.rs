@@ -8,6 +8,7 @@ use crate::{
     message,
     models::*,
     monero,
+    order,
     product,
     reqres,
     utils,
@@ -192,8 +193,8 @@ pub fn modify(o: Json<Order>) -> Order {
     }
     let u_order = Order::update(String::from(&f_order.orid), &o);
     let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, &u_order.pid);
-    db::Interface::write(&s.env, &s.handle, &u_order.pid, &Order::to_db(&u_order));
+    db::Interface::delete(&s.env, &s.handle, &u_order.orid);
+    db::Interface::write(&s.env, &s.handle, &u_order.orid, &Order::to_db(&u_order));
     return u_order;
 }
 
@@ -253,26 +254,17 @@ pub async fn validate_order_for_ship(orid: &String) -> bool {
     let m_product: Product = product::find(&m_order.pid);
     let price = m_product.price;
     let total = price * m_order.quantity;
-    // import multisig info
-    let s = db::Interface::open();
-    let key = format!("export-{}-{}", orid, &m_order.cid);
-    let info_str = db::Interface::async_read(&s.env, &s.handle, &key).await;
-    let info_split = info_str.split(":");
-    let v_info: Vec<String> = info_split.map(|s| String::from(s)).collect();
     let wallet_password = utils::empty_string();
     monero::open_wallet(&orid, &wallet_password).await;
-    let r_import = monero::import_multisig_info(v_info).await;
     // check balance and unlock_time
     let r_balance = monero::get_balance().await;
     monero::close_wallet(&orid, &wallet_password).await;
     // update the order status to multisig complete
-    let ready_to_ship: bool = r_import.result.n_outputs > 0
-        && r_balance.result.balance >= total as u128
+    let ready_to_ship: bool = r_balance.result.balance >= total as u128
         && r_balance.result.blocks_to_unlock < monero::LockTimeLimit::Blocks.value();
     if ready_to_ship {
-        m_order.status = StatusType::MulitsigComplete.value();
-        db::Interface::async_delete(&s.env, &s.handle, &m_order.orid).await;
-        db::Interface::async_write(&s.env, &s.handle, &m_order.orid, &Order::to_db(&m_order)).await;
+        m_order.status = StatusType::Shipped.value();
+        order::modify(Json(m_order));
     }
     ready_to_ship
 }

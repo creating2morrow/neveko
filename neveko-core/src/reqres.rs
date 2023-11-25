@@ -537,7 +537,7 @@ pub struct XmrRpcIsMultisigResult {
 
 #[derive(Deserialize, Debug)]
 pub struct XmrRpcGetHeightResult {
-    pub height: u64
+    pub height: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1132,9 +1132,7 @@ pub struct XmrRpcGetHeightResponse {
 impl Default for XmrRpcGetHeightResponse {
     fn default() -> Self {
         XmrRpcGetHeightResponse {
-            result: XmrRpcGetHeightResult {
-                height: 0,
-            },
+            result: XmrRpcGetHeightResult { height: 0 },
         }
     }
 }

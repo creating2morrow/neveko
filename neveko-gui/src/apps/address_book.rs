@@ -266,7 +266,8 @@ impl eframe::App for AddressBookApp {
                 ui.label(format!("amount: {} piconero(s)", amount));
                 ui.label(format!("expiration: {} blocks", expire));
                 let show_approve = self.s_invoice.address != utils::empty_string()
-                    && self.can_transfer && !self.is_estimating_fee;
+                    && self.can_transfer
+                    && !self.is_estimating_fee;
                 if !self.is_loading {
                     if show_approve {
                         if ui.button("Approve").clicked() {

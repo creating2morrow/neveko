@@ -6,8 +6,9 @@ use crate::{
     i2p,
     models::*,
     monero,
+    order,
     reqres,
-    utils, order,
+    utils,
 };
 use log::{
     debug,
@@ -597,9 +598,9 @@ pub async fn send_export_info(orid: &String, contact: &String) {
 }
 
 /// The customer or vendor (dispute only) needs to export
-/// 
+///
 /// multisig info after funding. Once the info is imported
-/// 
+///
 /// successfully the order needs to be updated to `MultisigComplete`.
 pub async fn send_import_info(orid: &String, info: &Vec<String>) {
     let wallet_name = String::from(orid);

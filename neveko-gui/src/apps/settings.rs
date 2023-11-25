@@ -3,7 +3,10 @@ use sha2::{
     Digest,
     Sha512,
 };
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::{
+    Receiver,
+    Sender,
+};
 
 use crate::CREDENTIAL_KEY;
 
@@ -68,7 +71,11 @@ impl eframe::App for SettingsApp {
                     let result = hasher.finalize();
                     db::Interface::write(&s.env, &s.handle, &k, &hex::encode(&result[..]));
                     // update wallet rpc
-                    change_wallet_password(self.change_wallet_password_tx.clone(), &self.credential, ctx.clone());
+                    change_wallet_password(
+                        self.change_wallet_password_tx.clone(),
+                        &self.credential,
+                        ctx.clone(),
+                    );
                     self.credential = utils::empty_string();
                 }
             });

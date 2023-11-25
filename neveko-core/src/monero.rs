@@ -87,6 +87,7 @@ enum RpcFields {
     Open,
     Prepare,
     Refresh,
+    Sign,
     SignMultisig,
     SubmitMultisig,
     SweepAll,
@@ -120,6 +121,7 @@ impl RpcFields {
             RpcFields::Open => String::from("open_wallet"),
             RpcFields::Prepare => String::from("prepare_multisig"),
             RpcFields::Refresh => String::from("refresh"),
+            RpcFields::Sign => String::from("sign"),
             RpcFields::SignMultisig => String::from("sign_multisig"),
             RpcFields::SubmitMultisig => String::from("submit_multisig"),
             RpcFields::SweepAll => String::from("sweep_all"),
@@ -588,7 +590,7 @@ pub async fn close_wallet(filename: &String, password: &String) -> bool {
 /// Performs the xmr rpc 'change_wallet_password' method
 pub async fn change_wallet_password(new_password: &String) -> bool {
     info!("executing {}", RpcFields::ChangeWalletPassword.value());
-    let old_password: String = 
+    let old_password: String =
         std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
     let new_password: String = String::from(new_password);
     let client = reqwest::Client::new();
@@ -613,7 +615,11 @@ pub async fn change_wallet_password(new_password: &String) -> bool {
         Ok(response) => {
             // The result from wallet operation is empty
             let res = response.text().await;
-            debug!("{} response: {:?}", RpcFields::ChangeWalletPassword.value(), res);
+            debug!(
+                "{} response: {:?}",
+                RpcFields::ChangeWalletPassword.value(),
+                res
+            );
             match res {
                 Ok(r) => {
                     if r.contains("-1") {
