@@ -4,13 +4,15 @@ use crate::{
     contact,
     db,
     gpg,
-    i2p,
     message,
     models::*,
     monero,
     order,
     product,
-    reqres,
+    reqres::{
+        self,
+        FinalizeOrderResponse,
+    },
     utils,
 };
 use log::{
@@ -98,6 +100,7 @@ pub fn backup(order: &Order) {
     info!("creating backup of order: {}", order.orid);
     let s = db::Interface::open();
     let k = &order.orid;
+    db::Interface::delete(&s.env, &s.handle, k);
     db::Interface::write(&s.env, &s.handle, k, &Order::to_db(&order));
     // in order to retrieve all orders, write keys to with col
     let list_key = crate::CUSTOMER_ORDER_LIST_DB_KEY;
@@ -222,6 +225,7 @@ pub async fn sign_and_submit_multisig(
 ///
 /// the details of said order.
 pub async fn secure_retrieval(orid: &String, signature: &String) -> Order {
+    info!("secure order retrieval for {}", orid);
     // get customer address for NEVEKO NOT order wallet
     let m_order: Order = find(&orid);
     let mut xmr_address: String = String::new();
@@ -248,12 +252,14 @@ pub async fn secure_retrieval(orid: &String, signature: &String) -> Order {
 /// Check for import multisig info, validate block time and that the
 ///
 /// order wallet has been funded properly. Update the order to multisig complete
-pub async fn validate_order_for_ship(orid: &String) -> bool {
+pub async fn validate_order_for_ship(orid: &String) -> reqres::FinalizeOrderResponse {
     info!("validating order for shipment");
-    let mut m_order: Order = find(orid);
+    let m_order: Order = find(orid);
+    let delivery_info: Vec<u8> = hex::decode(&m_order.ship_address).unwrap();
+    let mut j_order: Order = find(orid);
     let m_product: Product = product::find(&m_order.pid);
     let price = m_product.price;
-    let total = price * m_order.quantity;
+    let total = price * &m_order.quantity;
     let wallet_password = utils::empty_string();
     monero::open_wallet(&orid, &wallet_password).await;
     // check balance and unlock_time
@@ -263,10 +269,13 @@ pub async fn validate_order_for_ship(orid: &String) -> bool {
     let ready_to_ship: bool = r_balance.result.balance >= total as u128
         && r_balance.result.blocks_to_unlock < monero::LockTimeLimit::Blocks.value();
     if ready_to_ship {
-        m_order.status = StatusType::Shipped.value();
-        order::modify(Json(m_order));
+        j_order.status = StatusType::Shipped.value();
+        order::modify(Json(j_order));
     }
-    ready_to_ship
+    reqres::FinalizeOrderResponse {
+        orid: String::from(orid),
+        delivery_info,
+    }
 }
 
 /// Write encrypted delivery info to lmdb. Once the customer releases the signed
@@ -274,23 +283,30 @@ pub async fn validate_order_for_ship(orid: &String) -> bool {
 ///
 /// they will have access to this information (tracking number, locker code,
 /// etc.)
-pub async fn upload_delivery_info(orid: &String, delivery_info: &Vec<u8>) {
+pub async fn upload_delivery_info(
+    orid: &String,
+    delivery_info: &Vec<u8>,
+) -> reqres::FinalizeOrderResponse {
     info!("uploading delivery info");
-    let name = i2p::get_destination(None);
-    let e_delivery_info: Vec<u8> = gpg::encrypt(name, &delivery_info).unwrap_or(Vec::new());
+    let lookup: Order = order::find(orid);
+    let e_delivery_info: Vec<u8> = gpg::encrypt(lookup.cid, &delivery_info).unwrap_or(Vec::new());
     if e_delivery_info.is_empty() {
         error!("unable to encrypt delivery info");
     }
-    // write delivery info {delivery}-{order id}
-    let s = db::Interface::async_open().await;
-    let k = format!("delivery-{}", orid);
-    let data = hex::encode(e_delivery_info);
-    db::Interface::async_write(&s.env, &s.handle, &k, &data).await;
+    // get draft payment txset
+    let sweep: reqres::XmrRpcSweepAllResponse =
+        monero::sweep_all(String::from(&lookup.subaddress)).await;
     // update the order
     let mut m_order: Order = find(orid);
     m_order.status = StatusType::Shipped.value();
-    db::Interface::async_delete(&s.env, &s.handle, &m_order.orid).await;
-    db::Interface::async_write(&s.env, &s.handle, &m_order.orid, &Order::to_db(&m_order)).await;
+    m_order.deliver_date = chrono::offset::Utc::now().timestamp();
+    m_order.ship_address = delivery_info.to_vec();
+    m_order.vend_msig_txset = sweep.result.multisig_txset;
+    modify(Json(m_order));
+    FinalizeOrderResponse {
+        delivery_info: delivery_info.to_vec(),
+        orid: String::from(orid),
+    }
 }
 
 /// The vendor will first search for an encrypted multisig message in the form
@@ -341,6 +357,7 @@ pub async fn transmit_order_request(
     jwp: String,
     request: reqres::OrderRequest,
 ) -> Result<Order, Box<dyn Error>> {
+    info!("executing trasmit_order_request");
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
@@ -364,6 +381,122 @@ pub async fn transmit_order_request(
             Ok(Default::default())
         }
     }
+}
+
+/// Send the ship request to the vendor.
+pub async fn transmit_ship_request(
+    contact: &String,
+    jwp: &String,
+    orid: &String,
+) -> Result<Order, Box<dyn Error>> {
+    info!("executing transmit_ship_request");
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    match client?
+        .post(format!("http://{}/market/ship/{}", contact, orid))
+        .header("proof", jwp)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<Order>().await;
+            debug!("ship request response: {:?}", res);
+            match res {
+                Ok(r) => Ok(r),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(e) => {
+            error!("failed to generate ship request due to: {:?}", e);
+            Ok(Default::default())
+        }
+    }
+}
+
+/// Executes GET /order/retrieve/orid/signature returning the order information
+///
+/// from the vendor.
+///
+/// see `fn secure_order_retrieval()`
+pub async fn transmit_sor_request(
+    contact: &String,
+    jwp: &String,
+    orid: &String,
+    signature: &String,
+) -> Result<Order, Box<dyn Error>> {
+    info!("executing transmit_sor_request");
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    match client?
+        .get(format!(
+            "http://{}/order/retrieve/{}/{}",
+            contact, orid, signature
+        ))
+        .header("proof", jwp)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<Order>().await;
+            debug!("order retrieve response: {:?}", res);
+            match res {
+                Ok(r) => Ok(r),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(e) => {
+            error!("failed to retrieve order due to: {:?}", e);
+            Ok(Default::default())
+        }
+    }
+}
+
+/// A decomposition trigger for the shipping request so that the logic
+///
+/// can be executed from the gui.
+pub async fn trigger_ship_request(
+    contact: &String,
+    db_key: &String,
+    jwp: &String,
+    orid: &String,
+) -> Order {
+    info!("executing trigger_ship_request");
+    let data = String::from(orid);
+    let pre_sign = monero::sign(data).await;
+    let order = transmit_sor_request(contact, jwp, orid, &pre_sign.result.signature).await;
+    // cache order request to db
+    if order.is_err() {
+        log::error!("failed to trigger shipping request");
+        return Default::default();
+    }
+    let unwrap_order: Order = order.unwrap();
+    backup(&unwrap_order);
+    let prefix = String::from(db_key);
+    utils::clear_gui_db(String::from(&prefix), String::from(orid));
+    utils::write_gui_db(prefix, String::from(orid), String::from(orid));
+    unwrap_order
+}
+
+/// Decomposition trigger for the shipping request
+pub async fn d_trigger_ship_request(
+    contact: &String,
+    jwp: &String,
+    orid: &String,
+    status: &String,
+) -> Order {
+    info!("executing d_trigger_ship_request");
+    // request shipment if the order status is MultisigComplete
+    let trigger = trigger_ship_request(contact, jwp, orid, status).await;
+    if trigger.status == order::StatusType::MulitsigComplete.value() {
+        let ship_res = transmit_ship_request(contact, jwp, orid).await;
+        if ship_res.is_err() {
+            error!("failure to decompose trigger_ship_request");
+            return Default::default();
+        }
+    }
+    trigger
 }
 
 pub async fn init_mediator_wallet(orid: &String) {

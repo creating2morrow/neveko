@@ -42,7 +42,6 @@ async fn rocket() -> _ {
                 controller::create_dispute,
                 controller::get_product,
                 controller::get_products,
-                controller::finalize_order,
                 controller::request_shipment,
             ],
         )

@@ -19,6 +19,11 @@ pub struct XmrRpcValidateAddressParams {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcSignParams {
+    pub data: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcVerifyParams {
     pub address: String,
     pub data: String,
@@ -247,6 +252,14 @@ pub struct XmrRpcExchangeMultisigKeysRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcSignRequest {
+    pub jsonrpc: String,
+    pub id: String,
+    pub method: String,
+    pub params: XmrRpcSignParams,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcVerifyRequest {
     pub jsonrpc: String,
     pub id: String,
@@ -326,6 +339,11 @@ pub struct XmrRpcValidateAddressResult {
     pub openalias_address: String,
     pub subaddress: bool,
     pub valid: bool,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcSignResult {
+    pub signature: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -766,6 +784,21 @@ impl Default for XmrDaemonGetTransactionsResponse {
     fn default() -> Self {
         XmrDaemonGetTransactionsResponse {
             txs_as_json: Vec::new(),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcSignResponse {
+    pub result: XmrRpcSignResult,
+}
+
+impl Default for XmrRpcSignResponse {
+    fn default() -> Self {
+        XmrRpcSignResponse {
+            result: XmrRpcSignResult {
+                signature: utils::empty_string(),
+            },
         }
     }
 }

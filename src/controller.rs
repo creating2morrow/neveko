@@ -178,40 +178,23 @@ pub async fn rx_multisig_message(
 ///
 /// with the amount of the order. The vendor will then  check
 ///
-/// balance and sanity check `unlock_time`.
+/// balance and sanity check `unlock_time`. The vendor also releases
+///
+/// the draft of the Msig TxSet for the customer to sign and submit
+///
+/// once they receive their order.
 ///
 /// Protected: true
 #[post("/ship/<orid>")]
 pub async fn request_shipment(
     orid: String,
     _jwp: proof::PaymentProof,
-) -> Custom<Json<models::Message>> {
-    let is_ready: bool = order::validate_order_for_ship(&orid).await;
-    if !is_ready {
-        return Custom(Status::BadRequest, Json(Default::default()));
-    }
-    Custom(Status::Ok, Json(Default::default()))
-}
-
-/// Send tx_data_hex, which is the output from signing
-///
-/// a multisig transaction from the order wallet to the
-///
-/// vendor's subaddress. After that the vendor will submit the
-///
-/// transaction.
-///
-/// Protected: true
-#[post("/finalize/<orid>")]
-pub async fn finalize_order(
-    orid: String,
-    _jwp: proof::PaymentProof,
 ) -> Custom<Json<reqres::FinalizeOrderResponse>> {
-    let is_ready: bool = order::validate_order_for_ship(&orid).await;
-    if !is_ready {
+    let finalize: reqres::FinalizeOrderResponse = order::validate_order_for_ship(&orid).await;
+    if finalize.delivery_info.is_empty() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
-    Custom(Status::Ok, Json(Default::default()))
+    Custom(Status::Ok, Json(finalize))
 }
 
 /// Create a dispute (customer)

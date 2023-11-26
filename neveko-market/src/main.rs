@@ -38,4 +38,8 @@ async fn rocket() -> _ {
             ],
         )
         .mount("/vendor/mode", routes![controller::toggle_vendor_mode])
+        .mount(
+            "/upload/delivery/info",
+            routes![controller::upload_delivery_info],
+        )
 }

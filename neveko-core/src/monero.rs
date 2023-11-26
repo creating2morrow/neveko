@@ -396,6 +396,37 @@ pub async fn check_rpc_connection() -> () {
     }
 }
 
+/// Performs the xmr rpc 'sign' method
+pub async fn sign(data: String) -> reqres::XmrRpcSignResponse {
+    info!("executing {}", RpcFields::Sign.value());
+    let client = reqwest::Client::new();
+    let host = get_rpc_host();
+    let params = reqres::XmrRpcSignParams { data };
+    let req = reqres::XmrRpcSignRequest {
+        jsonrpc: RpcFields::JsonRpcVersion.value(),
+        id: RpcFields::Id.value(),
+        method: RpcFields::Sign.value(),
+        params,
+    };
+    let login: RpcLogin = get_rpc_creds();
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrRpcSignResponse>().await;
+            debug!("{} response: {:?}", RpcFields::Sign.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_e) => Default::default(),
+    }
+}
+
 /// Performs the xmr rpc 'verify' method
 pub async fn verify(address: String, data: String, signature: String) -> bool {
     info!("executing {}", RpcFields::Verify.value());
@@ -423,13 +454,7 @@ pub async fn verify(address: String, data: String, signature: String) -> bool {
             let res = response.json::<reqres::XmrRpcVerifyResponse>().await;
             debug!("{} response: {:?}", RpcFields::Verify.value(), res);
             match res {
-                Ok(res) => {
-                    if res.result.good {
-                        true
-                    } else {
-                        false
-                    }
-                }
+                Ok(res) => res.result.good,
                 _ => false,
             }
         }

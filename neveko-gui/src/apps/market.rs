@@ -12,6 +12,7 @@ pub struct MultisigManagement {
     pub completed_kex_final: bool,
     pub completed_export: bool,
     pub completed_funding: bool,
+    pub completed_payment_release: bool,
     pub completed_prepare: bool,
     pub completed_shipping_request: bool,
     pub completed_make: bool,
@@ -33,6 +34,7 @@ impl Default for MultisigManagement {
             completed_kex_final: false,
             completed_export: false,
             completed_funding: false,
+            completed_payment_release: false,
             completed_prepare: false,
             completed_shipping_request: false,
             completed_make: false,
@@ -107,6 +109,8 @@ pub struct MarketApp {
     _refresh_on_delete_product_rx: Receiver<bool>,
     submit_order_tx: Sender<models::Order>,
     submit_order_rx: Receiver<models::Order>,
+    ship_request_tx: Sender<models::Order>,
+    ship_request_rx: Receiver<models::Order>,
     s_contact: models::Contact,
     s_order: models::Order,
     vendor_status: utils::ContactStatus,
@@ -128,6 +132,7 @@ impl Default for MarketApp {
         let (get_vendor_products_tx, get_vendor_products_rx) = std::sync::mpsc::channel();
         let (get_vendor_product_tx, get_vendor_product_rx) = std::sync::mpsc::channel();
         let (submit_order_tx, submit_order_rx) = std::sync::mpsc::channel();
+        let (ship_request_tx, ship_request_rx) = std::sync::mpsc::channel();
         let (our_prepare_info_tx, our_prepare_info_rx) = std::sync::mpsc::channel();
         let (our_make_info_tx, our_make_info_rx) = std::sync::mpsc::channel();
         let (order_xmr_address_tx, order_xmr_address_rx) = std::sync::mpsc::channel();
@@ -196,6 +201,8 @@ impl Default for MarketApp {
             _refresh_on_delete_product_rx,
             s_contact: Default::default(),
             s_order: Default::default(),
+            ship_request_rx,
+            ship_request_tx,
             submit_order_rx,
             submit_order_tx,
             vendor_status: Default::default(),
@@ -294,6 +301,13 @@ impl eframe::App for MarketApp {
             self.is_loading = false;
         }
 
+        if let Ok(shipped) = self.ship_request_rx.try_recv() {
+            if shipped.status != order::StatusType::Shipped.value() {
+                log::error!("failure to obtain shipment please contact vendor")
+            }
+            self.is_loading = false;
+        }
+
         // Vendor status window
         //-----------------------------------------------------------------------------------
         let mut is_showing_vendor_status = self.is_showing_vendor_status;
@@ -348,7 +362,7 @@ impl eframe::App for MarketApp {
                 }
             });
 
-        // Customer Multisig Management window
+        // Multisig Management window
         //-----------------------------------------------------------------------------------
         let mut is_managing_multisig = self.is_managing_multisig;
         egui::Window::new("msig")
@@ -610,22 +624,39 @@ impl eframe::App for MarketApp {
                     });
                 }
 
-                // TODO: implement SOR (secure order retrieval) validate order is MultisigComplete
-                //       cache the new order and then implement the async shipping request
-                //       use SOR to cache the order and validate order is status Shipped
-                //       also the sign api is missing hahaha
-
                 if self.msig.completed_export && !self.msig.completed_shipping_request {
                     ui.horizontal(|ui| {
+                        let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                        let vendor = utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                         ui.label("Request Shipping: \t");
-                        if ui.button("Send").clicked() {}
-                        if ui.button("Check").clicked() {}
+                        if ui.button("Send").clicked() {
+                            self.is_loading = true;
+                            let jwp = utils::search_gui_db(
+                                String::from(crate::GUI_JWP_DB_KEY),
+                                String::from(&vendor),
+                            );
+                            shipping_req(
+                                self.ship_request_tx.clone(),
+                                ctx.clone(),
+                                &self.m_order.orid,
+                                &vendor,
+                                &jwp,
+                            );
+                        }
+                        if ui.button("Check").clicked() {
+                            let order = order::find(&self.m_order.orid);
+                            if order.status == order::StatusType::Shipped.value() {
+                                self.msig.completed_shipping_request = true;
+                            }
+                        }
                     });
                 }
-                // ui.horizontal(|ui| {
-                //     ui.label("Release Payment: \t");
-                //     if ui.button("Sign Txset").clicked() {}
-                // });
+                if self.msig.completed_shipping_request && !self.msig.completed_payment_release {
+                    ui.horizontal(|ui| {
+                        ui.label("Release Payment: \t");
+                        if ui.button("Submit Txset").clicked() {}
+                    });
+                }
                 // ui.horizontal(|ui| {
                 //     ui.label("Create Dispute: \t\t");
                 //     if ui.button("Dispute").clicked() {}
@@ -2106,6 +2137,25 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
         let _ = tx.send(String::from(ref_export_info));
     });
     ctx.request_repaint();
+}
+
+fn shipping_req(
+    tx: Sender<models::Order>,
+    ctx: egui::Context,
+    orid: &String,
+    contact: &String,
+    jwp: &String,
+) {
+    let ship_orid = String::from(orid);
+    let vendor_i2p = String::from(contact);
+    let v_jwp = String::from(jwp);
+    tokio::spawn(async move {
+        log::info!("shipping order req: {}", ship_orid);
+        let db_key: String = String::from(crate::GUI_OVL_DB_KEY);
+        let order = order::d_trigger_ship_request(&vendor_i2p, &db_key, &v_jwp, &ship_orid).await;
+        let _ = tx.send(order);
+        ctx.request_repaint();
+    });
 }
 // End Async fn requests
 

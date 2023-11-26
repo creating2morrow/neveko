@@ -100,6 +100,23 @@ pub async fn sign_and_submit_multisig(
     Custom(Status::Ok, Json(Default::default()))
 }
 
+/// API for uploading delivery info in vendor mode
+///
+/// Protected: true
+#[post("/<orid>", data = "<r_data>")]
+pub async fn upload_delivery_info(
+    orid: String,
+    r_data: Json<reqres::FinalizeOrderResponse>,
+    _token: auth::BearerToken,
+) -> Custom<Json<reqres::FinalizeOrderResponse>> {
+    let upload: reqres::FinalizeOrderResponse =
+        order::upload_delivery_info(&orid, &r_data.delivery_info).await;
+    if upload.delivery_info.is_empty() {
+        return Custom(Status::BadRequest, Json(Default::default()));
+    }
+    Custom(Status::Ok, Json(upload))
+}
+
 /// toggle vendor mode
 #[get("/")]
 pub async fn toggle_vendor_mode(
