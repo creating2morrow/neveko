@@ -8,6 +8,7 @@ use lmdb::{
     Environment,
 };
 use log::{
+    info,
     debug,
     error,
 };
@@ -27,6 +28,7 @@ pub struct Interface {
 impl Interface {
     /// Instantiation of ```Environment``` and ```DbHandle```
     pub fn open() -> Self {
+        info!("excecuting lmdb open");
         let release_env = utils::get_release_env();
         let file_path = format!(
             "/home/{}/.{}/",
@@ -44,6 +46,7 @@ impl Interface {
         Interface { env, handle }
     }
     pub async fn async_open() -> Self {
+        info!("excecuting lmdb async open");
         tokio::time::sleep(std::time::Duration::from_micros(1)).await;
         self::Interface::open()
     }
@@ -51,6 +54,7 @@ impl Interface {
     ///
     /// writing multiple key value pairs.
     pub fn write(e: &Environment, h: &DbHandle, k: &str, v: &str) {
+        info!("excecuting lmdb write");
         // don't try and write empty keys
         if k.is_empty() {
             error!("can't write empty key");
@@ -71,6 +75,7 @@ impl Interface {
         }
     }
     pub async fn async_write(e: &Environment, h: &DbHandle, k: &str, v: &str) {
+        info!("excecuting lmdb async write");
         tokio::time::sleep(std::time::Duration::from_micros(1)).await;
         self::Interface::write(e, h, k, v)
     }
@@ -80,6 +85,7 @@ impl Interface {
     ///
     /// returned. NEVEKO does not currently support duplicate keys.
     pub fn read(e: &Environment, h: &DbHandle, k: &str) -> String {
+        info!("excecuting lmdb read");
         // don't try and read empty keys
         if k.is_empty() {
             error!("can't read empty key");
@@ -97,6 +103,7 @@ impl Interface {
         r
     }
     pub async fn async_read(e: &Environment, h: &DbHandle, k: &str) -> String {
+        info!("excecuting lmdb async read");
         tokio::time::sleep(std::time::Duration::from_micros(1)).await;
         self::Interface::read(e, h, k)
     }
@@ -106,6 +113,7 @@ impl Interface {
     ///
     /// error will be logged.
     pub fn delete(e: &Environment, h: &DbHandle, k: &str) {
+        info!("excecuting lmdb delete");
         // don't try and delete empty keys
         if k.is_empty() {
             error!("can't delete empty key");
@@ -123,6 +131,7 @@ impl Interface {
         }
     }
     pub async fn async_delete(e: &Environment, h: &DbHandle, k: &str) {
+        info!("excecuting lmdb async delete");
         tokio::time::sleep(std::time::Duration::from_micros(1)).await;
         self::Interface::delete(e, h, k)
     }
