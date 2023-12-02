@@ -464,7 +464,11 @@ pub async fn trigger_ship_request(
 ) -> Order {
     info!("executing trigger_ship_request");
     let data = String::from(orid);
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    monero::open_wallet(&String::from(crate::APP_NAME), &wallet_password).await;
     let pre_sign = monero::sign(data).await;
+    monero::close_wallet(&String::from(crate::APP_NAME), &wallet_password).await;
     let order = transmit_sor_request(contact, jwp, orid, &pre_sign.result.signature).await;
     // cache order request to db
     if order.is_err() {
