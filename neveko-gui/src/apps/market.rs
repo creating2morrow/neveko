@@ -627,10 +627,10 @@ impl eframe::App for MarketApp {
 
                 if self.msig.completed_export && !self.msig.completed_shipping_request {
                     ui.horizontal(|ui| {
-                        let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                        let vendor = utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                         ui.label("Request Shipping: \t");
                         if ui.button("Send").clicked() {
+                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                            let vendor = utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                             self.is_loading = true;
                             let jwp = utils::search_gui_db(
                                 String::from(crate::GUI_JWP_DB_KEY),
@@ -2058,6 +2058,7 @@ fn verify_order_wallet_funded(
     let order_id = String::from(orid);
     let l_contact = String::from(contact);
     tokio::spawn(async move {
+        log::info!("executing verify_order_wallet_funded");
         let wallet_password = utils::empty_string();
         monero::open_wallet(&order_id, &wallet_password).await;
         let _ = monero::refresh().await;
@@ -2083,6 +2084,7 @@ fn verify_order_wallet_funded(
         let total = &order.quantity & &product.price;
         if pre_bal.result.balance < total {
             let _ = tx.send(false);
+            ctx.request_repaint();
             return;
         }
         let _ = tx.send(true);
@@ -2152,8 +2154,7 @@ fn shipping_req(
     let v_jwp = String::from(jwp);
     tokio::spawn(async move {
         log::info!("shipping order req: {}", ship_orid);
-        let db_key: String = String::from(crate::GUI_OVL_DB_KEY);
-        let order = order::d_trigger_ship_request(&vendor_i2p, &db_key, &v_jwp, &ship_orid).await;
+        let order = order::d_trigger_ship_request(&vendor_i2p, &v_jwp, &ship_orid).await;
         let _ = tx.send(order);
         ctx.request_repaint();
     });

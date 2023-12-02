@@ -458,7 +458,6 @@ pub async fn transmit_sor_request(
 /// can be executed from the gui.
 pub async fn trigger_ship_request(
     contact: &String,
-    db_key: &String,
     jwp: &String,
     orid: &String,
 ) -> Order {
@@ -477,9 +476,6 @@ pub async fn trigger_ship_request(
     }
     let unwrap_order: Order = order.unwrap();
     backup(&unwrap_order);
-    let prefix = String::from(db_key);
-    utils::clear_gui_db(String::from(&prefix), String::from(orid));
-    utils::write_gui_db(prefix, String::from(orid), String::from(orid));
     unwrap_order
 }
 
@@ -488,11 +484,10 @@ pub async fn d_trigger_ship_request(
     contact: &String,
     jwp: &String,
     orid: &String,
-    status: &String,
 ) -> Order {
     info!("executing d_trigger_ship_request");
     // request shipment if the order status is MultisigComplete
-    let trigger = trigger_ship_request(contact, jwp, orid, status).await;
+    let trigger = trigger_ship_request(contact, jwp, orid).await;
     if trigger.status == order::StatusType::MulitsigComplete.value() {
         let ship_res = transmit_ship_request(contact, jwp, orid).await;
         if ship_res.is_err() {
