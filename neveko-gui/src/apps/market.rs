@@ -371,6 +371,7 @@ impl eframe::App for MarketApp {
             .vscroll(true)
             .show(ctx, |ui| {
                 ui.heading("Multisig Management");
+                ui.label(format!("Order: {}", self.m_order.orid));
                 if self.is_loading {
                     ui.add(egui::Spinner::new());
                     ui.label("msig request in progress...");
@@ -539,7 +540,7 @@ impl eframe::App for MarketApp {
                                 utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
-                            // get kex round one info from vendor and mediator
+                            // get kex round two info from vendor and mediator
                             // call make multisig and save to db
                             send_kex_final_req(
                                 self.our_make_info_tx.clone(),

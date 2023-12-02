@@ -43,6 +43,7 @@ async fn rocket() -> _ {
                 controller::get_product,
                 controller::get_products,
                 controller::request_shipment,
+                controller::retrieve_order,
             ],
         )
 }
