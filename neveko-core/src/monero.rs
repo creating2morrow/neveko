@@ -398,7 +398,7 @@ pub async fn check_rpc_connection() -> () {
 
 /// Performs the xmr rpc 'sign' method
 pub async fn sign(data: String) -> reqres::XmrRpcSignResponse {
-    info!("executing {}", RpcFields::Sign.value());
+    info!("executing {} on: {}", RpcFields::Sign.value(), &data);
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcSignParams { data };
@@ -429,7 +429,7 @@ pub async fn sign(data: String) -> reqres::XmrRpcSignResponse {
 
 /// Performs the xmr rpc 'verify' method
 pub async fn verify(address: String, data: String, signature: String) -> bool {
-    info!("executing {}", RpcFields::Verify.value());
+    info!("executing {} for sig: {} on {}", RpcFields::Verify.value(), &signature, &data);
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcVerifyParams {
@@ -852,7 +852,6 @@ pub async fn export_multisig_info() -> reqres::XmrRpcExportResponse {
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcExportResponse>().await;
-            debug!("{} response: {:?}", RpcFields::Export.value(), res);
             match res {
                 Ok(res) => res,
                 _ => Default::default(),

@@ -21,6 +21,7 @@ use log::{
     info,
 };
 use rocket::serde::json::Json;
+use serde::de;
 
 pub enum StatusType {
     _Cancelled,
@@ -108,7 +109,11 @@ pub fn backup(order: &Order) {
     if r == utils::empty_string() {
         debug!("creating customer order index");
     }
-    let order_list = [r, String::from(&order.orid)].join(",");
+    let mut order_list = [String::from(&r), String::from(&order.orid)].join(",");
+    // don't duplicate order ids when backing up updates from vendor
+    if String::from(&r).contains(&String::from(&order.orid)) {
+        order_list = r;
+    }
     debug!("writing order index {} for id: {}", order_list, list_key);
     db::Interface::write(&s.env, &s.handle, &String::from(list_key), &order_list);
 }
@@ -239,10 +244,12 @@ pub async fn secure_retrieval(orid: &String, signature: &String) -> Order {
     // send address, orid and signature to verify()
     let id: String = String::from(&m_order.orid);
     let sig: String = String::from(signature);
-    let wallet_password = utils::empty_string();
-    monero::open_wallet(&orid, &wallet_password).await;
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    let wallet_name = String::from(crate::APP_NAME);
+    monero::open_wallet(&wallet_name, &wallet_password).await;
     let is_valid_signature = monero::verify(xmr_address, id, sig).await;
-    monero::close_wallet(&orid, &wallet_password).await;
+    monero::close_wallet(&wallet_name, &wallet_password).await;
     if !is_valid_signature {
         return Default::default();
     }
@@ -255,7 +262,9 @@ pub async fn secure_retrieval(orid: &String, signature: &String) -> Order {
 pub async fn validate_order_for_ship(orid: &String) -> reqres::FinalizeOrderResponse {
     info!("validating order for shipment");
     let m_order: Order = find(orid);
-    let delivery_info: Vec<u8> = hex::decode(&m_order.ship_address).unwrap();
+    let s = db::Interface::async_open().await;
+    let k = String::from(crate::DELIVERY_INFO_DB_KEY);
+    let delivery_info: String = db::Interface::async_read(&s.env, &s.handle, &k).await;
     let mut j_order: Order = find(orid);
     let m_product: Product = product::find(&m_order.pid);
     let price = m_product.price;
@@ -274,13 +283,15 @@ pub async fn validate_order_for_ship(orid: &String) -> reqres::FinalizeOrderResp
     }
     reqres::FinalizeOrderResponse {
         orid: String::from(orid),
-        delivery_info,
+        delivery_info: hex::decode(delivery_info).unwrap_or(Vec::new()),
     }
 }
 
 /// Write encrypted delivery info to lmdb. Once the customer releases the signed
 /// txset
 ///
+/// This will also attempt to notify the customer to trigger the NASR (neveko auto-ship request).
+/// 
 /// they will have access to this information (tracking number, locker code,
 /// etc.)
 pub async fn upload_delivery_info(
@@ -294,14 +305,18 @@ pub async fn upload_delivery_info(
         error!("unable to encrypt delivery info");
     }
     // get draft payment txset
-    let sweep: reqres::XmrRpcSweepAllResponse =
+    let mut sweep: reqres::XmrRpcSweepAllResponse =
         monero::sweep_all(String::from(&lookup.subaddress)).await;
     // update the order
     let mut m_order: Order = find(orid);
     m_order.status = StatusType::Shipped.value();
-    m_order.deliver_date = chrono::offset::Utc::now().timestamp();
-    m_order.ship_address = delivery_info.to_vec();
+    m_order.ship_date = chrono::offset::Utc::now().timestamp();
+    m_order.hash = String::from(&sweep.result.tx_hash_list.remove(0));
     m_order.vend_msig_txset = sweep.result.multisig_txset;
+    // delivery info will be stored encrypted and separate from the rest of the order
+    let s = db::Interface::async_open().await;
+    let k = String::from(crate::DELIVERY_INFO_DB_KEY);
+    db::Interface::async_write(&s.env, &s.handle, &k, &hex::encode(&delivery_info)).await;
     modify(Json(m_order));
     FinalizeOrderResponse {
         delivery_info: delivery_info.to_vec(),
@@ -431,7 +446,7 @@ pub async fn transmit_sor_request(
     let client = reqwest::Client::builder().proxy(proxy).build();
     match client?
         .get(format!(
-            "http://{}/order/retrieve/{}/{}",
+            "http://{}/market/order/retrieve/{}/{}",
             contact, orid, signature
         ))
         .header("proof", jwp)

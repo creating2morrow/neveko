@@ -84,6 +84,7 @@ pub fn find(cid: &String) -> Contact {
 
 /// All contact lookup
 pub fn find_all() -> Vec<Contact> {
+    info!("looking up all contacts");
     let s = db::Interface::open();
     let list_key = crate::CONTACT_LIST_DB_KEY;
     let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));

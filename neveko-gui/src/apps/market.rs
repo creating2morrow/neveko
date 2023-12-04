@@ -624,7 +624,6 @@ impl eframe::App for MarketApp {
                         }
                     });
                 }
-
                 if self.msig.completed_export && !self.msig.completed_shipping_request {
                     ui.horizontal(|ui| {
                         ui.label("Request Shipping: \t");
