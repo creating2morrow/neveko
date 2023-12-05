@@ -22,7 +22,6 @@ use log::{
     info,
 };
 use rocket::serde::json::Json;
-use serde::de;
 
 pub enum StatusType {
     _Cancelled,
@@ -339,8 +338,15 @@ pub async fn upload_delivery_info(
         error!("unable to encrypt delivery info");
     }
     // get draft payment txset
+    let wallet_password = utils::empty_string();
+    monero::open_wallet(&orid, &wallet_password).await;
     let mut sweep: reqres::XmrRpcSweepAllResponse =
         monero::sweep_all(String::from(&lookup.subaddress)).await;
+    monero::close_wallet(&orid, &wallet_password).await;
+    if sweep.result.tx_hash_list.is_empty() {
+        error!("unable to create draft txset");
+        return Default::default();
+    }
     // update the order
     let mut m_order: Order = find(orid);
     m_order.status = StatusType::Shipped.value();
