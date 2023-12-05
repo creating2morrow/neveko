@@ -429,7 +429,12 @@ pub async fn sign(data: String) -> reqres::XmrRpcSignResponse {
 
 /// Performs the xmr rpc 'verify' method
 pub async fn verify(address: String, data: String, signature: String) -> bool {
-    info!("executing {} for sig: {} on {}", RpcFields::Verify.value(), &signature, &data);
+    info!(
+        "executing {} for sig: {} on {}",
+        RpcFields::Verify.value(),
+        &signature,
+        &data
+    );
     let client = reqwest::Client::new();
     let host = get_rpc_host();
     let params = reqres::XmrRpcVerifyParams {

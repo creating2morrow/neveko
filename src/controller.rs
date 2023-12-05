@@ -197,6 +197,28 @@ pub async fn request_shipment(
     Custom(Status::Ok, Json(finalize))
 }
 
+/// The vendor should trigger nasr once they have uploaded delivery info.
+///
+/// This will automate txset release from the customer
+///
+/// orid - `order id of the nasr`
+///
+/// vedor - `vendor's .b32.i2p`
+///
+/// Protected: true
+#[post("/ship/<vendor>/<orid>")]
+pub async fn trigger_nasr(
+    orid: String,
+    vendor: String,
+    _jwp: proof::PaymentProof,
+) -> Custom<Json<models::Order>> {
+    let order: models::Order = order::d_trigger_ship_request(&orid, &vendor).await;
+    if order.orid == utils::empty_string() {
+        return Custom(Status::BadRequest, Json(Default::default()));
+    }
+    Custom(Status::Ok, Json(order))
+}
+
 /// Create a dispute (customer)
 #[post("/create", data = "<dispute>")]
 pub async fn create_dispute(

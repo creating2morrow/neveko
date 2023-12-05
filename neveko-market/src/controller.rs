@@ -102,6 +102,8 @@ pub async fn sign_and_submit_multisig(
 
 /// API for uploading delivery info in vendor mode
 ///
+/// Attempts to trigger NASR so that and automate txset draft from vendor.
+///
 /// Protected: true
 #[post("/<orid>", data = "<r_data>")]
 pub async fn upload_delivery_info(

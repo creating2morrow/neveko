@@ -4,6 +4,7 @@ use crate::{
     contact,
     db,
     gpg,
+    i2p,
     message,
     models::*,
     monero,
@@ -287,11 +288,43 @@ pub async fn validate_order_for_ship(orid: &String) -> reqres::FinalizeOrderResp
     }
 }
 
+/// NASR (neveko auto-ship request)
+pub async fn trigger_nasr(
+    contact: &String,
+    jwp: &String,
+    orid: &String,
+) -> Result<Order, Box<dyn Error>> {
+    info!("executing trigger_nasr");
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    match client?
+        .get(format!("http://{}/ship/{}/{}", contact, orid, contact))
+        .header("proof", jwp)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<Order>().await;
+            debug!("order retrieve response: {:?}", res);
+            match res {
+                Ok(r) => Ok(r),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(e) => {
+            error!("failed to trigger due to: {:?}", e);
+            Ok(Default::default())
+        }
+    }
+}
+
 /// Write encrypted delivery info to lmdb. Once the customer releases the signed
 /// txset
 ///
-/// This will also attempt to notify the customer to trigger the NASR (neveko auto-ship request).
-/// 
+/// This will also attempt to notify the customer to trigger the NASR (neveko
+/// auto-ship request).
+///
 /// they will have access to this information (tracking number, locker code,
 /// etc.)
 pub async fn upload_delivery_info(
@@ -300,7 +333,8 @@ pub async fn upload_delivery_info(
 ) -> reqres::FinalizeOrderResponse {
     info!("uploading delivery info");
     let lookup: Order = order::find(orid);
-    let e_delivery_info: Vec<u8> = gpg::encrypt(lookup.cid, &delivery_info).unwrap_or(Vec::new());
+    let e_delivery_info: Vec<u8> =
+        gpg::encrypt(String::from(&lookup.cid), &delivery_info).unwrap_or(Vec::new());
     if e_delivery_info.is_empty() {
         error!("unable to encrypt delivery info");
     }
@@ -313,11 +347,23 @@ pub async fn upload_delivery_info(
     m_order.ship_date = chrono::offset::Utc::now().timestamp();
     m_order.hash = String::from(&sweep.result.tx_hash_list.remove(0));
     m_order.vend_msig_txset = sweep.result.multisig_txset;
-    // delivery info will be stored encrypted and separate from the rest of the order
+    // delivery info will be stored encrypted and separate from the rest of the
+    // order
     let s = db::Interface::async_open().await;
     let k = String::from(crate::DELIVERY_INFO_DB_KEY);
     db::Interface::async_write(&s.env, &s.handle, &k, &hex::encode(&delivery_info)).await;
     modify(Json(m_order));
+    // trigger nasr, this will cause the customer's neveko instance to request the
+    // txset
+    let i2p_address = i2p::get_destination(None);
+    let s = db::Interface::open();
+    // get jwp from db
+    let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &lookup.cid);
+    let jwp = db::Interface::read(&s.env, &s.handle, &k);
+    let nasr_order = trigger_nasr(&i2p_address, &jwp, orid).await;
+    if nasr_order.is_err() {
+        return Default::default();
+    }
     FinalizeOrderResponse {
         delivery_info: delivery_info.to_vec(),
         orid: String::from(orid),
@@ -471,11 +517,7 @@ pub async fn transmit_sor_request(
 /// A decomposition trigger for the shipping request so that the logic
 ///
 /// can be executed from the gui.
-pub async fn trigger_ship_request(
-    contact: &String,
-    jwp: &String,
-    orid: &String,
-) -> Order {
+pub async fn trigger_ship_request(contact: &String, jwp: &String, orid: &String) -> Order {
     info!("executing trigger_ship_request");
     let data = String::from(orid);
     let wallet_password =
@@ -495,16 +537,17 @@ pub async fn trigger_ship_request(
 }
 
 /// Decomposition trigger for the shipping request
-pub async fn d_trigger_ship_request(
-    contact: &String,
-    jwp: &String,
-    orid: &String,
-) -> Order {
+pub async fn d_trigger_ship_request(contact: &String, orid: &String) -> Order {
+    // ugh, sorry seems we need to get jwp for vendor from fts cache
+    // get jwp from db
+    let s = db::Interface::async_open().await;
+    let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
+    let jwp = db::Interface::async_read(&s.env, &s.handle, &k).await;
     info!("executing d_trigger_ship_request");
     // request shipment if the order status is MultisigComplete
-    let trigger = trigger_ship_request(contact, jwp, orid).await;
+    let trigger = trigger_ship_request(contact, &jwp, orid).await;
     if trigger.status == order::StatusType::MulitsigComplete.value() {
-        let ship_res = transmit_ship_request(contact, jwp, orid).await;
+        let ship_res = transmit_ship_request(contact, &jwp, orid).await;
         if ship_res.is_err() {
             error!("failure to decompose trigger_ship_request");
             return Default::default();

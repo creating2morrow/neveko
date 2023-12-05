@@ -8,9 +8,9 @@ use lmdb::{
     Environment,
 };
 use log::{
-    info,
     debug,
     error,
+    info,
 };
 
 use crate::utils;
