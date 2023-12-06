@@ -526,7 +526,7 @@ pub struct XmrRpcSweepAllResult {
     pub fee_list: Vec<u128>,
     pub multisig_txset: String,
     pub spent_key_images_list: Vec<KeyImageList>,
-    pub tx_hash_list: Vec<String>,
+    pub tx_hash_list: Option<Vec<String>>,
     pub unsigned_txset: String,
     pub weight_list: Vec<u128>,
 }
@@ -1097,7 +1097,7 @@ impl Default for XmrRpcSweepAllResponse {
                 fee_list: Vec::new(),
                 multisig_txset: utils::empty_string(),
                 spent_key_images_list: Vec::new(),
-                tx_hash_list: Vec::new(),
+                tx_hash_list: Some(Vec::new()),
                 unsigned_txset: utils::empty_string(),
                 weight_list: Vec::new(),
             },

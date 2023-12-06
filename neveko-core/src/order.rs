@@ -340,10 +340,11 @@ pub async fn upload_delivery_info(
     // get draft payment txset
     let wallet_password = utils::empty_string();
     monero::open_wallet(&orid, &wallet_password).await;
-    let mut sweep: reqres::XmrRpcSweepAllResponse =
+    monero::refresh().await;
+    let sweep: reqres::XmrRpcSweepAllResponse =
         monero::sweep_all(String::from(&lookup.subaddress)).await;
     monero::close_wallet(&orid, &wallet_password).await;
-    if sweep.result.tx_hash_list.is_empty() {
+    if sweep.result.multisig_txset.is_empty() {
         error!("unable to create draft txset");
         return Default::default();
     }
@@ -351,7 +352,6 @@ pub async fn upload_delivery_info(
     let mut m_order: Order = find(orid);
     m_order.status = StatusType::Shipped.value();
     m_order.ship_date = chrono::offset::Utc::now().timestamp();
-    m_order.hash = String::from(&sweep.result.tx_hash_list.remove(0));
     m_order.vend_msig_txset = sweep.result.multisig_txset;
     // delivery info will be stored encrypted and separate from the rest of the
     // order
