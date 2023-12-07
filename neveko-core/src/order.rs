@@ -289,7 +289,8 @@ pub async fn validate_order_for_ship(orid: &String) -> reqres::FinalizeOrderResp
 
 /// NASR (neveko auto-ship request)
 pub async fn trigger_nasr(
-    contact: &String,
+    customer: &String,
+    vendor: &String,
     jwp: &String,
     orid: &String,
 ) -> Result<Order, Box<dyn Error>> {
@@ -298,7 +299,7 @@ pub async fn trigger_nasr(
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
     match client?
-        .get(format!("http://{}/ship/{}/{}", contact, orid, contact))
+        .post(format!("http://{}/ship/{}/{}", &customer, vendor, orid))
         .header("proof", jwp)
         .send()
         .await
@@ -366,7 +367,7 @@ pub async fn upload_delivery_info(
     // get jwp from db
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &lookup.cid);
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
-    let nasr_order = trigger_nasr(&i2p_address, &jwp, orid).await;
+    let nasr_order = trigger_nasr(&lookup.cid, &i2p_address, &jwp, orid).await;
     if nasr_order.is_err() {
         return Default::default();
     }
