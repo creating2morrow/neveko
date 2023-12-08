@@ -206,7 +206,7 @@ pub async fn request_shipment(
 /// vedor - `vendor's .b32.i2p`
 ///
 /// Protected: true
-#[post("/ship/<vendor>/<orid>")]
+#[post("/nasr/<vendor>/<orid>")]
 pub async fn trigger_nasr(
     orid: String,
     vendor: String,

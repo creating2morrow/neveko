@@ -299,7 +299,7 @@ pub async fn trigger_nasr(
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
     match client?
-        .post(format!("http://{}/ship/{}/{}", &customer, vendor, orid))
+        .post(format!("http://{}/nasr/{}/{}", &customer, vendor, orid))
         .header("proof", jwp)
         .send()
         .await
