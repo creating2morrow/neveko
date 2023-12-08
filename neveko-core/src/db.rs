@@ -40,6 +40,8 @@ impl Interface {
             env_str = "lmdb";
         };
         let env = EnvBuilder::new()
+            // increase map size for writing the multisig txset
+            .map_size(crate::LMDB_MAPSIZE)
             .open(format!("{}/{}", file_path, env_str), 0o777)
             .expect(&format!("could not open LMDB at {}", file_path));
         let handle = env.get_default_db(DbFlags::empty()).unwrap();
