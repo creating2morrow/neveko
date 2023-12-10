@@ -212,7 +212,7 @@ pub async fn trigger_nasr(
     vendor: String,
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Order>> {
-    let order: models::Order = order::d_trigger_ship_request(&orid, &vendor).await;
+    let order: models::Order = order::d_trigger_ship_request(&vendor, &orid).await;
     if order.orid == utils::empty_string() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
