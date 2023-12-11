@@ -3,6 +3,10 @@ extern crate rocket;
 
 use neveko::*;
 use neveko_core::*;
+use rocket::data::{
+    Limits,
+    ToByteUnit,
+};
 
 // The only changes below here should be mounting new controller methods
 #[launch]
@@ -10,6 +14,7 @@ async fn rocket() -> _ {
     let config = rocket::Config {
         ident: rocket::config::Ident::none(),
         ip_header: None,
+        limits: Limits::default().limit("json", 10_i32.mebibytes()),
         port: utils::get_app_port(),
         ..rocket::Config::debug_default()
     };

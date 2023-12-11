@@ -299,7 +299,10 @@ pub async fn trigger_nasr(
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
     match client?
-        .post(format!("http://{}/market/nasr/{}/{}", &customer, vendor, orid))
+        .post(format!(
+            "http://{}/market/nasr/{}/{}",
+            &customer, vendor, orid
+        ))
         .header("proof", jwp)
         .send()
         .await
@@ -482,9 +485,7 @@ pub async fn transmit_ship_request(
     }
 }
 
-
 // TODO: sor is injecting order id instead of base 32 address FIX IT!
-
 
 /// Executes GET /order/retrieve/orid/signature returning the order information
 ///

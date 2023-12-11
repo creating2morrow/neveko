@@ -100,7 +100,7 @@ async fn find_tunnels() {
 
 /// Called on application startup for i2p tunnel creation,
 ///
-/// proxy tunnel, etc. Logs proxy status every minute.
+/// proxy tunnel, etc. Logs proxy status every 10 minutes.
 pub async fn start() {
     info!("starting i2p-zero");
     let args = args::Args::parse();
@@ -116,7 +116,8 @@ pub async fn start() {
     find_tunnels().await;
     {
         tokio::spawn(async move {
-            let tick: std::sync::mpsc::Receiver<()> = schedule_recv::periodic_ms(600000);
+            let tick: std::sync::mpsc::Receiver<()> =
+                schedule_recv::periodic_ms(crate::I2P_CONNECTIVITY_CHECK_INTERVAL);
             loop {
                 tick.recv().unwrap();
                 check_connection().await;
