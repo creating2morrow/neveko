@@ -5,7 +5,7 @@ use crate::{
     db,
     gpg,
     i2p,
-    message,
+
     models::*,
     monero,
     order,
@@ -284,6 +284,7 @@ pub async fn validate_order_for_ship(orid: &String) -> reqres::FinalizeOrderResp
     reqres::FinalizeOrderResponse {
         orid: String::from(orid),
         delivery_info: hex::decode(delivery_info).unwrap_or(Vec::new()),
+        vendor_update_success: false,
     }
 }
 
@@ -377,48 +378,21 @@ pub async fn upload_delivery_info(
     FinalizeOrderResponse {
         delivery_info: delivery_info.to_vec(),
         orid: String::from(orid),
+        vendor_update_success: false,
     }
 }
 
-/// The vendor will first search for an encrypted multisig message in the form
-///  
-/// txset-{order id}-{.b32.i2p}
+/// Vendor will very txset submission and then update the order to `Delivered`
+/// 
+/// status type. Then customer will update the status on the neveko instanced
+/// 
+/// upon a `vendor_update_success: true`  response
 pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
-    info!("finalizing order");
-    let mut m_order: Order = find(orid);
-    let s = db::Interface::async_open().await;
-    let key = format!("{}-{}-{}", message::TXSET_MSIG, orid, &m_order.cid);
-    let txset = db::Interface::async_read(&s.env, &s.handle, &key).await;
-    // describe transer to check amount, address and unlock_time
-    let wallet_password = utils::empty_string();
-    monero::open_wallet(&orid, &wallet_password).await;
-    let r_describe: reqres::XmrRpcDescribeTransferResponse =
-        monero::describe_transfer(&txset).await;
-    let m_product: Product = product::find(&m_order.pid);
-    let total: u128 = m_product.price * m_order.quantity;
-    let description: &reqres::TransferDescription = &r_describe.result.desc[0];
-    let is_valid_payment: bool = description.amount_out + description.fee >= total
-        && description.unlock_time < monero::LockTimeLimit::Blocks.value();
-    if !is_valid_payment {
-        return Default::default();
-    }
-    let r_submit: reqres::XmrRpcSubmitMultisigResponse =
-        sign_and_submit_multisig(orid, &txset).await;
-    monero::close_wallet(&orid, &wallet_password).await;
-    if r_submit.result.tx_hash_list.is_empty() {
-        return Default::default();
-    }
-    // lookup delivery info
-    let delivery_key = format!("delivery-{}", orid);
-    let r_delivery_info: String = db::Interface::async_read(&s.env, &s.handle, &delivery_key).await;
-    let delivery_info: Vec<u8> = hex::decode(r_delivery_info).unwrap_or(Vec::new());
-    // update the order
-    m_order.status = StatusType::Delivered.value();
-    db::Interface::async_delete(&s.env, &s.handle, &m_order.orid).await;
-    db::Interface::async_write(&s.env, &s.handle, &m_order.orid, &Order::to_db(&m_order)).await;
+    info!("finalizing order: {}", orid);
+
+
     reqres::FinalizeOrderResponse {
-        orid: String::from(orid),
-        delivery_info,
+        ..Default::default()
     }
 }
 
@@ -459,7 +433,7 @@ pub async fn transmit_ship_request(
     contact: &String,
     jwp: &String,
     orid: &String,
-) -> Result<Order, Box<dyn Error>> {
+) -> Result<FinalizeOrderResponse, Box<dyn Error>> {
     info!("executing transmit_ship_request");
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
@@ -471,7 +445,7 @@ pub async fn transmit_ship_request(
         .await
     {
         Ok(response) => {
-            let res = response.json::<Order>().await;
+            let res = response.json::<FinalizeOrderResponse>().await;
             debug!("ship request response: {:?}", res);
             match res {
                 Ok(r) => Ok(r),
@@ -484,8 +458,6 @@ pub async fn transmit_ship_request(
         }
     }
 }
-
-// TODO: sor is injecting order id instead of base 32 address FIX IT!
 
 /// Executes GET /order/retrieve/orid/signature returning the order information
 ///
@@ -564,6 +536,10 @@ pub async fn d_trigger_ship_request(contact: &String, orid: &String) -> Order {
             error!("failure to decompose trigger_ship_request");
             return Default::default();
         }
+        let u_ship_res = ship_res.unwrap_or(Default::default());
+        let hex_delivery_info: String = hex::encode(u_ship_res.delivery_info);
+        let key = format!("{}-{}", crate::DELIVERY_INFO_DB_KEY, orid);
+        db::Interface::write(&s.env, &s.handle, &key, &hex_delivery_info);
     }
     trigger
 }

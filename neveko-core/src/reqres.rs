@@ -1315,6 +1315,8 @@ pub struct FinalizeOrderResponse {
     pub orid: String,
     /// This is encrypted by the customer NEVEKO gpg key
     pub delivery_info: Vec<u8>,
+    /// This is used to finalize delivery confirmations
+    pub vendor_update_success: bool,
 }
 
 impl Default for FinalizeOrderResponse {
@@ -1322,6 +1324,7 @@ impl Default for FinalizeOrderResponse {
         FinalizeOrderResponse {
             orid: utils::empty_string(),
             delivery_info: Vec::new(),
+            vendor_update_success: false,
         }
     }
 }
