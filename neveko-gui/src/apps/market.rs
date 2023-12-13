@@ -57,6 +57,7 @@ pub struct MarketApp {
     contact_timeout_tx: Sender<bool>,
     contact_timeout_rx: Receiver<bool>,
     customer_orders: Vec<models::Order>,
+    decrypted_delivery_info: String,
     find_vendor: String,
     get_vendor_products_tx: Sender<Vec<models::Product>>,
     get_vendor_products_rx: Receiver<Vec<models::Product>>,
@@ -71,6 +72,7 @@ pub struct MarketApp {
     is_customer_viewing_orders: bool,
     is_managing_multisig: bool,
     is_product_image_set: bool,
+    is_showing_decrypted_delivery_info: bool,
     is_showing_products: bool,
     is_showing_product_image: bool,
     is_showing_product_update: bool,
@@ -109,6 +111,8 @@ pub struct MarketApp {
     _refresh_on_delete_product_rx: Receiver<bool>,
     submit_order_tx: Sender<models::Order>,
     submit_order_rx: Receiver<models::Order>,
+    _submit_txset_tx: Sender<bool>,
+    _submit_txset_rx: Receiver<bool>,
     // ship_request_tx: Sender<models::Order>,
     // ship_request_rx: Receiver<models::Order>,
     s_contact: models::Contact,
@@ -137,6 +141,7 @@ impl Default for MarketApp {
         let (our_make_info_tx, our_make_info_rx) = std::sync::mpsc::channel();
         let (order_xmr_address_tx, order_xmr_address_rx) = std::sync::mpsc::channel();
         let (order_funded_tx, order_funded_rx) = std::sync::mpsc::channel();
+        let (_submit_txset_tx, _submit_txset_rx) = std::sync::mpsc::channel();
         let contents = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
         MarketApp {
             contact_info_rx,
@@ -144,6 +149,7 @@ impl Default for MarketApp {
             contact_timeout_rx,
             contact_timeout_tx,
             customer_orders: Vec::new(),
+            decrypted_delivery_info: utils::empty_string(),
             find_vendor: utils::empty_string(),
             get_vendor_products_rx,
             get_vendor_products_tx,
@@ -158,6 +164,7 @@ impl Default for MarketApp {
             is_order_qr_set: false,
             is_pinging: false,
             is_product_image_set: false,
+            is_showing_decrypted_delivery_info: false,
             is_showing_orders: false,
             is_showing_order_qr: false,
             is_showing_products: false,
@@ -205,6 +212,8 @@ impl Default for MarketApp {
             // ship_request_tx,
             submit_order_rx,
             submit_order_tx,
+            _submit_txset_rx,
+            _submit_txset_tx,
             vendor_status: Default::default(),
             vendors: Vec::new(),
         }
@@ -301,6 +310,9 @@ impl eframe::App for MarketApp {
             self.is_loading = false;
         }
 
+        // TODO(c2m): automated trigger for nasr worked successfully
+        //            doesn't seem like this is really needed anymore?
+        
         // if let Ok(shipped) = self.ship_request_rx.try_recv() {
         //     if shipped.status != order::StatusType::Shipped.value() {
         //         log::error!("failure to obtain shipment please contact vendor")
@@ -642,6 +654,8 @@ impl eframe::App for MarketApp {
                         }
                     });
                 }
+                // TODO(c2m): if the manual trigger for the shipping release isn't
+                //            required, remove this.
                 //     ui.horizontal(|ui| {
                 //         ui.label("Request Shipping: \t");
                 //         if ui.button("Send").clicked() {
@@ -671,7 +685,20 @@ impl eframe::App for MarketApp {
                 if self.msig.completed_shipping_request && !self.msig.completed_payment_release {
                     ui.horizontal(|ui| {
                         ui.label("Release Payment: \t");
-                        if ui.button("Submit Txset").clicked() {}
+                        if ui.button("Submit Txset").clicked() {
+                            // async trigger for signing and submitted the txset
+                            // do something
+                            release_txset(
+                                utils::empty_string(), 
+                                utils::empty_string(),
+                                ctx.clone(),
+                                utils::empty_string(),
+                                self._submit_txset_tx.clone()
+                            );
+                        }
+                        if ui.button("Check").clicked() {
+                            // the multisig wallet should have a zero balance if the sweep succeeded
+                        }
                     });
                 }
                 // ui.horizontal(|ui| {
@@ -718,6 +745,20 @@ impl eframe::App for MarketApp {
                 }
             });
 
+        let mut is_showing_decryption = self.is_showing_decrypted_delivery_info;
+        egui::Window::new("decrypted delivery info")
+            .open(&mut is_showing_decryption)
+            .title_bar(false)
+            .vscroll(true)
+            .show(&ctx, |ui| {
+                ui.heading("Delivery Info");
+                ui.label(format!("{}", self.decrypted_delivery_info));
+                ui.label("\n");
+                if ui.button("Exit").clicked() {
+                    self.decrypted_delivery_info = utils::empty_string();
+                    self.is_showing_decrypted_delivery_info = false;
+                }
+            });
         // View orders - Customer Order Flow Management
         //-----------------------------------------------------------------------------------
         let mut is_customer_viewing_orders = self.is_customer_viewing_orders;
@@ -740,6 +781,7 @@ impl eframe::App for MarketApp {
                     .column(Column::auto())
                     .column(Column::auto())
                     .column(Column::auto())
+                    .column(Column::auto())
                     .min_scrolled_height(0.0);
 
                 table
@@ -752,6 +794,9 @@ impl eframe::App for MarketApp {
                         });
                         header.col(|ui| {
                             ui.strong("status");
+                        });
+                        header.col(|ui| {
+                            ui.strong("");
                         });
                         header.col(|ui| {
                             ui.strong("");
@@ -782,6 +827,20 @@ impl eframe::App for MarketApp {
                                         // dynamically generate buttons for multisig wallet ops
                                         self.is_managing_multisig = true;
                                         self.m_order.orid = String::from(&o.orid);
+                                    }
+                                });
+                                row.col(|ui| {
+                                    if ui.button("DINFO").clicked() {
+                                        let e_info: String = utils::search_gui_db(
+                                            String::from(neveko_core::DELIVERY_INFO_DB_KEY),
+                                            String::from(&o.orid)
+                                        );
+                                        let bytes = hex::decode(e_info.into_bytes()).unwrap_or(Vec::new());
+                                        let d_bytes = gpg::decrypt(&String::from(&o.orid), &bytes);
+                                        let dinfo: String = String::from_utf8(d_bytes.unwrap_or(Vec::new()))
+                                            .unwrap_or(utils::empty_string());
+                                        self.decrypted_delivery_info = dinfo;
+                                        self.is_showing_decrypted_delivery_info = true;
                                     }
                                 });
                                 row.col(|ui| {
@@ -2158,6 +2217,9 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
     ctx.request_repaint();
 }
 
+
+// TODO(c2m): do we need a manual trigger for the shipping request?
+
 // fn shipping_req(
 //     tx: Sender<models::Order>,
 //     ctx: egui::Context,
@@ -2191,4 +2253,31 @@ fn validate_msig_step(
     log::debug!("{} mediator info: {}", sub_type, &m_info);
     log::debug!("{} vendor info: {}", sub_type, &v_info);
     m_info != utils::empty_string() && v_info != utils::empty_string()
+}
+
+fn release_txset(
+    _contact: String,
+    orid: String,
+    ctx: egui::Context,
+    _jwp: String,
+    tx: Sender<bool>,
+) {
+    tokio::spawn(async move {
+        log::info!("async release txset"); 
+        let lookup = order::find(&orid);
+        let submit = order::sign_and_submit_multisig(&orid, &lookup.vend_msig_txset).await;
+        if submit.result.tx_hash_list.is_empty() {
+            log::error!("could not submit txset");
+            let _ = tx.send(false);
+            return;
+        }
+        // TODO(next commit): we need to build an API that tells the vendor
+        //                    to verify the txset was submitted successfully
+        //                    return boolean.
+
+        // update order to delivered if success
+        let _ = tx.send(true);
+        ctx.request_repaint();
+        todo!()
+    });
 }
