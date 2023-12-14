@@ -113,6 +113,8 @@ pub struct MarketApp {
     submit_order_rx: Receiver<models::Order>,
     _submit_txset_tx: Sender<bool>,
     _submit_txset_rx: Receiver<bool>,
+    cancel_request_tx: Sender<models::Order>,
+    cancel_request_rx: Receiver<models::Order>,
     // ship_request_tx: Sender<models::Order>,
     // ship_request_rx: Receiver<models::Order>,
     s_contact: models::Contact,
@@ -137,6 +139,7 @@ impl Default for MarketApp {
         let (get_vendor_product_tx, get_vendor_product_rx) = std::sync::mpsc::channel();
         let (submit_order_tx, submit_order_rx) = std::sync::mpsc::channel();
         // let (ship_request_tx, ship_request_rx) = std::sync::mpsc::channel();
+        let (cancel_request_tx, cancel_request_rx) = std::sync::mpsc::channel();
         let (our_prepare_info_tx, our_prepare_info_rx) = std::sync::mpsc::channel();
         let (our_make_info_tx, our_make_info_rx) = std::sync::mpsc::channel();
         let (order_xmr_address_tx, order_xmr_address_rx) = std::sync::mpsc::channel();
@@ -208,6 +211,8 @@ impl Default for MarketApp {
             _refresh_on_delete_product_rx,
             s_contact: Default::default(),
             s_order: Default::default(),
+            cancel_request_rx,
+            cancel_request_tx,
             // ship_request_rx,
             // ship_request_tx,
             submit_order_rx,
@@ -312,13 +317,20 @@ impl eframe::App for MarketApp {
 
         // TODO(c2m): automated trigger for nasr worked successfully
         //            doesn't seem like this is really needed anymore?
-        
+
         // if let Ok(shipped) = self.ship_request_rx.try_recv() {
         //     if shipped.status != order::StatusType::Shipped.value() {
         //         log::error!("failure to obtain shipment please contact vendor")
         //     }
         //     self.is_loading = false;
         // }
+
+        if let Ok(cancelled) = self.cancel_request_rx.try_recv() {
+            if cancelled.status != order::StatusType::Cancelled.value() {
+                log::error!("failure to cancel shipment please contact vendor")
+            }
+            self.is_loading = false;
+        }
 
         // Vendor status window
         //-----------------------------------------------------------------------------------
@@ -689,11 +701,11 @@ impl eframe::App for MarketApp {
                             // async trigger for signing and submitted the txset
                             // do something
                             release_txset(
-                                utils::empty_string(), 
+                                utils::empty_string(),
                                 utils::empty_string(),
                                 ctx.clone(),
                                 utils::empty_string(),
-                                self._submit_txset_tx.clone()
+                                self._submit_txset_tx.clone(),
                             );
                         }
                         if ui.button("Check").clicked() {
@@ -833,12 +845,14 @@ impl eframe::App for MarketApp {
                                     if ui.button("DINFO").clicked() {
                                         let e_info: String = utils::search_gui_db(
                                             String::from(neveko_core::DELIVERY_INFO_DB_KEY),
-                                            String::from(&o.orid)
+                                            String::from(&o.orid),
                                         );
-                                        let bytes = hex::decode(e_info.into_bytes()).unwrap_or(Vec::new());
+                                        let bytes =
+                                            hex::decode(e_info.into_bytes()).unwrap_or(Vec::new());
                                         let d_bytes = gpg::decrypt(&String::from(&o.orid), &bytes);
-                                        let dinfo: String = String::from_utf8(d_bytes.unwrap_or(Vec::new()))
-                                            .unwrap_or(utils::empty_string());
+                                        let dinfo: String =
+                                            String::from_utf8(d_bytes.unwrap_or(Vec::new()))
+                                                .unwrap_or(utils::empty_string());
                                         self.decrypted_delivery_info = dinfo;
                                         self.is_showing_decrypted_delivery_info = true;
                                     }
@@ -847,7 +861,18 @@ impl eframe::App for MarketApp {
                                     ui.style_mut().wrap = Some(false);
                                     ui.horizontal(|ui| {
                                         if ui.button("Cancel").clicked() {
-                                            // TODO(c2m): Cancel order logic
+                                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                                            let vendor = utils::search_gui_db(
+                                                vendor_prefix,
+                                                self.m_order.orid.clone(),
+                                            );
+                                            self.is_loading = true;
+                                            cancel_order_req(
+                                                self.cancel_request_tx.clone(),
+                                                ctx.clone(),
+                                                &self.m_order.orid,
+                                                &vendor,
+                                            )
                                         }
                                     });
                                 });
@@ -1704,7 +1729,6 @@ fn send_prepare_info_req(
         );
         // Request mediator and vendor while we're at it
         // Will coordinating send this on make requests next
-
         let s = db::Interface::async_open().await;
         let m_msig_key = format!(
             "{}-{}-{}",
@@ -2217,7 +2241,6 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
     ctx.request_repaint();
 }
 
-
 // TODO(c2m): do we need a manual trigger for the shipping request?
 
 // fn shipping_req(
@@ -2237,6 +2260,23 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
 //         ctx.request_repaint();
 //     });
 // }
+// End Async fn requests
+
+fn cancel_order_req(
+    tx: Sender<models::Order>,
+    ctx: egui::Context,
+    orid: &String,
+    contact: &String,
+) {
+    let ship_orid = String::from(orid);
+    let vendor_i2p = String::from(contact);
+    tokio::spawn(async move {
+        log::info!("cancel order req: {}", ship_orid);
+        let order = order::d_trigger_cancel_request(&vendor_i2p, &ship_orid).await;
+        let _ = tx.send(order);
+        ctx.request_repaint();
+    });
+}
 // End Async fn requests
 
 fn validate_msig_step(
@@ -2263,7 +2303,7 @@ fn release_txset(
     tx: Sender<bool>,
 ) {
     tokio::spawn(async move {
-        log::info!("async release txset"); 
+        log::info!("async release txset");
         let lookup = order::find(&orid);
         let submit = order::sign_and_submit_multisig(&orid, &lookup.vend_msig_txset).await;
         if submit.result.tx_hash_list.is_empty() {
@@ -2271,7 +2311,7 @@ fn release_txset(
             let _ = tx.send(false);
             return;
         }
-        // TODO(next commit): we need to build an API that tells the vendor
+        // TODO(c2m): we need to build an API that tells the vendor
         //                    to verify the txset was submitted successfully
         //                    return boolean.
 

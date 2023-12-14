@@ -5,15 +5,11 @@ use crate::{
     db,
     gpg,
     i2p,
-
     models::*,
     monero,
     order,
     product,
-    reqres::{
-        self,
-        FinalizeOrderResponse,
-    },
+    reqres,
     utils,
 };
 use log::{
@@ -24,7 +20,7 @@ use log::{
 use rocket::serde::json::Json;
 
 pub enum StatusType {
-    _Cancelled,
+    Cancelled,
     Delivered,
     MultisigMissing,
     MulitsigComplete,
@@ -34,7 +30,7 @@ pub enum StatusType {
 impl StatusType {
     pub fn value(&self) -> String {
         match *self {
-            StatusType::_Cancelled => String::from("Cancelled"),
+            StatusType::Cancelled => String::from("Cancelled"),
             StatusType::Delivered => String::from("Delivered"),
             StatusType::MultisigMissing => String::from("MultisigMissing"),
             StatusType::MulitsigComplete => String::from("MulitsigComplete"),
@@ -163,7 +159,10 @@ pub fn find_all_backup() -> Vec<Order> {
     let mut orders: Vec<Order> = Vec::new();
     for o in i_v {
         let order: Order = find(&o);
-        if order.orid != utils::empty_string() {
+        let visible = order.orid != utils::empty_string()
+            && order.status != order::StatusType::Delivered.value()
+            && order.status != order::StatusType::Cancelled.value();
+        if visible {
             orders.push(order);
         }
     }
@@ -254,6 +253,39 @@ pub async fn secure_retrieval(orid: &String, signature: &String) -> Order {
         return Default::default();
     }
     m_order
+}
+
+/// In order for the order (...ha) to only be cancelled by the customer
+///
+/// they must sign the order id with their NEVEKO wallet instance.
+pub async fn cancel_order(orid: &String, signature: &String) -> Order {
+    info!("cancel order {}", orid);
+    // get customer address for NEVEKO NOT order wallet
+    let mut m_order: Order = find(&orid);
+    let mut xmr_address: String = String::new();
+    let a_customers: Vec<Contact> = contact::find_all();
+    for customer in a_customers {
+        if customer.i2p_address == m_order.cid {
+            xmr_address = customer.xmr_address;
+            break;
+        }
+    }
+    // send address, orid and signature to verify()
+    let id: String = String::from(&m_order.orid);
+    let sig: String = String::from(signature);
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    let wallet_name = String::from(crate::APP_NAME);
+    monero::open_wallet(&wallet_name, &wallet_password).await;
+    let is_valid_signature = monero::verify(xmr_address, id, sig).await;
+    monero::close_wallet(&wallet_name, &wallet_password).await;
+    if !is_valid_signature {
+        return Default::default();
+    }
+    // update the order status and send to customer
+    m_order.status = order::StatusType::Cancelled.value();
+    order::modify(Json(m_order));
+    order::find(&orid)
 }
 
 /// Check for import multisig info, validate block time and that the
@@ -375,7 +407,7 @@ pub async fn upload_delivery_info(
     if nasr_order.is_err() {
         return Default::default();
     }
-    FinalizeOrderResponse {
+    reqres::FinalizeOrderResponse {
         delivery_info: delivery_info.to_vec(),
         orid: String::from(orid),
         vendor_update_success: false,
@@ -383,13 +415,12 @@ pub async fn upload_delivery_info(
 }
 
 /// Vendor will very txset submission and then update the order to `Delivered`
-/// 
+///
 /// status type. Then customer will update the status on the neveko instanced
-/// 
+///
 /// upon a `vendor_update_success: true`  response
 pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
     info!("finalizing order: {}", orid);
-
 
     reqres::FinalizeOrderResponse {
         ..Default::default()
@@ -433,7 +464,7 @@ pub async fn transmit_ship_request(
     contact: &String,
     jwp: &String,
     orid: &String,
-) -> Result<FinalizeOrderResponse, Box<dyn Error>> {
+) -> Result<reqres::FinalizeOrderResponse, Box<dyn Error>> {
     info!("executing transmit_ship_request");
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
@@ -445,7 +476,7 @@ pub async fn transmit_ship_request(
         .await
     {
         Ok(response) => {
-            let res = response.json::<FinalizeOrderResponse>().await;
+            let res = response.json::<reqres::FinalizeOrderResponse>().await;
             debug!("ship request response: {:?}", res);
             match res {
                 Ok(r) => Ok(r),
@@ -520,6 +551,28 @@ pub async fn trigger_ship_request(contact: &String, jwp: &String, orid: &String)
     unwrap_order
 }
 
+/// A post-decomposition trigger for the cancel request so that the logic
+///
+/// can be executed from the gui.
+pub async fn trigger_cancel_request(contact: &String, jwp: &String, orid: &String) -> Order {
+    info!("executing trigger_cancel_request");
+    let data = String::from(orid);
+    let wallet_password =
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+    monero::open_wallet(&String::from(crate::APP_NAME), &wallet_password).await;
+    let pre_sign = monero::sign(data).await;
+    monero::close_wallet(&String::from(crate::APP_NAME), &wallet_password).await;
+    let order = transmit_cancel_request(contact, jwp, orid, &pre_sign.result.signature).await;
+    // cache order request to db
+    if order.is_err() {
+        log::error!("failed to trigger cancel request");
+        return Default::default();
+    }
+    let unwrap_order: Order = order.unwrap();
+    backup(&unwrap_order);
+    unwrap_order
+}
+
 /// Decomposition trigger for the shipping request
 pub async fn d_trigger_ship_request(contact: &String, orid: &String) -> Order {
     // ugh, sorry seems we need to get jwp for vendor from fts cache
@@ -542,6 +595,66 @@ pub async fn d_trigger_ship_request(contact: &String, orid: &String) -> Order {
         db::Interface::write(&s.env, &s.handle, &key, &hex_delivery_info);
     }
     trigger
+}
+
+/// Executes POST /order/cancel/orid/signature
+///
+/// cancelling the order on the vendor side.
+///
+/// Customer needs to verify the response and update their lmdb.
+///
+/// see `cancel_order`
+pub async fn transmit_cancel_request(
+    contact: &String,
+    jwp: &String,
+    orid: &String,
+    signature: &String,
+) -> Result<Order, Box<dyn Error>> {
+    info!("executing transmit_cancel_request");
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    match client?
+        .post(format!(
+            "http://{}/market/order/cancel/{}/{}",
+            contact, orid, signature
+        ))
+        .header("proof", jwp)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<Order>().await;
+            debug!("cancel order response: {:?}", res);
+            match res {
+                Ok(r) => Ok(r),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(e) => {
+            error!("failed to cancel order due to: {:?}", e);
+            Ok(Default::default())
+        }
+    }
+}
+
+/// Decomposition trigger for the shipping request
+pub async fn d_trigger_cancel_request(contact: &String, orid: &String) -> Order {
+    // ugh, sorry seems we need to get jwp for vendor from fts cache
+    // get jwp from db
+    let s = db::Interface::async_open().await;
+    let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
+    let jwp = db::Interface::async_read(&s.env, &s.handle, &k).await;
+    info!("executing d_trigger_cancel_request");
+    // request cancel if the order status is not MultisigComplete
+    let order: Order = order::find(&orid);
+    if order.status != order::StatusType::MulitsigComplete.value() {
+        let trigger = trigger_cancel_request(contact, &jwp, orid).await;
+        if trigger.status == order::StatusType::Cancelled.value() {
+            return trigger;
+        }
+    }
+    Default::default()
 }
 
 pub async fn init_mediator_wallet(orid: &String) {
