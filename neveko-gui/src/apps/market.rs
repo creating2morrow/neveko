@@ -111,8 +111,8 @@ pub struct MarketApp {
     _refresh_on_delete_product_rx: Receiver<bool>,
     submit_order_tx: Sender<models::Order>,
     submit_order_rx: Receiver<models::Order>,
-    _submit_txset_tx: Sender<bool>,
-    _submit_txset_rx: Receiver<bool>,
+    submit_txset_tx: Sender<bool>,
+    submit_txset_rx: Receiver<bool>,
     cancel_request_tx: Sender<models::Order>,
     cancel_request_rx: Receiver<models::Order>,
     // ship_request_tx: Sender<models::Order>,
@@ -144,7 +144,7 @@ impl Default for MarketApp {
         let (our_make_info_tx, our_make_info_rx) = std::sync::mpsc::channel();
         let (order_xmr_address_tx, order_xmr_address_rx) = std::sync::mpsc::channel();
         let (order_funded_tx, order_funded_rx) = std::sync::mpsc::channel();
-        let (_submit_txset_tx, _submit_txset_rx) = std::sync::mpsc::channel();
+        let (submit_txset_tx, submit_txset_rx) = std::sync::mpsc::channel();
         let contents = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
         MarketApp {
             contact_info_rx,
@@ -217,8 +217,8 @@ impl Default for MarketApp {
             // ship_request_tx,
             submit_order_rx,
             submit_order_tx,
-            _submit_txset_rx,
-            _submit_txset_tx,
+            submit_txset_rx,
+            submit_txset_tx,
             vendor_status: Default::default(),
             vendors: Vec::new(),
         }
@@ -328,6 +328,13 @@ impl eframe::App for MarketApp {
         if let Ok(cancelled) = self.cancel_request_rx.try_recv() {
             if cancelled.status != order::StatusType::Cancelled.value() {
                 log::error!("failure to cancel shipment please contact vendor")
+            }
+            self.is_loading = false;
+        }
+
+        if let Ok(finalized) = self.submit_txset_rx.try_recv() {
+            if !finalized {
+                log::error!("failure to finalize shipment please contact vendor")
             }
             self.is_loading = false;
         }
@@ -649,8 +656,7 @@ impl eframe::App for MarketApp {
                     });
                 }
                 if self.msig.completed_export && !self.msig.completed_shipping_request {
-                    // idk if manual shipping request will be necessary with the new nasr logic,
-                    // let's see
+                    // idk if manual shipping request will be necessary with the new nasr logic
                     ui.horizontal(|ui| {
                         ui.label(
                             RichText::new("Delivery Pending")
@@ -698,18 +704,17 @@ impl eframe::App for MarketApp {
                     ui.horizontal(|ui| {
                         ui.label("Release Payment: \t");
                         if ui.button("Submit Txset").clicked() {
+                            self.is_loading = true;
+                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                            let vendor =
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                             // async trigger for signing and submitted the txset
-                            // do something
                             release_txset(
-                                utils::empty_string(),
-                                utils::empty_string(),
+                                vendor,
+                                self.m_order.orid.clone(),
                                 ctx.clone(),
-                                utils::empty_string(),
-                                self._submit_txset_tx.clone(),
+                                self.submit_txset_tx.clone(),
                             );
-                        }
-                        if ui.button("Check").clicked() {
-                            // the multisig wallet should have a zero balance if the sweep succeeded
                         }
                     });
                 }
@@ -2296,10 +2301,9 @@ fn validate_msig_step(
 }
 
 fn release_txset(
-    _contact: String,
+    contact: String,
     orid: String,
     ctx: egui::Context,
-    _jwp: String,
     tx: Sender<bool>,
 ) {
     tokio::spawn(async move {
@@ -2311,12 +2315,9 @@ fn release_txset(
             let _ = tx.send(false);
             return;
         }
-        // TODO(c2m): we need to build an API that tells the vendor
-        //                    to verify the txset was submitted successfully
-        //                    return boolean.
-
+        let finalize = order::d_trigger_finalize_request(&contact, &orid).await;
         // update order to delivered if success
-        let _ = tx.send(true);
+        let _ = tx.send(finalize.vendor_update_success);
         ctx.request_repaint();
         todo!()
     });

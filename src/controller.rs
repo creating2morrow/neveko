@@ -12,6 +12,7 @@ use rocket::{
 use neveko_core::*;
 
 // JSON APIs exposed over i2p
+// Take care not to put any admin APIs inside of here
 
 /// Get payment API version
 ///
@@ -236,14 +237,28 @@ pub async fn cancel_order(
     if m_order.cid == utils::empty_string() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
-    Custom(Status::Created, Json(m_order))
+    Custom(Status::Ok, Json(m_order))
 }
 
-/// Create a dispute (customer)
+/// Customer finalize order logic. Vendor updates order
+/// 
+/// to `Delivered` status.
+///
+/// Protected: true
+#[post("/order/finalize/<orid>")]
+pub async fn finalize_order(orid: String, _jwp: proof::PaymentProof) -> Custom<Json<reqres::FinalizeOrderResponse>> {
+    let finalize = order::finalize_order(&orid).await;
+    if !finalize.vendor_update_success {
+        return Custom(Status::BadRequest, Json(Default::default()));
+    }
+    Custom(Status::Ok, Json(finalize))
+}
+
+/// Create a dispute
 #[post("/create", data = "<dispute>")]
 pub async fn create_dispute(
     dispute: Json<models::Dispute>,
-    _token: auth::BearerToken,
+    _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Dispute>> {
     let m_dispute: models::Dispute = dispute::create(dispute);
     Custom(Status::Ok, Json(m_dispute))

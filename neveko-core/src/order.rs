@@ -9,8 +9,7 @@ use crate::{
     monero,
     order,
     product,
-    reqres,
-    utils,
+    utils, reqres,
 };
 use log::{
     debug,
@@ -421,10 +420,118 @@ pub async fn upload_delivery_info(
 /// upon a `vendor_update_success: true`  response
 pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
     info!("finalizing order: {}", orid);
-
+    // verify recipient and unlock time
+    let mut m_order: Order = order::find(orid);
+    if m_order.vend_msig_txset == utils::empty_string() {
+        error!("txset missing");
+        return Default::default();
+    }
+    // get draft payment txset
+    let wallet_password = utils::empty_string();
+    monero::open_wallet(orid, &wallet_password).await;
+    monero::refresh().await;
+    let address: String = String::from(&m_order.subaddress);
+    let m_describe = monero::describe_transfer(&m_order.vend_msig_txset).await;
+    let check_destination: reqres::Destination = reqres::Destination {
+        address,
+        ..Default::default()
+    };
+    let valid = m_describe.result.desc[0].recepients.contains(&check_destination)
+        && m_describe.result.desc[0].unlock_time < monero::LockTimeLimit::Blocks.value();
+    if !valid {
+        monero::close_wallet(orid, &wallet_password).await;
+        error!("invalid txset");
+        return Default::default();
+    }
+    // verify order wallet has been swept clean
+    let balance = monero::get_balance().await;
+    if balance.result.unlocked_balance != 0 {
+        monero::close_wallet(orid, &wallet_password).await;
+        error!("order wallet not swept");
+        return Default::default();
+    }
+    m_order.status = order::StatusType::Delivered.value();
+    order::modify(Json(m_order));
     reqres::FinalizeOrderResponse {
+        vendor_update_success: true,
         ..Default::default()
     }
+}
+
+/// Executes POST /order/finalize/{orid}
+///
+/// finalizing the order on the vendor side.
+///
+/// Customer needs to verify the response and update their lmdb.
+///
+/// see `finalize_order`
+pub async fn transmit_finalize_request(
+    contact: &String,
+    jwp: &String,
+    orid: &String,
+) -> Result<reqres::FinalizeOrderResponse, Box<dyn Error>> {
+    info!("executing transmit_cancel_request");
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    match client?
+        .post(format!(
+            "http://{}/market/order/finalize/{}", contact, orid
+        ))
+        .header("proof", jwp)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<reqres::FinalizeOrderResponse>().await;
+            debug!("finalize order response: {:?}", res);
+            match res {
+                Ok(r) => Ok(r),
+                _ => Ok(Default::default()),
+            }
+        }
+        Err(e) => {
+            error!("failed to finalize order due to: {:?}", e);
+            Ok(Default::default())
+        }
+    }
+}
+
+/// A post-decomposition trigger for the finalize request so that the logic
+///
+/// can be executed from the gui.
+pub async fn trigger_finalize_request(contact: &String, jwp: &String, orid: &String) -> reqres::FinalizeOrderResponse {
+    info!("executing trigger_finalize_request");
+    let finalize = transmit_finalize_request(contact, jwp, orid).await;
+    // cache finalize order request to db
+    if finalize.is_err() {
+        log::error!("failed to trigger cancel request");
+        return Default::default();
+    }
+    let unwrap: reqres::FinalizeOrderResponse = finalize.unwrap();
+    let mut m_order: Order = order::find(&orid);
+    m_order.status = order::StatusType::Delivered.value();
+    backup(&m_order);
+    unwrap
+}
+
+/// Decomposition trigger for `finalize_order()`
+pub async fn d_trigger_finalize_request(contact: &String, orid: &String) -> reqres::FinalizeOrderResponse {
+    // ugh, sorry seems we need to get jwp for vendor from fts cache
+    // get jwp from db
+    let s = db::Interface::async_open().await;
+    let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
+    let jwp = db::Interface::async_read(&s.env, &s.handle, &k).await;
+    info!("executing d_trigger_finalize_request");
+    // request finalize if the order status is shipped
+    let order: Order = order::find(&orid);
+    if order.status != order::StatusType::Shipped.value() {
+        let trigger = trigger_finalize_request(contact, &jwp, orid).await;
+        if trigger.vendor_update_success {
+            return trigger;
+        }
+    }
+    Default::default()
 }
 
 /// Send order request to vendor and start multisig flow
@@ -638,7 +745,7 @@ pub async fn transmit_cancel_request(
     }
 }
 
-/// Decomposition trigger for the shipping request
+/// Decomposition trigger for the cancel request
 pub async fn d_trigger_cancel_request(contact: &String, orid: &String) -> Order {
     // ugh, sorry seems we need to get jwp for vendor from fts cache
     // get jwp from db

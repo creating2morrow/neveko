@@ -50,6 +50,7 @@ async fn rocket() -> _ {
                 controller::request_shipment,
                 controller::retrieve_order,
                 controller::trigger_nasr,
+                controller::finalize_order,
             ],
         )
 }

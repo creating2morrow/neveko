@@ -106,7 +106,7 @@ pub struct XmrRpcGetTxByIdParams {
     pub txid: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
 pub struct Destination {
     pub address: String,
     pub amount: u128,
