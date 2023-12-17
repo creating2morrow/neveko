@@ -241,12 +241,15 @@ pub async fn cancel_order(
 }
 
 /// Customer finalize order logic. Vendor updates order
-/// 
+///
 /// to `Delivered` status.
 ///
 /// Protected: true
 #[post("/order/finalize/<orid>")]
-pub async fn finalize_order(orid: String, _jwp: proof::PaymentProof) -> Custom<Json<reqres::FinalizeOrderResponse>> {
+pub async fn finalize_order(
+    orid: String,
+    _jwp: proof::PaymentProof,
+) -> Custom<Json<reqres::FinalizeOrderResponse>> {
     let finalize = order::finalize_order(&orid).await;
     if !finalize.vendor_update_success {
         return Custom(Status::BadRequest, Json(Default::default()));

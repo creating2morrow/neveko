@@ -9,7 +9,8 @@ use crate::{
     monero,
     order,
     product,
-    utils, reqres,
+    reqres,
+    utils,
 };
 use log::{
     debug,
@@ -184,6 +185,33 @@ pub async fn find_all_customer_orders(cid: String) -> Vec<Order> {
         let order: Order = find(&o);
         if order.orid != utils::empty_string() && order.cid == cid {
             orders.push(order);
+        }
+    }
+    orders
+}
+
+/// Lookup all orders for vendor
+pub fn find_all_vendor_orders() -> Vec<Order> {
+    info!("lookup orders for vendor");
+    let i_s = db::Interface::open();
+    let i_list_key = crate::ORDER_LIST_DB_KEY;
+    let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
+    if i_r == utils::empty_string() {
+        error!("order index not found");
+    }
+    let i_v_oid = i_r.split(",");
+    let i_v: Vec<String> = i_v_oid.map(|s| String::from(s)).collect();
+    let mut orders: Vec<Order> = Vec::new();
+    let vendor_b32: String = i2p::get_destination(None);
+    for o in i_v {
+        let order: Order = find(&o);
+        if order.orid != utils::empty_string() && order.cid != vendor_b32 {
+            // TODO(c2m): separate functionality for archived orders
+            if order.status != order::StatusType::Cancelled.value()
+                && order.status != order::StatusType::Delivered.value()
+            {
+                orders.push(order);
+            }
         }
     }
     orders
@@ -436,7 +464,9 @@ pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
         address,
         ..Default::default()
     };
-    let valid = m_describe.result.desc[0].recepients.contains(&check_destination)
+    let valid = m_describe.result.desc[0]
+        .recepients
+        .contains(&check_destination)
         && m_describe.result.desc[0].unlock_time < monero::LockTimeLimit::Blocks.value();
     if !valid {
         monero::close_wallet(orid, &wallet_password).await;
@@ -450,6 +480,7 @@ pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
         error!("order wallet not swept");
         return Default::default();
     }
+    monero::close_wallet(orid, &wallet_password).await;
     m_order.status = order::StatusType::Delivered.value();
     order::modify(Json(m_order));
     reqres::FinalizeOrderResponse {
@@ -475,9 +506,7 @@ pub async fn transmit_finalize_request(
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
     match client?
-        .post(format!(
-            "http://{}/market/order/finalize/{}", contact, orid
-        ))
+        .post(format!("http://{}/market/order/finalize/{}", contact, orid))
         .header("proof", jwp)
         .send()
         .await
@@ -500,7 +529,11 @@ pub async fn transmit_finalize_request(
 /// A post-decomposition trigger for the finalize request so that the logic
 ///
 /// can be executed from the gui.
-pub async fn trigger_finalize_request(contact: &String, jwp: &String, orid: &String) -> reqres::FinalizeOrderResponse {
+pub async fn trigger_finalize_request(
+    contact: &String,
+    jwp: &String,
+    orid: &String,
+) -> reqres::FinalizeOrderResponse {
     info!("executing trigger_finalize_request");
     let finalize = transmit_finalize_request(contact, jwp, orid).await;
     // cache finalize order request to db
@@ -516,7 +549,10 @@ pub async fn trigger_finalize_request(contact: &String, jwp: &String, orid: &Str
 }
 
 /// Decomposition trigger for `finalize_order()`
-pub async fn d_trigger_finalize_request(contact: &String, orid: &String) -> reqres::FinalizeOrderResponse {
+pub async fn d_trigger_finalize_request(
+    contact: &String,
+    orid: &String,
+) -> reqres::FinalizeOrderResponse {
     // ugh, sorry seems we need to get jwp for vendor from fts cache
     // get jwp from db
     let s = db::Interface::async_open().await;

@@ -81,6 +81,7 @@ pub struct MarketApp {
     is_showing_vendor_status: bool,
     is_showing_vendors: bool,
     is_timeout: bool,
+    is_uploading_dinfo: bool,
     is_vendor_enabled: bool,
     is_window_shopping: bool,
     msig: MultisigManagement,
@@ -117,12 +118,15 @@ pub struct MarketApp {
     cancel_request_rx: Receiver<models::Order>,
     // ship_request_tx: Sender<models::Order>,
     // ship_request_rx: Receiver<models::Order>,
+    upload_dinfo_tx: Sender<bool>,
+    upload_dinfo_rx: Receiver<bool>,
     s_contact: models::Contact,
     s_order: models::Order,
     vendor_status: utils::ContactStatus,
     vendors: Vec<models::Contact>,
     order_xmr_address_tx: Sender<reqres::XmrRpcAddressResponse>,
     order_xmr_address_rx: Receiver<reqres::XmrRpcAddressResponse>,
+    upload_dinfo_str: String,
 }
 
 impl Default for MarketApp {
@@ -145,6 +149,7 @@ impl Default for MarketApp {
         let (order_xmr_address_tx, order_xmr_address_rx) = std::sync::mpsc::channel();
         let (order_funded_tx, order_funded_rx) = std::sync::mpsc::channel();
         let (submit_txset_tx, submit_txset_rx) = std::sync::mpsc::channel();
+        let (upload_dinfo_tx, upload_dinfo_rx) = std::sync::mpsc::channel();
         let contents = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
         MarketApp {
             contact_info_rx,
@@ -176,6 +181,7 @@ impl Default for MarketApp {
             is_showing_vendor_status: false,
             is_showing_vendors: false,
             is_timeout: false,
+            is_uploading_dinfo: false,
             is_vendor_enabled,
             is_window_shopping: false,
             msig: Default::default(),
@@ -221,6 +227,9 @@ impl Default for MarketApp {
             submit_txset_tx,
             vendor_status: Default::default(),
             vendors: Vec::new(),
+            upload_dinfo_str: utils::empty_string(),
+            upload_dinfo_rx,
+            upload_dinfo_tx,
         }
     }
 }
@@ -335,6 +344,13 @@ impl eframe::App for MarketApp {
         if let Ok(finalized) = self.submit_txset_rx.try_recv() {
             if !finalized {
                 log::error!("failure to finalize shipment please contact vendor")
+            }
+            self.is_loading = false;
+        }
+
+        if let Ok(upload_dinfo) = self.upload_dinfo_rx.try_recv() {
+            if !upload_dinfo {
+                log::error!("failure to upload delivery info")
             }
             self.is_loading = false;
         }
@@ -776,6 +792,7 @@ impl eframe::App for MarketApp {
                     self.is_showing_decrypted_delivery_info = false;
                 }
             });
+
         // View orders - Customer Order Flow Management
         //-----------------------------------------------------------------------------------
         let mut is_customer_viewing_orders = self.is_customer_viewing_orders;
@@ -937,7 +954,6 @@ impl eframe::App for MarketApp {
                             gpg::encrypt(self.vendor_status.i2p.clone(), &address_bytes);
                         let new_order = reqres::OrderRequest {
                             cid: String::from(&self.new_order.cid),
-                            // TODO: inject mediator for vendor dispute handling
                             mediator: String::from(&mediator),
                             pid: String::from(&self.new_order.pid),
                             ship_address: encrypted_shipping_address.unwrap_or(Vec::new()),
@@ -963,6 +979,47 @@ impl eframe::App for MarketApp {
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
                     self.is_ordering = false;
+                    self.is_loading = false;
+                }
+            });
+
+        // Vendor Upload Delivery Info Form
+        //-----------------------------------------------------------------------------------
+        let mut is_uploading_dinfo = self.is_uploading_dinfo;
+        egui::Window::new("upload dinfo form")
+            .open(&mut is_uploading_dinfo)
+            .title_bar(false)
+            .vscroll(true)
+            .show(&ctx, |ui| {
+                ui.heading("Upload DINFO Form");
+                if self.is_loading {
+                    ui.add(egui::Spinner::new());
+                    ui.label("triggering NASR, just a moment...");
+                }
+                ui.label(format!("order id: {}", self.new_order.orid));
+                ui.horizontal(|ui| {
+                    let delivery_info = ui.label("delivery info: ");
+                    ui.text_edit_singleline(&mut self.upload_dinfo_str)
+                        .labelled_by(delivery_info.id);
+                });
+                if self.new_order.orid != utils::empty_string() 
+                    && self.upload_dinfo_str != utils::empty_string() {
+                    if ui.button("Trigger NASR").clicked() {
+                        // upload delivery info
+                        let dinfo_str = String::from(&self.upload_dinfo_str);
+                        upload_dinfo_req(
+                            dinfo_str.into_bytes().iter().cloned().collect(),
+                            self.new_order.orid.clone(),
+                            ctx.clone(),
+                            self.upload_dinfo_tx.clone(),
+                        );
+                        self.new_order = Default::default();
+                    }
+                }
+                ui.label("\n");
+                if ui.button("Exit").clicked() {
+                    self.is_uploading_dinfo = false;
+                    self.upload_dinfo_str = Default::default();
                     self.is_loading = false;
                 }
             });
@@ -1430,18 +1487,22 @@ impl eframe::App for MarketApp {
                     .column(Column::initial(100.0).at_least(40.0).clip(true))
                     .column(Column::initial(100.0).at_least(40.0).clip(true))
                     .column(Column::remainder())
+                    .column(Column::remainder())
                     .min_scrolled_height(0.0);
 
                 table
                     .header(20.0, |mut header| {
                         header.col(|ui| {
-                            ui.strong("");
+                            ui.strong("CID");
                         });
                         header.col(|ui| {
-                            ui.strong("");
+                            ui.strong("Status");
                         });
                         header.col(|ui| {
-                            ui.strong("");
+                            ui.strong("Date");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Payout Address");
                         });
                         header.col(|ui| {
                             ui.strong("");
@@ -1468,13 +1529,27 @@ impl eframe::App for MarketApp {
                                 });
                                 row.col(|ui| {
                                     ui.style_mut().wrap = Some(false);
+                                    ui.horizontal(|ui| {
+                                        if o.status != order::StatusType::Shipped.value() {
+                                            if ui.button("Upload DINFO").clicked() {
+                                                self.new_order.orid = String::from(&o.orid);
+                                                self.is_uploading_dinfo = true;
+                                            }
+                                        }
+                                    });
                                     ui.horizontal(|_ui| {
-                                        // update button
+                                        // TODO: update functionality on orders not yet shipped
                                     });
                                 });
                             });
                         }
                     });
+                ui.horizontal(|ui| {
+                    if ui.button("Exit").clicked() {
+                        self.is_showing_orders = false;
+                        self.is_loading = false;
+                    }
+                });
             });
 
         // End Vendor specific
@@ -1584,7 +1659,8 @@ impl eframe::App for MarketApp {
                 }
                 ui.label("\n");
                 if ui.button("Manage Orders").clicked() {
-                    // TODO(c2m): vendor order management logic
+                    self.is_showing_orders = true;
+                    self.orders = order::find_all_vendor_orders();
                 }
             }
         });
@@ -2300,12 +2376,7 @@ fn validate_msig_step(
     m_info != utils::empty_string() && v_info != utils::empty_string()
 }
 
-fn release_txset(
-    contact: String,
-    orid: String,
-    ctx: egui::Context,
-    tx: Sender<bool>,
-) {
+fn release_txset(contact: String, orid: String, ctx: egui::Context, tx: Sender<bool>) {
     tokio::spawn(async move {
         log::info!("async release txset");
         let lookup = order::find(&orid);
@@ -2320,5 +2391,14 @@ fn release_txset(
         let _ = tx.send(finalize.vendor_update_success);
         ctx.request_repaint();
         todo!()
+    });
+}
+
+fn upload_dinfo_req(dinfo: Vec<u8>, orid: String, ctx: egui::Context, tx: Sender<bool>) {
+    tokio::spawn(async move {
+        log::info!("async upload_dinfo_req");
+        let dinfo = order::upload_delivery_info(&orid, &dinfo).await;
+        let _ = tx.send(dinfo.orid != utils::empty_string());
+        ctx.request_repaint();
     });
 }
