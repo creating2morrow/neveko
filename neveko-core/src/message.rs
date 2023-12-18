@@ -422,7 +422,7 @@ fn remove_from_fts(mid: String) {
 ///
 /// failed-to-send message.
 pub async fn retry_fts() {
-    let tick: std::sync::mpsc::Receiver<()> = schedule_recv::periodic_ms(60000);
+    let tick: std::sync::mpsc::Receiver<()> = schedule_recv::periodic_ms(crate::FTS_RETRY_INTERVAL);
     loop {
         debug!("running retry failed-to-send thread");
         tick.recv().unwrap();

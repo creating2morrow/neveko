@@ -238,10 +238,13 @@ pub async fn sign_and_submit_multisig(
     tx_data_hex: &String,
 ) -> reqres::XmrRpcSubmitMultisigResponse {
     info!("signing and submitting multisig");
+    let wallet_password = utils::empty_string();
+    monero::open_wallet(&orid, &wallet_password).await;
     let r_sign: reqres::XmrRpcSignMultisigResponse =
         monero::sign_multisig(String::from(tx_data_hex)).await;
     let r_submit: reqres::XmrRpcSubmitMultisigResponse =
         monero::submit_multisig(r_sign.result.tx_data_hex).await;
+    monero::close_wallet(&orid, &wallet_password).await;
     if r_submit.result.tx_hash_list.is_empty() {
         error!("unable to submit payment for order: {}", orid);
     }

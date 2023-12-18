@@ -116,6 +116,8 @@ pub struct MarketApp {
     submit_txset_rx: Receiver<bool>,
     cancel_request_tx: Sender<models::Order>,
     cancel_request_rx: Receiver<models::Order>,
+    dispute_request_tx: Sender<models::Dispute>,
+    dispute_request_rx: Receiver<models::Dispute>,
     // ship_request_tx: Sender<models::Order>,
     // ship_request_rx: Receiver<models::Order>,
     upload_dinfo_tx: Sender<bool>,
@@ -144,6 +146,7 @@ impl Default for MarketApp {
         let (submit_order_tx, submit_order_rx) = std::sync::mpsc::channel();
         // let (ship_request_tx, ship_request_rx) = std::sync::mpsc::channel();
         let (cancel_request_tx, cancel_request_rx) = std::sync::mpsc::channel();
+        let (dispute_request_tx, dispute_request_rx) = std::sync::mpsc::channel();
         let (our_prepare_info_tx, our_prepare_info_rx) = std::sync::mpsc::channel();
         let (our_make_info_tx, our_make_info_rx) = std::sync::mpsc::channel();
         let (order_xmr_address_tx, order_xmr_address_rx) = std::sync::mpsc::channel();
@@ -219,6 +222,8 @@ impl Default for MarketApp {
             s_order: Default::default(),
             cancel_request_rx,
             cancel_request_tx,
+            dispute_request_rx,
+            dispute_request_tx,
             // ship_request_rx,
             // ship_request_tx,
             submit_order_rx,
@@ -339,6 +344,14 @@ impl eframe::App for MarketApp {
                 log::error!("failure to cancel shipment please contact vendor")
             }
             self.is_loading = false;
+        }
+
+        if let Ok(disputed) = self.dispute_request_rx.try_recv() {
+            if disputed.tx_set != utils::empty_string() {
+                log::info!("dispute in progress");
+            }
+            self.is_loading = false;
+            self.is_customer_viewing_orders = false;
         }
 
         if let Ok(finalized) = self.submit_txset_rx.try_recv() {
@@ -734,10 +747,6 @@ impl eframe::App for MarketApp {
                         }
                     });
                 }
-                // ui.horizontal(|ui| {
-                //     ui.label("Create Dispute: \t\t");
-                //     if ui.button("Dispute").clicked() {}
-                // });
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
                     self.is_managing_multisig = false;
@@ -816,6 +825,7 @@ impl eframe::App for MarketApp {
                     .column(Column::auto())
                     .column(Column::auto())
                     .column(Column::auto())
+                    .column(Column::auto())
                     .min_scrolled_height(0.0);
 
                 table
@@ -828,6 +838,9 @@ impl eframe::App for MarketApp {
                         });
                         header.col(|ui| {
                             ui.strong("status");
+                        });
+                        header.col(|ui| {
+                            ui.strong("");
                         });
                         header.col(|ui| {
                             ui.strong("");
@@ -893,6 +906,25 @@ impl eframe::App for MarketApp {
                                                 self.cancel_request_tx.clone(),
                                                 ctx.clone(),
                                                 &self.m_order.orid,
+                                                &vendor,
+                                            )
+                                        }
+                                    });
+                                });
+                                row.col(|ui| {
+                                    ui.style_mut().wrap = Some(false);
+                                    ui.horizontal(|ui| {
+                                        if ui.button("Dispute").clicked() {
+                                            let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
+                                            let vendor = utils::search_gui_db(
+                                                vendor_prefix,
+                                                self.m_order.orid.clone(),
+                                            );
+                                            self.is_loading = true;
+                                            create_dispute_req(
+                                                &self.m_order.orid.clone(),
+                                                ctx.clone(),
+                                                self.dispute_request_tx.clone(),
                                                 &vendor,
                                             )
                                         }
@@ -1002,8 +1034,9 @@ impl eframe::App for MarketApp {
                     ui.text_edit_singleline(&mut self.upload_dinfo_str)
                         .labelled_by(delivery_info.id);
                 });
-                if self.new_order.orid != utils::empty_string() 
-                    && self.upload_dinfo_str != utils::empty_string() {
+                if self.new_order.orid != utils::empty_string()
+                    && self.upload_dinfo_str != utils::empty_string()
+                {
                     if ui.button("Trigger NASR").clicked() {
                         // upload delivery info
                         let dinfo_str = String::from(&self.upload_dinfo_str);
@@ -2400,5 +2433,55 @@ fn upload_dinfo_req(dinfo: Vec<u8>, orid: String, ctx: egui::Context, tx: Sender
         let dinfo = order::upload_delivery_info(&orid, &dinfo).await;
         let _ = tx.send(dinfo.orid != utils::empty_string());
         ctx.request_repaint();
+    });
+}
+
+fn create_dispute_req(
+    orid: &String,
+    ctx: egui::Context,
+    tx: Sender<models::Dispute>,
+    contact: &String,
+) {
+    let d_orid: String = String::from(orid);
+    let a_contact: String = String::from(contact);
+    tokio::spawn(async move {
+        log::info!("async create_dispute_req");
+        // generate address for refund
+        let wallet_password =
+            std::env::var(neveko_core::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
+        let wallet_name = String::from(neveko_core::APP_NAME);
+        monero::open_wallet(&wallet_name, &wallet_password).await;
+        let address_res = monero::get_address().await;
+        monero::close_wallet(&wallet_name, &wallet_password).await;
+        // generate a txset for the mediator
+        let wallet_password = utils::empty_string();
+        monero::open_wallet(&d_orid, &wallet_password).await;
+        let transfer = monero::sweep_all(String::from(address_res.result.address)).await;
+        monero::close_wallet(&d_orid, &wallet_password).await;
+        if transfer.result.multisig_txset.is_empty() {
+            log::error!("could not create txset");
+            let _ = tx.send(Default::default());
+            ctx.request_repaint();
+            return;
+        }
+        let dispute: models::Dispute = models::Dispute {
+            orid: String::from(&d_orid),
+            tx_set: transfer.result.multisig_txset,
+            ..Default::default()
+        };
+        let res = dispute::trigger_dispute_request(&a_contact, &dispute).await;
+        if res.created != 0 {
+            // cancel the order and write the dispute to the db
+            let wallet_password = std::env::var(neveko_core::MONERO_WALLET_PASSWORD)
+                .unwrap_or(String::from("password"));
+            monero::open_wallet(&String::from(neveko_core::APP_NAME), &wallet_password).await;
+            let pre_sign = monero::sign(String::from(&d_orid)).await;
+            monero::close_wallet(&String::from(neveko_core::APP_NAME), &wallet_password).await;
+            order::cancel_order(&d_orid, &pre_sign.result.signature).await;
+            let j_dispute = utils::dispute_to_json(&res);
+            dispute::create(j_dispute);
+            let _ = tx.send(res);
+            ctx.request_repaint();
+        }
     });
 }

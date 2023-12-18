@@ -28,10 +28,12 @@ pub const ORDER_DB_KEY:                 &str = "o";
 pub const PRODUCT_DB_KEY:               &str = "p";
 pub const USER_DB_KEY:                  &str = "u";
 pub const CONTACT_LIST_DB_KEY:          &str = "cl";
+pub const DISPUTE_LIST_DB_KEY:          &str = "dl";
 pub const MESSAGE_LIST_DB_KEY:          &str = "ml";
 pub const ORDER_LIST_DB_KEY:            &str = "ol";
 pub const PRODUCT_LIST_DB_KEY:          &str = "pl";
 pub const RX_MESSAGE_DB_KEY:            &str = "rx";
+pub const DISPUTE_LAST_CHECK_DB_KEY:    &str = "dlc";
 pub const FTS_DB_KEY:                   &str = "fts"; 
 pub const CUSTOMER_ORDER_LIST_DB_KEY:   &str = "olc";
 pub const MEDIATOR_DB_KEY:              &str = "med8";
@@ -68,4 +70,9 @@ pub const I2P_ZERO_RELEASH_HASH: &str =
 
 pub const LMDB_MAPSIZE: u64 = 1 * 1024 * 1024 * 1024;
 pub const I2P_CONNECTIVITY_CHECK_INTERVAL: u32 = 600000;
+pub const FTS_RETRY_INTERVAL: u32 = 60000;
+/// There is a one week grace period for manual intervention of disputes
+pub const DISPUTE_AUTO_SETTLE: u32 = 1000 * 60 * 60 * 24 * 7;
+/// Daily dispute auto-settle check interval
+pub const DISPUTE_CHECK_INTERVAL: u32 = 1000 * 60 * 60 * 24;
 // DO NOT EDIT BELOW THIS LINE

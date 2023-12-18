@@ -258,7 +258,7 @@ pub async fn finalize_order(
 }
 
 /// Create a dispute
-#[post("/create", data = "<dispute>")]
+#[post("/dispute/create", data = "<dispute>")]
 pub async fn create_dispute(
     dispute: Json<models::Dispute>,
     _jwp: proof::PaymentProof,

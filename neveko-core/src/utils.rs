@@ -2,6 +2,7 @@ use crate::{
     args,
     contact,
     db,
+    dispute,
     gpg,
     i2p,
     message,
@@ -348,6 +349,16 @@ pub fn order_to_json(o: &reqres::OrderRequest) -> Json<reqres::OrderRequest> {
     Json(r_order)
 }
 
+pub fn dispute_to_json(d: &models::Dispute) -> Json<models::Dispute> {
+    let dispute: models::Dispute = models::Dispute {
+        created: d.created,
+        did: String::from(&d.did),
+        orid: String::from(&d.orid),
+        tx_set: String::from(&d.tx_set),
+    };
+    Json(dispute)
+}
+
 /// Instead of putting `String::from("")`
 pub fn empty_string() -> String {
     String::from("")
@@ -537,6 +548,9 @@ pub async fn start_up() {
     if args.clear_fts {
         clear_fts();
     }
+    if args.clear_disputes {
+        clear_disputes();
+    }
     gen_signing_keys();
     if !is_using_remote_node() {
         monero::start_daemon();
@@ -565,9 +579,11 @@ pub async fn start_up() {
     gen_app_gpg().await;
     gen_app_wallet(&wallet_password).await;
     start_gui();
+    // start async background tasks here
     {
         tokio::spawn(async {
             message::retry_fts().await;
+            dispute::settle_dispute().await;
         });
     }
     info!("{} - neveko is online", env);
@@ -608,11 +624,25 @@ pub fn restart_retry_fts() {
     });
 }
 
+/// We can restart dispute auto-settle from since it gets terminated when empty
+pub fn restart_dispute_auto_settle() {
+    tokio::spawn(async move {
+        dispute::settle_dispute().await;
+    });
+}
+
 /// Called on app startup if `--clear-fts` flag is passed.
 fn clear_fts() {
     info!("clear fts");
     let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, "fts");
+    db::Interface::delete(&s.env, &s.handle, crate::FTS_DB_KEY);
+}
+
+/// Called on app startup if `--clear-dispute` flag is passed.
+fn clear_disputes() {
+    info!("clear_disputes");
+    let s = db::Interface::open();
+    db::Interface::delete(&s.env, &s.handle, crate::DISPUTE_LIST_DB_KEY);
 }
 
 /// Destroy temp files

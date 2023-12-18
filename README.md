@@ -41,6 +41,7 @@ NEVidebla-EKOnomia (invisible economy)
   * just remember to put cli password in the original window, not the log file window
   * https://stackoverflow.com/questions/6674327/redirect-all-output-to-file-in-bash
 * gui built with rust [egui](https://docs.rs/egui/latest/egui/)
+* darknet release server links are located at: http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p/index.txt
 
 ## Installation Mananger
 
@@ -111,5 +112,8 @@ most of the complex logic stays in neveko-core, exported from [lib.rs](./neveko-
 
 ## Donations
 
-This is just a hobby project but if anything here is useful donations are much appreciated!
-No need to send xmr, donating time is fine. Just test code if you can and open issues. Thanks!
+This is a research project as of v0.1.0-beta but if anything here is useful donations are much appreciated!
+Features and bug fixes aren't guaranteed by donations but they will supply coffee for devs on
+sleepless nights!
+
+87TzQS4g6mN4oAcEhcnEHGCxw9bFwMXR8WHJEEZoCd7tPHgcH3NsiCF5FSWSkKYVa7EYJjuosPZBiNAh9LqHaRSiBUhsAcC

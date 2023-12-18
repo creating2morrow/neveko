@@ -67,4 +67,30 @@
 
 ## Market
 
-WIP
+![market main view](../assets/neveko-market_main.png)
+
+* neveko market allows 3 i2p users to create an order
+* first you need to have a contact in vendor `enabled` mode
+* vendors must also have products in stock
+
+![vendor order management](../assets/vendor_manage_orders.png)
+
+* here vendors can upload delivery info
+* all other functionality including payment is automated
+* funds will need to manually swept from neveko for now
+
+![view vendors](../assets/view_vendors.png)
+
+* don't forget to `check status` often
+* expired jwp will cause errors when orchestrated multisig operations
+
+![customer order management](../assets/customer_manage_orders.png)
+
+* customers are responsible for orchestrated multisig information exchange with `MSIG`
+* orders can also be disputed or cancelled from here
+
+![create_jwp](../assets/msig_management.png)
+
+* burden of multisig is on the customer
+* click the msig step and use `check` to cycle to the next step
+* upon delivery don't forget to `release txset`

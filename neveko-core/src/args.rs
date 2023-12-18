@@ -148,6 +148,13 @@ pub struct Args {
         default_value = "false"
     )]
     pub clear_fts: bool,
+    /// Remove all disputes from db on app startup
+    #[arg(
+        long,
+        help = "this will clear disputes from the database",
+        default_value = "false"
+    )]
+    pub clear_disputes: bool,
     /// Manually configure i2p
     #[arg(
         long,

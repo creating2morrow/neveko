@@ -1932,7 +1932,7 @@ dependencies = [
 
 [[package]]
 name = "neveko"
-version = "0.4.8-alpha"
+version = "0.1.0-beta"
 dependencies = [
  "env_logger",
  "neveko_auth",
@@ -1946,7 +1946,7 @@ dependencies = [
 
 [[package]]
 name = "neveko_auth"
-version = "0.4.8-alpha"
+version = "0.1.0-beta"
 dependencies = [
  "env_logger",
  "log 0.4.19",
@@ -1956,7 +1956,7 @@ dependencies = [
 
 [[package]]
 name = "neveko_contact"
-version = "0.4.8-alpha"
+version = "0.1.0-beta"
 dependencies = [
  "env_logger",
  "log 0.4.19",
@@ -1966,7 +1966,7 @@ dependencies = [
 
 [[package]]
 name = "neveko_core"
-version = "0.4.8-alpha"
+version = "0.1.0-beta"
 dependencies = [
  "chrono",
  "clap",
@@ -1993,7 +1993,7 @@ dependencies = [
 
 [[package]]
 name = "neveko_gui"
-version = "0.4.8-alpha"
+version = "0.1.0-beta"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -2017,7 +2017,7 @@ dependencies = [
 
 [[package]]
 name = "neveko_market"
-version = "0.4.8-alpha"
+version = "0.1.0-beta"
 dependencies = [
  "chrono",
  "env_logger",
@@ -2028,7 +2028,7 @@ dependencies = [
 
 [[package]]
 name = "neveko_message"
-version = "0.4.8-alpha"
+version = "0.1.0-beta"
 dependencies = [
  "env_logger",
  "log 0.4.19",
