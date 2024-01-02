@@ -1455,7 +1455,7 @@ pub async fn get_block(height: u64) -> reqres::XmrDaemonGetBlockResponse {
     }
 }
 
-/// Performs the xmr daemon 'get_block' method for remone daemon
+/// Performs the xmr daemon 'get_block' method for remote daemon
 pub async fn p_get_block(height: u64) -> Result<reqres::XmrDaemonGetBlockResponse, Box<dyn Error>> {
     info!("fetching proxy block at height: {}", height);
     let host = utils::get_i2p_http_proxy();

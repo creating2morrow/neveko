@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
+use egui::{RichText, Color32};
 use eframe::egui;
 use image::Luma;
 use neveko_core::*;
@@ -403,8 +404,12 @@ impl eframe::App for HomeApp {
                 }
             }
             let mut str_i2p_status = String::from("offline");
+            let mut hover_txt = String::from("http proxy tunnel is closed");
+            let mut color = Color32::from_rgb(255, 0, 0);
             if self.s_i2p_status == i2p::ProxyStatus::Open {
                 str_i2p_status = String::from("online");
+                color = Color32::from_rgb(0, 255, 0);
+                hover_txt = String::from("http proxy tunnel is open but connectivity is not guaranteed");
             }
             if self.connections.is_i2p_advanced {
                 str_i2p_status = String::from("remote proxy");
@@ -413,7 +418,12 @@ impl eframe::App for HomeApp {
                 self.logo_i2p.show(ui);
                 ui.horizontal(|ui| {
                     let i2p_address = i2p::get_destination(None);
-                    ui.label(format!("- status: {}\n- address: {}", str_i2p_status, i2p_address));
+                    ui.label(
+                        RichText::new(format!("- status: {}\n- address: {}", str_i2p_status, i2p_address))
+                            .size(16.0)
+                            .color(color),
+                    ).on_hover_text(hover_txt);
+                
                 });
             });
             ui.horizontal(|ui| {
