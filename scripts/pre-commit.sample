@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Run the formatter and linter before commits
+
+# If any command fails exit immediately with that code
+set -eo pipefail
+
+# Check source without compiling
+./scripts/check_all.sh
+echo "source code checks passed"
+
+# Run the formatter
+./scripts/fmtall.sh
+echo "source code formatting complete"

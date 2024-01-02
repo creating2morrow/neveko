@@ -1,8 +1,11 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
-use egui::{RichText, Color32};
 use eframe::egui;
+use egui::{
+    Color32,
+    RichText,
+};
 use image::Luma;
 use neveko_core::*;
 use qrcode::QrCode;
@@ -423,7 +426,6 @@ impl eframe::App for HomeApp {
                             .size(16.0)
                             .color(color),
                     ).on_hover_text(hover_txt);
-                
                 });
             });
             ui.horizontal(|ui| {

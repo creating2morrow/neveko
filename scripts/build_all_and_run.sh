@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# set the latest pre-commit script
+cp -u scripts/pre-commit.sample .git/hooks/pre-commit
+
 cd neveko-auth && cargo build
 cd ../neveko-contact && cargo build
 cd ../neveko-core && cargo build
