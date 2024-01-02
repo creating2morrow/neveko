@@ -1555,7 +1555,11 @@ impl eframe::App for MarketApp {
                                     ui.label(format!("{}", o.status));
                                 });
                                 row.col(|ui| {
-                                    ui.label(format!("{}", o.date));
+                                    let h_date =
+                                        chrono::NaiveDateTime::from_timestamp_opt(o.date, 0)
+                                            .unwrap()
+                                            .to_string();
+                                    ui.label(format!("{}", h_date));
                                 });
                                 row.col(|ui| {
                                     ui.label(format!("{}", o.subaddress));
