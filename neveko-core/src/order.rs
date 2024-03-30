@@ -75,9 +75,9 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     monero::enable_experimental_multisig(&orid);
     debug!("insert order: {:?}", &new_order);
     let s = db::Interface::async_open().await;
-    // inject mediator separately, modifying the order model is mendokusai
-    let mediator_k = format!("{}-{}", crate::MEDIATOR_DB_KEY, &orid);
-    db::Interface::async_write(&s.env, &s.handle, &mediator_k, &j_order.mediator).await;
+    // inject adjudicator separately, modifying the order model is mendokusai
+    let adjudicator_k = format!("{}-{}", crate::MEDIATOR_DB_KEY, &orid);
+    db::Interface::async_write(&s.env, &s.handle, &adjudicator_k, &j_order.adjudicator).await;
     let k = &new_order.orid;
     db::Interface::async_write(&s.env, &s.handle, k, &Order::to_db(&new_order)).await;
     // in order to retrieve all orders, write keys to with ol
@@ -255,7 +255,8 @@ pub async fn sign_and_submit_multisig(
 ///
 /// they must sign the order id with their NEVEKO wallet instance. This means
 ///
-/// that the mediator can see order id for disputes without being able to access
+/// that the adjudicator can see order id for disputes without being able to
+/// access
 ///
 /// the details of said order.
 pub async fn secure_retrieval(orid: &String, signature: &String) -> Order {
@@ -803,11 +804,11 @@ pub async fn d_trigger_cancel_request(contact: &String, orid: &String) -> Order 
     Default::default()
 }
 
-pub async fn init_mediator_wallet(orid: &String) {
+pub async fn init_adjudicator_wallet(orid: &String) {
     let password = utils::empty_string();
     let m_wallet = monero::create_wallet(orid, &password).await;
     if !m_wallet {
-        log::error!("failed to create mediator wallet");
+        log::error!("failed to create adjudicator wallet");
     }
     // enable multisig
     monero::close_wallet(&orid, &password).await;

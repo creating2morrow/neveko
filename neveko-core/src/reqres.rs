@@ -1244,7 +1244,7 @@ impl Default for ErrorResponse {
 #[serde(crate = "rocket::serde")]
 pub struct OrderRequest {
     pub cid: String,
-    pub mediator: String,
+    pub adjudicator: String,
     pub pid: String,
     pub ship_address: Vec<u8>,
     pub quantity: u128,
@@ -1254,7 +1254,7 @@ impl Default for OrderRequest {
     fn default() -> Self {
         OrderRequest {
             cid: utils::empty_string(),
-            mediator: utils::empty_string(),
+            adjudicator: utils::empty_string(),
             pid: utils::empty_string(),
             ship_address: Vec::new(),
             quantity: 0,
@@ -1269,8 +1269,8 @@ pub struct MultisigInfoRequest {
     pub contact: String,
     /// Send empty array on prepare info request
     pub info: Vec<String>,
-    /// flag for mediator to create create multisig wallet for order
-    pub init_mediator: bool,
+    /// flag for adjudicator to create create multisig wallet for order
+    pub init_adjudicator: bool,
     /// We need to know when the first kex round occurs
     pub kex_init: bool,
     /// valid values are found in lines 21-26 of market.rs
@@ -1283,7 +1283,7 @@ impl Default for MultisigInfoRequest {
         MultisigInfoRequest {
             contact: utils::empty_string(),
             info: Vec::new(),
-            init_mediator: false,
+            init_adjudicator: false,
             kex_init: false,
             msig_type: utils::empty_string(),
             orid: utils::empty_string(),
