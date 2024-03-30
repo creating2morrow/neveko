@@ -162,7 +162,7 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
 ///
 /// decrypted for convenience sake. The client must determine which
 ///
-/// .b32.i2p address belongs to the vendor / mediator.
+/// .b32.i2p address belongs to the vendor / adjudicator.
 ///
 /// The result should be a string that needs to be decomposed into a
 ///
@@ -622,7 +622,7 @@ pub async fn send_import_info(orid: &String, info: &Vec<String>) {
 
 /// Customer begins multisig orchestration by requesting the prepare info
 ///
-/// from the mediator and the vendor. In response they create an encrypted
+/// from the adjudicator and the vendor. In response they create an encrypted
 ///
 /// multisig message with the requested data. Customer manages multisig by
 ///
@@ -673,7 +673,7 @@ pub async fn d_trigger_msig_info(
     let d_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
         contact: String::from(&request.contact),
         info: request.info.clone(),
-        init_mediator: request.init_mediator,
+        init_adjudicator: request.init_adjudicator,
         kex_init: request.kex_init,
         msig_type: String::from(&request.msig_type),
         orid: String::from(&request.orid),

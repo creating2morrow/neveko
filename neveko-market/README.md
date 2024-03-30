@@ -22,7 +22,7 @@
 |cust    |     X   |      |          |          
 |med     |     x   |      |          |          
 
-* customer makes and sends both prepare infos to mediator and vendor
+* customer makes and sends both prepare infos to adjudicator and vendor
 * participants all make_info
 
 |        | prepare | make | exchange |
@@ -54,7 +54,7 @@
 * vendor drafts the multisig txset and sends to customer with tracking/delivery info
 * order arrives, customer releases signed txset to vendor
 * vendor signs and submits signed txset
-* in case of dispute the mediator can sign multisig txset for customer refund
+* in case of dispute the adjudicator can sign multisig txset for customer refund
   or if the customer doesn't release payment after delivery
 
 Reference: https://resilience365.com/monero-multisig-how-to/

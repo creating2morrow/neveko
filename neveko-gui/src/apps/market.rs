@@ -18,11 +18,11 @@ pub struct MultisigManagement {
     pub completed_make: bool,
     pub exchange_multisig_keys: String,
     pub export_info: String,
-    pub has_mediator: bool,
+    pub has_adjudicator: bool,
     pub make_info: String,
-    pub mediator: String,
+    pub adjudicator: String,
     pub prepare_info: String,
-    pub query_mediator: bool,
+    pub query_adjudicator: bool,
     pub signed_txset: String,
     pub vendor: String,
 }
@@ -40,11 +40,11 @@ impl Default for MultisigManagement {
             completed_make: false,
             exchange_multisig_keys: utils::empty_string(),
             export_info: utils::empty_string(),
-            has_mediator: false,
+            has_adjudicator: false,
             make_info: utils::empty_string(),
-            mediator: utils::empty_string(),
+            adjudicator: utils::empty_string(),
             prepare_info: utils::empty_string(),
-            query_mediator: false,
+            query_adjudicator: false,
             signed_txset: utils::empty_string(),
             vendor: utils::empty_string(),
         }
@@ -437,36 +437,36 @@ impl eframe::App for MarketApp {
                     ui.label("msig request in progress...");
                 }
                 ui.horizontal(|ui| {
-                    let mediator = ui.label("Mediator: ");
-                    let prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
-                    if !self.msig.query_mediator {
-                        let mediator_db =
+                    let adjudicator = ui.label("Mediator: ");
+                    let prefix = String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
+                    if !self.msig.query_adjudicator {
+                        let adjudicator_db =
                             utils::search_gui_db(String::from(&prefix), self.m_order.orid.clone());
-                        log::debug!("mediator db: {}", mediator_db);
-                        self.msig.has_mediator = mediator_db != utils::empty_string();
-                        self.msig.mediator = mediator_db;
-                        self.msig.query_mediator = true;
-                    } else if self.msig.query_mediator && !self.msig.has_mediator {
-                        ui.text_edit_singleline(&mut self.msig.mediator)
-                            .labelled_by(mediator.id);
+                        log::debug!("adjudicator db: {}", adjudicator_db);
+                        self.msig.has_adjudicator = adjudicator_db != utils::empty_string();
+                        self.msig.adjudicator = adjudicator_db;
+                        self.msig.query_adjudicator = true;
+                    } else if self.msig.query_adjudicator && !self.msig.has_adjudicator {
+                        ui.text_edit_singleline(&mut self.msig.adjudicator)
+                            .labelled_by(adjudicator.id);
                         ui.label("\t");
                         if ui.button("Set Mediator").clicked() {
                             utils::write_gui_db(
                                 prefix,
                                 self.m_order.orid.clone(),
-                                self.msig.mediator.clone(),
+                                self.msig.adjudicator.clone(),
                             );
-                            self.msig.has_mediator = true;
+                            self.msig.has_adjudicator = true;
                         }
                     } else {
-                        ui.label(self.msig.mediator.clone());
+                        ui.label(self.msig.adjudicator.clone());
                         ui.label("\t");
                         if !self.msig.completed_prepare {
                             if ui.button("Clear Mediator").clicked() {
                                 utils::clear_gui_db(prefix, self.m_order.orid.clone());
-                                self.msig.mediator = utils::empty_string();
-                                self.msig.has_mediator = false;
-                                self.msig.query_mediator = false;
+                                self.msig.adjudicator = utils::empty_string();
+                                self.msig.has_adjudicator = false;
+                                self.msig.query_adjudicator = false;
                             }
                         }
                     }
@@ -477,32 +477,34 @@ impl eframe::App for MarketApp {
                         ui.label("Prepare:  \t\t\t\t\t");
                         if ui.button("Prepare").clicked() {
                             self.is_loading = true;
-                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                            let mediator =
-                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let adjudicator =
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
-                            // get prepare multisig info from vendor and mediator
+                            // get prepare multisig info from vendor and adjudicator
                             // call prepare multisig and save to db
                             send_prepare_info_req(
                                 self.our_prepare_info_tx.clone(),
                                 ctx.clone(),
-                                mediator,
+                                adjudicator,
                                 &self.m_order.orid.clone(),
                                 vendor,
                             )
                         }
                         if ui.button("Check").clicked() {
-                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                            let mediator =
-                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let adjudicator =
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                             let sub_type = String::from(message::PREPARE_MSIG);
                             let is_prepared = validate_msig_step(
-                                &mediator,
+                                &adjudicator,
                                 &self.m_order.orid,
                                 &vendor,
                                 &sub_type,
@@ -516,32 +518,34 @@ impl eframe::App for MarketApp {
                         ui.label("Make:   \t\t\t\t\t\t");
                         if ui.button("Make").clicked() {
                             self.is_loading = true;
-                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                            let mediator =
-                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let adjudicator =
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
-                            // get make multisig info from vendor and mediator
+                            // get make multisig info from vendor and adjudicator
                             // call make multisig and save to db
                             send_make_info_req(
                                 self.our_make_info_tx.clone(),
                                 ctx.clone(),
-                                mediator,
+                                adjudicator,
                                 &self.m_order.orid.clone(),
                                 vendor,
                             )
                         }
                         if ui.button("Check").clicked() {
-                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                            let mediator =
-                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let adjudicator =
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                             let sub_type = String::from(message::MAKE_MSIG);
                             let is_made = validate_msig_step(
-                                &mediator,
+                                &adjudicator,
                                 &self.m_order.orid,
                                 &vendor,
                                 &sub_type,
@@ -555,32 +559,34 @@ impl eframe::App for MarketApp {
                         ui.label("Key Exchange Initial:  \t\t\t");
                         if ui.button("KEX-INIT").clicked() {
                             self.is_loading = true;
-                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                            let mediator =
-                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let adjudicator =
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
-                            // get kex round one info from vendor and mediator
+                            // get kex round one info from vendor and adjudicator
                             // call make multisig and save to db
                             send_kex_initial_req(
                                 self.our_make_info_tx.clone(),
                                 ctx.clone(),
-                                mediator,
+                                adjudicator,
                                 &self.m_order.orid.clone(),
                                 vendor,
                             )
                         }
                         if ui.button("Check").clicked() {
-                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                            let mediator =
-                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let adjudicator =
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                             let sub_type = String::from(message::KEX_ONE_MSIG);
                             let is_made = validate_msig_step(
-                                &mediator,
+                                &adjudicator,
                                 &self.m_order.orid,
                                 &vendor,
                                 &sub_type,
@@ -594,32 +600,34 @@ impl eframe::App for MarketApp {
                         ui.label("Key Exchange Final:  \t\t\t");
                         if ui.button("KEX-FINAL").clicked() {
                             self.is_loading = true;
-                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                            let mediator =
-                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let adjudicator =
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
-                            // get kex round two info from vendor and mediator
+                            // get kex round two info from vendor and adjudicator
                             // call make multisig and save to db
                             send_kex_final_req(
                                 self.our_make_info_tx.clone(),
                                 ctx.clone(),
-                                mediator,
+                                adjudicator,
                                 &self.m_order.orid.clone(),
                                 vendor,
                             )
                         }
                         if ui.button("Check").clicked() {
-                            let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
-                            let mediator =
-                                utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                            let adjudicator =
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
                             let sub_type = String::from(message::KEX_TWO_MSIG);
                             let is_made = validate_msig_step(
-                                &mediator,
+                                &adjudicator,
                                 &self.m_order.orid,
                                 &vendor,
                                 &sub_type,
@@ -952,10 +960,11 @@ impl eframe::App for MarketApp {
                     ui.add(egui::Spinner::new());
                     ui.label("loading...");
                 }
-                let mediator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
-                let mediator = utils::search_gui_db(mediator_prefix, self.m_order.orid.clone());
+                let adjudicator_prefix = String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
+                let adjudicator =
+                    utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
                 ui.label(format!("customer id: {}", self.new_order.cid));
-                ui.label(format!("mediator id: {}", mediator));
+                ui.label(format!("adjudicator id: {}", adjudicator));
                 ui.label(format!("product id: {}", self.new_order.pid));
                 ui.horizontal(|ui| {
                     let shipping_name = ui.label("shipping address: ");
@@ -986,7 +995,7 @@ impl eframe::App for MarketApp {
                             gpg::encrypt(self.vendor_status.i2p.clone(), &address_bytes);
                         let new_order = reqres::OrderRequest {
                             cid: String::from(&self.new_order.cid),
-                            mediator: String::from(&mediator),
+                            adjudicator: String::from(&adjudicator),
                             pid: String::from(&self.new_order.pid),
                             ship_address: encrypted_shipping_address.unwrap_or(Vec::new()),
                             quantity: qty,
@@ -1813,7 +1822,7 @@ fn submit_order_req(
 fn send_prepare_info_req(
     tx: Sender<String>,
     ctx: egui::Context,
-    mediator: String,
+    adjudicator: String,
     orid: &String,
     vendor: String,
 ) {
@@ -1821,8 +1830,10 @@ fn send_prepare_info_req(
     let v_orid: String = String::from(orid);
     let w_orid: String = String::from(orid);
     tokio::spawn(async move {
-        let m_jwp: String =
-            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
+        let m_jwp: String = utils::search_gui_db(
+            String::from(crate::GUI_JWP_DB_KEY),
+            String::from(&adjudicator),
+        );
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
         let wallet_password = utils::empty_string();
@@ -1845,14 +1856,14 @@ fn send_prepare_info_req(
             String::from(&w_orid),
             String::from(ref_prepare_info),
         );
-        // Request mediator and vendor while we're at it
+        // Request adjudicator and vendor while we're at it
         // Will coordinating send this on make requests next
         let s = db::Interface::async_open().await;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::PREPARE_MSIG,
             String::from(&m_orid),
-            mediator
+            adjudicator
         );
         let v_msig_key = format!(
             "{}-{}-{}",
@@ -1870,7 +1881,7 @@ fn send_prepare_info_req(
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: Vec::new(),
-                init_mediator: false,
+                init_adjudicator: false,
                 kex_init: false,
                 msig_type: String::from(message::PREPARE_MSIG),
                 orid: String::from(v_orid),
@@ -1879,18 +1890,19 @@ fn send_prepare_info_req(
         }
         if m_prepare == utils::empty_string() {
             log::debug!(
-                "constructing mediator {} msig messages",
+                "constructing adjudicator {} msig messages",
                 message::PREPARE_MSIG
             );
             let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: Vec::new(),
-                init_mediator: true,
+                init_adjudicator: true,
                 kex_init: false,
                 msig_type: String::from(message::PREPARE_MSIG),
                 orid: String::from(m_orid),
             };
-            let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
+            let _m_result =
+                message::d_trigger_msig_info(&adjudicator, &m_jwp, &m_msig_request).await;
         }
         let _ = tx.send(String::from(ref_prepare_info));
     });
@@ -1900,7 +1912,7 @@ fn send_prepare_info_req(
 fn send_make_info_req(
     tx: Sender<String>,
     ctx: egui::Context,
-    mediator: String,
+    adjudicator: String,
     orid: &String,
     vendor: String,
 ) {
@@ -1908,8 +1920,10 @@ fn send_make_info_req(
     let v_orid: String = String::from(orid);
     let w_orid: String = String::from(orid);
     tokio::spawn(async move {
-        let m_jwp: String =
-            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
+        let m_jwp: String = utils::search_gui_db(
+            String::from(crate::GUI_JWP_DB_KEY),
+            String::from(&adjudicator),
+        );
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
         let wallet_password = utils::empty_string();
@@ -1923,7 +1937,7 @@ fn send_make_info_req(
         let mut prepare_info_prep = Vec::new();
         let mut m_prepare_info_send = Vec::new();
         let mut v_prepare_info_send = Vec::new();
-        // we need to send our info to mediator and vendor so they can perform
+        // we need to send our info to adjudicator and vendor so they can perform
         // make_multisig and send the reponse (String) back
         let c_prepare = utils::search_gui_db(
             String::from(crate::GUI_MSIG_PREPARE_DB_KEY),
@@ -1934,7 +1948,7 @@ fn send_make_info_req(
             "{}-{}-{}",
             message::PREPARE_MSIG,
             String::from(&m_orid),
-            mediator
+            adjudicator
         );
         let v_msig_key = format!(
             "{}-{}-{}",
@@ -1966,7 +1980,7 @@ fn send_make_info_req(
                 );
             }
         }
-        // Request mediator and vendor while we're at it
+        // Request adjudicator and vendor while we're at it
         // Will coordinating send this on make requests next
 
         let s = db::Interface::async_open().await;
@@ -1974,7 +1988,7 @@ fn send_make_info_req(
             "{}-{}-{}",
             message::MAKE_MSIG,
             String::from(&m_orid),
-            mediator
+            adjudicator
         );
         let v_msig_key = format!(
             "{}-{}-{}",
@@ -1989,7 +2003,7 @@ fn send_make_info_req(
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: v_prepare_info_send,
-                init_mediator: false,
+                init_adjudicator: false,
                 kex_init: false,
                 msig_type: String::from(message::MAKE_MSIG),
                 orid: String::from(v_orid),
@@ -1997,16 +2011,20 @@ fn send_make_info_req(
             let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
         }
         if m_make == utils::empty_string() {
-            log::debug!("constructing mediator {} msig messages", message::MAKE_MSIG);
+            log::debug!(
+                "constructing adjudicator {} msig messages",
+                message::MAKE_MSIG
+            );
             let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: m_prepare_info_send,
-                init_mediator: false,
+                init_adjudicator: false,
                 kex_init: false,
                 msig_type: String::from(message::MAKE_MSIG),
                 orid: String::from(m_orid),
             };
-            let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
+            let _m_result =
+                message::d_trigger_msig_info(&adjudicator, &m_jwp, &m_msig_request).await;
         }
         let _ = tx.send(String::from(&local_make));
     });
@@ -2016,7 +2034,7 @@ fn send_make_info_req(
 fn send_kex_initial_req(
     tx: Sender<String>,
     ctx: egui::Context,
-    mediator: String,
+    adjudicator: String,
     orid: &String,
     vendor: String,
 ) {
@@ -2024,8 +2042,10 @@ fn send_kex_initial_req(
     let v_orid: String = String::from(orid);
     let w_orid: String = String::from(orid);
     tokio::spawn(async move {
-        let m_jwp: String =
-            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
+        let m_jwp: String = utils::search_gui_db(
+            String::from(crate::GUI_JWP_DB_KEY),
+            String::from(&adjudicator),
+        );
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
         let wallet_password = utils::empty_string();
@@ -2039,7 +2059,7 @@ fn send_kex_initial_req(
         let mut kex_init_prep = Vec::new();
         let mut m_kex_init_send = Vec::new();
         let mut v_kex_init_send = Vec::new();
-        // we need to send our info to mediator and vendor so they can perform
+        // we need to send our info to adjudicator and vendor so they can perform
         // kex final one and send the reponse (info) back
         let c_kex_init = utils::search_gui_db(
             String::from(crate::GUI_MSIG_MAKE_DB_KEY),
@@ -2050,7 +2070,7 @@ fn send_kex_initial_req(
             "{}-{}-{}",
             message::MAKE_MSIG,
             String::from(&m_orid),
-            mediator
+            adjudicator
         );
         let v_msig_key = format!(
             "{}-{}-{}",
@@ -2083,14 +2103,14 @@ fn send_kex_initial_req(
                 );
             }
         }
-        // Request mediator and vendor while we're at it
+        // Request adjudicator and vendor while we're at it
         // Will coordinating send this on kex round two next
         let s = db::Interface::async_open().await;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::KEX_ONE_MSIG,
             String::from(&m_orid),
-            mediator
+            adjudicator
         );
         let v_msig_key = format!(
             "{}-{}-{}",
@@ -2108,7 +2128,7 @@ fn send_kex_initial_req(
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: v_kex_init_send,
-                init_mediator: false,
+                init_adjudicator: false,
                 kex_init: true,
                 msig_type: String::from(message::KEX_ONE_MSIG),
                 orid: String::from(v_orid),
@@ -2117,18 +2137,19 @@ fn send_kex_initial_req(
         }
         if m_kex_init == utils::empty_string() {
             log::debug!(
-                "constructing mediator {} msig messages",
+                "constructing adjudicator {} msig messages",
                 message::KEX_ONE_MSIG
             );
             let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: m_kex_init_send,
-                init_mediator: false,
+                init_adjudicator: false,
                 kex_init: true,
                 msig_type: String::from(message::KEX_ONE_MSIG),
                 orid: String::from(m_orid),
             };
-            let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
+            let _m_result =
+                message::d_trigger_msig_info(&adjudicator, &m_jwp, &m_msig_request).await;
         }
         let _ = tx.send(String::from(&local_kex_init));
     });
@@ -2138,7 +2159,7 @@ fn send_kex_initial_req(
 fn send_kex_final_req(
     tx: Sender<String>,
     ctx: egui::Context,
-    mediator: String,
+    adjudicator: String,
     orid: &String,
     vendor: String,
 ) {
@@ -2146,8 +2167,10 @@ fn send_kex_final_req(
     let v_orid: String = String::from(orid);
     let w_orid: String = String::from(orid);
     tokio::spawn(async move {
-        let m_jwp: String =
-            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&mediator));
+        let m_jwp: String = utils::search_gui_db(
+            String::from(crate::GUI_JWP_DB_KEY),
+            String::from(&adjudicator),
+        );
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
         let wallet_password = utils::empty_string();
@@ -2170,7 +2193,7 @@ fn send_kex_final_req(
             "{}-{}-{}",
             message::KEX_ONE_MSIG,
             String::from(&m_orid),
-            mediator
+            adjudicator
         );
         let v_msig_key = format!(
             "{}-{}-{}",
@@ -2209,7 +2232,7 @@ fn send_kex_final_req(
             "{}-{}-{}",
             message::KEX_TWO_MSIG,
             String::from(&m_orid),
-            mediator
+            adjudicator
         );
         let v_msig_key = format!(
             "{}-{}-{}",
@@ -2227,7 +2250,7 @@ fn send_kex_final_req(
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: v_kex_final_send,
-                init_mediator: false,
+                init_adjudicator: false,
                 kex_init: false,
                 msig_type: String::from(message::KEX_TWO_MSIG),
                 orid: String::from(v_orid),
@@ -2236,18 +2259,19 @@ fn send_kex_final_req(
         }
         if m_kex_final == utils::empty_string() {
             log::debug!(
-                "constructing mediator {} msig messages",
+                "constructing adjudicator {} msig messages",
                 message::KEX_TWO_MSIG
             );
             let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info: m_kex_final_send,
-                init_mediator: false,
+                init_adjudicator: false,
                 kex_init: false,
                 msig_type: String::from(message::KEX_TWO_MSIG),
                 orid: String::from(m_orid),
             };
-            let _m_result = message::d_trigger_msig_info(&mediator, &m_jwp, &m_msig_request).await;
+            let _m_result =
+                message::d_trigger_msig_info(&adjudicator, &m_jwp, &m_msig_request).await;
         }
         let _ = tx.send(String::from(&local_kex_final));
     });
@@ -2347,7 +2371,7 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
                 info,
-                init_mediator: false,
+                init_adjudicator: false,
                 kex_init: false,
                 msig_type: String::from(message::IMPORT_MSIG),
                 orid: String::from(v_orid),
@@ -2398,17 +2422,17 @@ fn cancel_order_req(
 // End Async fn requests
 
 fn validate_msig_step(
-    mediator: &String,
+    adjudicator: &String,
     orid: &String,
     vendor: &String,
     sub_type: &String,
 ) -> bool {
     let s = db::Interface::open();
-    let m_msig_key = format!("{}-{}-{}", sub_type, orid, mediator);
+    let m_msig_key = format!("{}-{}-{}", sub_type, orid, adjudicator);
     let v_msig_key = format!("{}-{}-{}", sub_type, orid, vendor);
     let m_info = db::Interface::read(&s.env, &s.handle, &m_msig_key);
     let v_info = db::Interface::read(&s.env, &s.handle, &v_msig_key);
-    log::debug!("{} mediator info: {}", sub_type, &m_info);
+    log::debug!("{} adjudicator info: {}", sub_type, &m_info);
     log::debug!("{} vendor info: {}", sub_type, &v_info);
     m_info != utils::empty_string() && v_info != utils::empty_string()
 }
@@ -2457,7 +2481,7 @@ fn create_dispute_req(
         monero::open_wallet(&wallet_name, &wallet_password).await;
         let address_res = monero::get_address().await;
         monero::close_wallet(&wallet_name, &wallet_password).await;
-        // generate a txset for the mediator
+        // generate a txset for the adjudicator
         let wallet_password = utils::empty_string();
         monero::open_wallet(&d_orid, &wallet_password).await;
         let transfer = monero::sweep_all(String::from(address_res.result.address)).await;

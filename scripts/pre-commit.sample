@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # Run the formatter and linter before commits
+# TODO: automatically squash in formatting changes
+#       For now if there formatting changes just undo the
+#       previous commit and commit again.
 
 # If any command fails exit immediately with that code
 set -eo pipefail

@@ -320,11 +320,11 @@ pub struct Order {
     pub deliver_date: i64,
     /// Transaction hash from vendor or customer signed txset
     pub hash: String,
-    pub mediator_kex_1: String,
-    pub mediator_kex_2: String,
-    pub mediator_kex_3: String,
-    pub mediator_msig_make: String,
-    pub mediator_msig_prepare: String,
+    pub adjudicator_kex_1: String,
+    pub adjudicator_kex_2: String,
+    pub adjudicator_kex_3: String,
+    pub adjudicator_msig_make: String,
+    pub adjudicator_msig_prepare: String,
     /// Address gpg key encrypted bytes
     pub ship_address: Vec<u8>,
     pub ship_date: i64,
@@ -357,11 +357,11 @@ impl Default for Order {
             date: 0,
             deliver_date: 0,
             hash: utils::empty_string(),
-            mediator_kex_1: utils::empty_string(),
-            mediator_kex_2: utils::empty_string(),
-            mediator_kex_3: utils::empty_string(),
-            mediator_msig_make: utils::empty_string(),
-            mediator_msig_prepare: utils::empty_string(),
+            adjudicator_kex_1: utils::empty_string(),
+            adjudicator_kex_2: utils::empty_string(),
+            adjudicator_kex_3: utils::empty_string(),
+            adjudicator_msig_make: utils::empty_string(),
+            adjudicator_msig_prepare: utils::empty_string(),
             ship_address: Vec::new(),
             ship_date: 0,
             subaddress: utils::empty_string(),
@@ -393,11 +393,11 @@ impl Order {
             o.date,
             o.deliver_date,
             o.hash,
-            o.mediator_msig_make,
-            o.mediator_msig_prepare,
-            o.mediator_kex_1,
-            o.mediator_kex_2,
-            o.mediator_kex_3,
+            o.adjudicator_msig_make,
+            o.adjudicator_msig_prepare,
+            o.adjudicator_kex_1,
+            o.adjudicator_kex_2,
+            o.adjudicator_kex_3,
             ship_address,
             o.ship_date,
             o.subaddress,
@@ -433,11 +433,11 @@ impl Order {
             Err(_) => 0,
         };
         let hash = v.remove(0);
-        let mediator_msig_make = v.remove(0);
-        let mediator_msig_prepare = v.remove(0);
-        let mediator_kex_1 = v.remove(0);
-        let mediator_kex_2 = v.remove(0);
-        let mediator_kex_3 = v.remove(0);
+        let adjudicator_msig_make = v.remove(0);
+        let adjudicator_msig_prepare = v.remove(0);
+        let adjudicator_kex_1 = v.remove(0);
+        let adjudicator_kex_2 = v.remove(0);
+        let adjudicator_kex_3 = v.remove(0);
         let ship_address = hex::decode(v.remove(0)).unwrap_or(Vec::new());
         let ship_date = match v.remove(0).parse::<i64>() {
             Ok(d) => d,
@@ -469,11 +469,11 @@ impl Order {
             date,
             deliver_date,
             hash,
-            mediator_kex_1,
-            mediator_kex_2,
-            mediator_kex_3,
-            mediator_msig_make,
-            mediator_msig_prepare,
+            adjudicator_kex_1,
+            adjudicator_kex_2,
+            adjudicator_kex_3,
+            adjudicator_msig_make,
+            adjudicator_msig_prepare,
             ship_address,
             ship_date,
             subaddress,
@@ -502,11 +502,11 @@ impl Order {
             date: o.date,
             deliver_date: o.deliver_date,
             hash: String::from(&o.hash),
-            mediator_kex_1: String::from(&o.mediator_kex_1),
-            mediator_kex_2: String::from(&o.mediator_kex_2),
-            mediator_kex_3: String::from(&o.mediator_kex_3),
-            mediator_msig_make: String::from(&o.mediator_msig_make),
-            mediator_msig_prepare: String::from(&o.mediator_msig_prepare),
+            adjudicator_kex_1: String::from(&o.adjudicator_kex_1),
+            adjudicator_kex_2: String::from(&o.adjudicator_kex_2),
+            adjudicator_kex_3: String::from(&o.adjudicator_kex_3),
+            adjudicator_msig_make: String::from(&o.adjudicator_msig_make),
+            adjudicator_msig_prepare: String::from(&o.adjudicator_msig_prepare),
             ship_address: o.ship_address.iter().cloned().collect(),
             ship_date: o.ship_date,
             subaddress: String::from(&o.subaddress),
