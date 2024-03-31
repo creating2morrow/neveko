@@ -438,7 +438,7 @@ impl eframe::App for MarketApp {
                 }
                 ui.horizontal(|ui| {
                     let adjudicator = ui.label("Mediator: ");
-                    let prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                    let prefix = String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                     if !self.msig.query_adjudicator {
                         let adjudicator_db =
                             utils::search_gui_db(String::from(&prefix), self.m_order.orid.clone());
@@ -477,7 +477,8 @@ impl eframe::App for MarketApp {
                         ui.label("Prepare:  \t\t\t\t\t");
                         if ui.button("Prepare").clicked() {
                             self.is_loading = true;
-                            let adjudicator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
@@ -494,7 +495,8 @@ impl eframe::App for MarketApp {
                             )
                         }
                         if ui.button("Check").clicked() {
-                            let adjudicator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
@@ -516,7 +518,8 @@ impl eframe::App for MarketApp {
                         ui.label("Make:   \t\t\t\t\t\t");
                         if ui.button("Make").clicked() {
                             self.is_loading = true;
-                            let adjudicator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
@@ -533,7 +536,8 @@ impl eframe::App for MarketApp {
                             )
                         }
                         if ui.button("Check").clicked() {
-                            let adjudicator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
@@ -555,7 +559,8 @@ impl eframe::App for MarketApp {
                         ui.label("Key Exchange Initial:  \t\t\t");
                         if ui.button("KEX-INIT").clicked() {
                             self.is_loading = true;
-                            let adjudicator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
@@ -572,7 +577,8 @@ impl eframe::App for MarketApp {
                             )
                         }
                         if ui.button("Check").clicked() {
-                            let adjudicator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
@@ -594,7 +600,8 @@ impl eframe::App for MarketApp {
                         ui.label("Key Exchange Final:  \t\t\t");
                         if ui.button("KEX-FINAL").clicked() {
                             self.is_loading = true;
-                            let adjudicator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
@@ -611,7 +618,8 @@ impl eframe::App for MarketApp {
                             )
                         }
                         if ui.button("Check").clicked() {
-                            let adjudicator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                            let adjudicator_prefix =
+                                String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
@@ -952,7 +960,7 @@ impl eframe::App for MarketApp {
                     ui.add(egui::Spinner::new());
                     ui.label("loading...");
                 }
-                let adjudicator_prefix = String::from(crate::GUI_MSIG_MEDIATOR_DB_KEY);
+                let adjudicator_prefix = String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                 let adjudicator =
                     utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
                 ui.label(format!("customer id: {}", self.new_order.cid));

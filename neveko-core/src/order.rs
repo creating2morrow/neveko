@@ -76,7 +76,7 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     debug!("insert order: {:?}", &new_order);
     let s = db::Interface::async_open().await;
     // inject adjudicator separately, modifying the order model is mendokusai
-    let adjudicator_k = format!("{}-{}", crate::MEDIATOR_DB_KEY, &orid);
+    let adjudicator_k = format!("{}-{}", crate::ADJUDICATOR_DB_KEY, &orid);
     db::Interface::async_write(&s.env, &s.handle, &adjudicator_k, &j_order.adjudicator).await;
     let k = &new_order.orid;
     db::Interface::async_write(&s.env, &s.handle, k, &Order::to_db(&new_order)).await;

@@ -22,7 +22,7 @@ pub const GUI_MSIG_KEX_TWO_DB_KEY:  &str = "gui-kex-2";
 pub const GUI_MSIG_EXPORT_DB_KEY:   &str = "gui-export";
 pub const GUI_MSIG_IMPORT_DB_KEY:   &str = "gui-import";
 pub const GUI_MSIG_MAKE_DB_KEY:     &str = "gui-make";
-pub const GUI_MSIG_MEDIATOR_DB_KEY: &str = "gui-adjudicator";
+pub const GUI_MSIG_ADJUDICATOR_DB_KEY: &str = "gui-adjudicator";
 pub const GUI_MSIG_PREPARE_DB_KEY:  &str = "gui-prepare";
 pub const GUI_MSIG_TXSET_DB_KEY:    &str = "gui-txset";
 // End LMDB keys
