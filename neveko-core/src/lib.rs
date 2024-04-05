@@ -1,6 +1,7 @@
 pub mod args;       // command line arguments
 pub mod auth;       // internal auth repo/service layer
 pub mod contact;    // contact repo/service layer
+pub mod neveko25519;    // cipher logic
 pub mod dispute;    // dispute repo/service layer
 pub mod db;         // lmdb interface
 pub mod gpg;        // gpgme interface
