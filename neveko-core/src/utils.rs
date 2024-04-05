@@ -821,7 +821,7 @@ pub async fn estimate_fee() -> u128 {
         }
         count += 1;
     }
-    &v_fee.iter().sum() / v_fee.len() as u128
+    &v_fee.iter().sum::<u128>() / v_fee.len() as u128
 }
 
 /// Combine the results `estimate_fee()` and `get_balance()` to
