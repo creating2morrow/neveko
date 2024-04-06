@@ -1,5 +1,4 @@
 use curve25519_dalek::{
-    constants,
     edwards::{
         CompressedEdwardsY,
         EdwardsPoint,
@@ -10,26 +9,38 @@ use num::{
     bigint::Sign,
     BigInt,
 };
-use rand_core::{
-    OsRng,
-    RngCore,
-};
 use sha2::{
     Digest,
     Sha512,
 };
 
-use crate::utils;
+use crate::{
+    monero,
+    utils,
+};
 
+#[derive(Debug)]
+/// Container for the Neveko Message Keys
+pub struct NevekoMessageKeys {
+    /// Neveko Message Secret Key
+    pub nmsk: [u8; 32],
+    /// Neveko Message Public Key
+    pub nmpk: [u8; 32],
+    /// Hex encoding of NMSK
+    pub hex_nmsk: String,
+    /// Hex encoding of NMPK
+    pub hex_nmpk: String,
+}
 /// L value as defined at https://eprint.iacr.org/2008/013.pdf
 const CURVE_L: &str = "edd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010";
+pub const ENCIPHER: &str = "ENCIPHER";
 
 fn curve_l_as_big_int() -> BigInt {
     BigInt::from_bytes_le(Sign::Plus, CURVE_L.as_bytes())
 }
 
 fn big_int_to_string(b: &BigInt) -> String {
-    String::from_utf8(b.to_signed_bytes_le()).unwrap_or(utils::empty_string())
+    String::from(String::from_utf8(b.to_signed_bytes_le()).unwrap_or_default())
 }
 
 /// Hash string input to scalar
@@ -62,38 +73,70 @@ fn hash_to_scalar(s: Vec<&str>) -> Scalar {
     }
 }
 
-/// Convert Monero secret view Key to a Scalar.
-fn xmr_svk_to_scalar(svk: String) -> Scalar {
-    todo!()
-}
-
-/// Extract public view key from Monero address to be represented
+/// Hash the secret view key to a valid scalar.
 ///
-/// as a CompressedEdwards point.
-fn xmr_address_to_pvk_point(address: String) -> CompressedEdwardsY {
-    todo!()
+/// Multiply the NMSK by the ed25519 basepoint to create the
+///
+/// Neveko Message Public Key.
+async fn generate_neveko_message_keys() -> NevekoMessageKeys {
+    log::info!("generating neveko message keys");
+    let password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(utils::empty_string());
+    let filename = String::from(crate::APP_NAME);
+    let m_wallet = monero::open_wallet(&filename, &password).await;
+    if !m_wallet {
+        log::error!("failed to open wallet");
+    }
+    let svk_res = monero::query_view_key().await;
+    monero::close_wallet(&filename, &password).await;
+    let svk = svk_res.result.key;
+    let scalar_nmsk = hash_to_scalar(vec![&svk[..], crate::APP_NAME]);
+    let point_nmpk = EdwardsPoint::mul_base(&scalar_nmsk);
+    let nmsk = scalar_nmsk.as_bytes();
+    let nmpk: [u8; 32] = *point_nmpk.compress().as_bytes();
+    let hex_nmpk = hex::encode(&nmpk);
+    let hex_nmsk = hex::encode(&nmsk);
+    NevekoMessageKeys {
+        nmpk,
+        nmsk: *nmsk,
+        hex_nmpk,
+        hex_nmsk,
+    }
 }
 
-/// Encipher a string by using the contact's public view key.
+/// Encipher a string by using the contact's Neveko Message Public Key.
 ///
 /// E.g. ss_alice = pvk_bob(address) * svk_alice = h`
 ///
 /// `m = "some message to encipher"`
 ///
-/// Return `x = m + h`
-pub fn encipher(address: String, message: String) -> CompressedEdwardsY {
-    todo!()
-}
-
-/// Decipher a string by using the secret view key.
+/// Return `x = m + h` as a string of the enciphered message
 ///
-/// E.g. ss_bob = `pvk_alice(address) * svk_bob = h'`
-///
-/// `m = "some message to decipher"`
-///
-/// Return `m = x - h'`
-pub fn decipher(address: String, message: String) -> CompressedEdwardsY {
-    todo!()
+/// encipher `true` will encipher otherwise decipher
+pub async fn cipher(hex_nmpk: &String, message: String, encipher: Option<String>) -> String {
+    let unwrap_encipher: String = encipher.unwrap_or(utils::empty_string());
+    let keys: NevekoMessageKeys = generate_neveko_message_keys().await;
+    log::debug!("neveko keys: {:?}", keys);
+    // shared secret = pvk * svk
+    let scalar_svk = Scalar::from_bytes_mod_order(keys.nmsk);
+    let mut nmpk: [u8; 32] = [0u8; 32];
+    hex::decode_to_slice(hex_nmpk, &mut nmpk as &mut [u8]).unwrap_or_default();
+    let compress_y = CompressedEdwardsY::from_slice(&nmpk).unwrap_or_default();
+    let pvk = compress_y.decompress().unwrap_or_default();
+    let shared_secret = pvk * scalar_svk;
+    let ss_hex = hex::encode(shared_secret.compress().as_bytes());
+    log::debug!("shared_secret: {:?}", ss_hex);
+    // x = m + h or x = m - h'
+    let h = hash_to_scalar(vec![&ss_hex[..]]);
+    let h_bi = BigInt::from_bytes_le(Sign::Plus, h.as_bytes());
+    if unwrap_encipher == String::from(ENCIPHER) {
+        let msg_bi = BigInt::from_bytes_le(Sign::Plus, &message.as_bytes());
+        let x = msg_bi + h_bi;
+        return hex::encode(x.to_bytes_le().1);
+    } else {
+        let msg_bi = BigInt::from_bytes_le(Sign::Plus, &hex::decode(&message).unwrap_or_default());
+        let x = msg_bi - h_bi;
+        return big_int_to_string(&x);
+    };
 }
 
 // Tests
@@ -103,32 +146,59 @@ pub fn decipher(address: String, message: String) -> CompressedEdwardsY {
 mod tests {
     use super::*;
 
+    fn test_cipher(message: &String, encipher: Option<String>) -> String {
+        let unwrap_encipher: String = encipher.unwrap_or(utils::empty_string());
+        let test_nmpk: [u8; 32] = [
+            203, 2, 188, 13, 167, 96, 59, 189, 38, 238, 2, 71, 84, 155, 153, 73, 241, 137, 9, 30,
+            28, 134, 91, 137, 134, 73, 231, 45, 174, 98, 103, 158,
+        ];
+        let nmsk: [u8; 32] = [
+            54, 55, 48, 48, 99, 48, 101, 52, 102, 99, 99, 56, 54, 56, 50, 50, 52, 101, 101, 55, 51,
+            48, 102, 54, 54, 57, 101, 97, 54, 100, 101, 0,
+        ];
+        let hex_nmpk = hex::encode(test_nmpk);
+        let hex_nmsk = hex::encode(nmsk);
+        let mut nmpk: [u8; 32] = [0u8; 32];
+        hex::decode_to_slice(hex_nmpk.clone(), &mut nmpk as &mut [u8]).unwrap_or_default();
+        assert_eq!(test_nmpk, nmpk);
+        let keys: NevekoMessageKeys = NevekoMessageKeys {
+            nmsk,
+            nmpk,
+            hex_nmpk,
+            hex_nmsk,
+        };
+        // shared secret = pvk * svk
+        let scalar_svk = Scalar::from_bytes_mod_order(keys.nmsk);
+        let compress_y = CompressedEdwardsY::from_slice(&nmpk).unwrap_or_default();
+        let pvk = compress_y.decompress().unwrap_or_default();
+        let shared_secret = pvk * scalar_svk;
+        let ss_hex = hex::encode(shared_secret.compress().as_bytes());
+        log::debug!("shared_secret: {:?}", ss_hex);
+        // x = m + h or x = m - h'
+        let h = hash_to_scalar(vec![&ss_hex[..]]);
+        let h_bi = BigInt::from_bytes_le(Sign::Plus, h.as_bytes());
+        if unwrap_encipher == String::from(ENCIPHER) {
+            let msg_bi = BigInt::from_bytes_le(Sign::Plus, &message.as_bytes());
+            let x = msg_bi + h_bi;
+            return hex::encode(x.to_bytes_le().1);
+        } else {
+            let msg_bi =
+                BigInt::from_bytes_le(Sign::Plus, &hex::decode(&message).unwrap_or_default());
+            let x = msg_bi - h_bi;
+            return big_int_to_string(&x);
+        };
+    }
+
     #[test]
     pub fn encipher_decipher() {
-        let csprng = &mut OsRng;
-        let mut a_bytes = [0u8; 32];
-        let mut b_bytes = [0u8; 32];
-        OsRng::fill_bytes(csprng, &mut a_bytes);
-        OsRng::fill_bytes(csprng, &mut b_bytes);
-        let sk_a = Scalar::from_bytes_mod_order(a_bytes);
-        let sk_b = Scalar::from_bytes_mod_order(b_bytes);
-        let pk_a = EdwardsPoint::mul_base(&sk_a);
-        let pk_b = EdwardsPoint::mul_base(&sk_b);
-        let ss_a = pk_b * sk_a;
-        let ss_b = pk_a * sk_b;
-        let h_ss_a = hex::encode(&ss_a.compress().to_bytes());
-        let h_ss_b = hex::encode(&ss_b.compress().to_bytes());
-        let msg = "this is a really long message that will be encrypted by the shared secret";
-        let msg_bi = BigInt::from_bytes_le(Sign::Plus, &msg.as_bytes());
-        let h = hash_to_scalar(vec![&h_ss_a[..]]);
-        let h_bi = BigInt::from_bytes_le(Sign::Plus, h.as_bytes());
-        let x = msg_bi + h_bi;
-        let x_decoded = big_int_to_string(&x);
-        assert_ne!(String::from(msg), x_decoded);
-        let h_prime = hash_to_scalar(vec![&h_ss_b[..]]);
-        let h_prime_bi = BigInt::from_bytes_le(Sign::Plus, h_prime.as_bytes());
-        let m_b = x - h_prime_bi;
-        let decoded = big_int_to_string(&m_b);
-        assert_eq!(String::from(msg), decoded);
+        let message = String::from(
+            "This is message that will be encrypted by the network. 
+        it is really long for testing and breaking stuff",
+        );
+        let do_encipher = Some(String::from(ENCIPHER));
+        let encipher = test_cipher(&message, do_encipher);
+        assert_ne!(encipher, message);
+        let decipher = test_cipher(&encipher, None);
+        assert_eq!(decipher, message);
     }
 }

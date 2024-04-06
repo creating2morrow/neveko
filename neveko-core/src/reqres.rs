@@ -157,6 +157,11 @@ pub struct XmrRpcChangePasswordParams {
     pub new_password: String,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcQueryKeyParams {
+    pub key_type: String,
+}
+
 // requests
 #[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcValidateAddressRequest {
@@ -329,6 +334,14 @@ pub struct XmrRpcChangePasswordRequest {
     pub id: String,
     pub method: String,
     pub params: XmrRpcChangePasswordParams,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcQueryKeyRequest {
+    pub jsonrpc: String,
+    pub id: String,
+    pub method: String,
+    pub params: XmrRpcQueryKeyParams,
 }
 
 // results
@@ -556,6 +569,11 @@ pub struct XmrRpcIsMultisigResult {
 #[derive(Deserialize, Debug)]
 pub struct XmrRpcGetHeightResult {
     pub height: u64,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcQueryKeyResult {
+    pub key: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1166,6 +1184,21 @@ impl Default for XmrRpcGetHeightResponse {
     fn default() -> Self {
         XmrRpcGetHeightResponse {
             result: XmrRpcGetHeightResult { height: 0 },
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct XmrRpcQueryKeyResponse {
+    pub result: XmrRpcQueryKeyResult,
+}
+
+impl Default for XmrRpcQueryKeyResponse {
+    fn default() -> Self {
+        XmrRpcQueryKeyResponse {
+            result: XmrRpcQueryKeyResult {
+                key: utils::empty_string(),
+            },
         }
     }
 }

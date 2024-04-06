@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bs58 = "0.5.1"
 chrono = "0.4.23"
 clap = { version = "4.1.4", features = ["derive"] }
 curve25519-dalek = "4.1.2"

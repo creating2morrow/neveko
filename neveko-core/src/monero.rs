@@ -36,6 +36,9 @@ lazy_static! {
 /// Current xmr ring size updated here.
 const RING_SIZE: u32 = 0x10;
 
+/// Query view key type
+const QUERY_TYPE_VIEW_KEY: &str = "view_key";
+
 struct RpcLogin {
     username: String,
     credential: String,
@@ -86,6 +89,7 @@ enum RpcFields {
     Make,
     Open,
     Prepare,
+    QueryKey,
     Refresh,
     Sign,
     SignMultisig,
@@ -121,6 +125,7 @@ impl RpcFields {
             RpcFields::Open => String::from("open_wallet"),
             RpcFields::Prepare => String::from("prepare_multisig"),
             RpcFields::Refresh => String::from("refresh"),
+            RpcFields::QueryKey => String::from("query_key"),
             RpcFields::Sign => String::from("sign"),
             RpcFields::SignMultisig => String::from("sign_multisig"),
             RpcFields::SubmitMultisig => String::from("submit_multisig"),
@@ -1311,6 +1316,7 @@ pub async fn is_multisig() -> reqres::XmrRpcIsMultisigResponse {
     }
 }
 
+/// Performs the xmr rpc 'get_height' method
 pub async fn get_wallet_height() -> reqres::XmrRpcGetHeightResponse {
     info!("executing wallet {}", RpcFields::GetHeight.value());
     let client = reqwest::Client::new();
@@ -1330,6 +1336,38 @@ pub async fn get_wallet_height() -> reqres::XmrRpcGetHeightResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcGetHeightResponse>().await;
             debug!("{} response: {:?}", RpcFields::GetHeight.value(), res);
+            match res {
+                Ok(res) => res,
+                _ => Default::default(),
+            }
+        }
+        Err(_) => Default::default(),
+    }
+}
+
+/// Performs the xmr rpc 'query_key' method
+pub async fn query_view_key() -> reqres::XmrRpcQueryKeyResponse {
+    info!("executing wallet {}", RpcFields::QueryKey.value());
+    let client = reqwest::Client::new();
+    let host = get_rpc_host();
+    let params: reqres::XmrRpcQueryKeyParams = reqres::XmrRpcQueryKeyParams {
+        key_type: String::from(QUERY_TYPE_VIEW_KEY),
+    };
+    let req = reqres::XmrRpcQueryKeyRequest {
+        jsonrpc: RpcFields::JsonRpcVersion.value(),
+        id: RpcFields::Id.value(),
+        method: RpcFields::QueryKey.value(),
+        params,
+    };
+    let login: RpcLogin = get_rpc_creds();
+    match client
+        .post(host)
+        .json(&req)
+        .send_with_digest_auth(&login.username, &login.credential)
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<reqres::XmrRpcQueryKeyResponse>().await;
             match res {
                 Ok(res) => res,
                 _ => Default::default(),
