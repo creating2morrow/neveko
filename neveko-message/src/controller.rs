@@ -39,12 +39,12 @@ pub async fn get_messages(_token: auth::BearerToken) -> Custom<Json<Vec<Message>
     Custom(Status::Ok, Json(messages))
 }
 
-/// decrypt a message body
+/// decipher a message body
 #[get("/<mid>")]
-pub async fn decrypt(
+pub async fn decipher(
     mid: String,
     _token: auth::BearerToken,
-) -> Custom<Json<reqres::DecryptedMessageBody>> {
-    let d_message = message::decrypt_body(mid);
+) -> Custom<Json<reqres::DecipheredMessageBody>> {
+    let d_message = message::decipher_body(mid).await;
     Custom(Status::Ok, Json(d_message))
 }

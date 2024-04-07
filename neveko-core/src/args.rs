@@ -92,13 +92,6 @@ pub struct Args {
     /// Marketplace admin port
     #[arg(long, help = "Set app marketplace admin port", default_value = "9046")]
     pub marketplace_port: u16,
-    /// Auto trust contact gpg keys (DISABLED)
-    #[arg(
-        long,
-        help = "FUTURE FEATURE. Auto trust contacts. DISABLED",
-        default_value = "false"
-    )]
-    pub auto_trust: bool,
     /// Start with gui
     #[arg(
         long,

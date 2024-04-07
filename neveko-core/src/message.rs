@@ -2,10 +2,10 @@
 use crate::{
     contact,
     db,
-    gpg,
     i2p,
     models::*,
     monero,
+    neveko25519,
     order,
     reqres,
     utils,
@@ -60,9 +60,12 @@ pub async fn create(m: Json<Message>, jwp: String, m_type: MessageType) -> Messa
     }
     info!("creating message: {}", &f_mid);
     let created = chrono::offset::Utc::now().timestamp();
-    // get contact public gpg key and encrypt the message
+    // get contact public gpg key and encipher the message
     debug!("sending message: {:?}", &m);
-    let e_body = gpg::encrypt(String::from(&m.to), &m.body).unwrap_or(Vec::new());
+    let contact: Contact = contact::find(&m.to);
+    let hex_nmpk: String = contact.nmpk;
+    let encipher = Some(String::from(neveko25519::ENCIPHER));
+    let e_body = neveko25519::cipher(&hex_nmpk, String::from(&m.body), encipher).await;
     let new_message = Message {
         mid: String::from(&f_mid),
         uid: String::from(&m.uid),
@@ -107,7 +110,7 @@ pub async fn rx(m: Json<Message>) {
         mid: String::from(&f_mid),
         uid: String::from(crate::RX_MESSAGE_DB_KEY),
         from: String::from(&m.from),
-        body: m.body.iter().cloned().collect(),
+        body: String::from(&m.body),
         created: chrono::offset::Utc::now().timestamp(),
         to: String::from(&m.to),
     };
@@ -127,8 +130,8 @@ pub async fn rx(m: Json<Message>) {
 }
 
 /// Parse the multisig message type and info
-fn parse_multisig_message(mid: String) -> MultisigMessageData {
-    let d: reqres::DecryptedMessageBody = decrypt_body(mid);
+async fn parse_multisig_message(mid: String) -> MultisigMessageData {
+    let d: reqres::DecipheredMessageBody = decipher_body(mid).await;
     let mut bytes = hex::decode(d.body.into_bytes()).unwrap_or(Vec::new());
     let decoded = String::from_utf8(bytes).unwrap_or(utils::empty_string());
     let values = decoded.split(":");
@@ -148,7 +151,7 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
         info = format!("{}:{}", a_info, b_info);
     }
     bytes = Vec::new();
-    debug!("zero decryption bytes: {:?}", bytes);
+    debug!("zero decipher bytes: {:?}", bytes);
     MultisigMessageData {
         info,
         sub_type,
@@ -160,7 +163,7 @@ fn parse_multisig_message(mid: String) -> MultisigMessageData {
 ///
 /// Upon multisig message receipt the message is automatically
 ///
-/// decrypted for convenience sake. The client must determine which
+/// decipher for convenience sake. The client must determine which
 ///
 /// .b32.i2p address belongs to the vendor / adjudicator.
 ///
@@ -192,7 +195,7 @@ pub async fn rx_multisig(m: Json<Message>) {
         mid: String::from(&f_mid),
         uid: String::from(crate::RX_MESSAGE_DB_KEY),
         from: String::from(&m.from),
-        body: m.body.iter().cloned().collect(),
+        body: String::from(&m.body),
         created: chrono::offset::Utc::now().timestamp(),
         to: String::from(&m.to),
     };
@@ -211,7 +214,7 @@ pub async fn rx_multisig(m: Json<Message>) {
         msg_list, list_key
     );
     db::Interface::async_write(&s.env, &s.handle, &String::from(list_key), &msg_list).await;
-    let data: MultisigMessageData = parse_multisig_message(new_message.mid);
+    let data: MultisigMessageData = parse_multisig_message(new_message.mid).await;
     debug!(
         "writing multisig message type {} for order {}",
         &data.sub_type, &data.orid
@@ -310,12 +313,14 @@ async fn send_message(out: &Message, jwp: &str, m_type: MessageType) -> Result<(
     }
 }
 
-/// Returns decrypted hex string of the encrypted message
-pub fn decrypt_body(mid: String) -> reqres::DecryptedMessageBody {
+/// Returns deciphered message
+pub async fn decipher_body(mid: String) -> reqres::DecipheredMessageBody {
     let m = find(&mid);
-    let d = gpg::decrypt(&mid, &m.body).unwrap();
-    let body = hex::encode(d);
-    reqres::DecryptedMessageBody { mid, body }
+    let contact = contact::find(&m.from);
+    let nmpk = contact.nmpk;
+    let message = String::from(&m.body);
+    let body = neveko25519::cipher(&nmpk, message, None).await;
+    reqres::DecipheredMessageBody { mid, body }
 }
 
 /// Message deletion
@@ -488,7 +493,7 @@ fn is_fts_clear(r: String) -> bool {
     }
 }
 
-/// Encrypts and sends the output from the monero-rpc
+/// Enciphers and sends the output from the monero-rpc
 ///
 /// `prepare_multisig_info` method.
 pub async fn send_prepare_info(orid: &String, contact: &String) {
@@ -504,7 +509,7 @@ pub async fn send_prepare_info(orid: &String, contact: &String) {
         PREPARE_MSIG, orid, &prepare_info.result.multisig_info
     );
     let message: Message = Message {
-        body: body_str.into_bytes(),
+        body: body_str,
         created: chrono::Utc::now().timestamp(),
         to: String::from(contact),
         ..Default::default()
@@ -514,7 +519,7 @@ pub async fn send_prepare_info(orid: &String, contact: &String) {
     create(j_message, jwp, MessageType::Multisig).await;
 }
 
-/// Encrypts and sends the output from the monero-rpc
+/// Enciphers and sends the output from the monero-rpc
 ///
 /// `make_multisig_info` method.
 pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) {
@@ -527,7 +532,7 @@ pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) 
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
     let body_str = format!("{}:{}:{}", MAKE_MSIG, orid, &make_info.result.multisig_info);
     let message: Message = Message {
-        body: body_str.into_bytes(),
+        body: body_str,
         created: chrono::Utc::now().timestamp(),
         to: String::from(contact),
         ..Default::default()
@@ -537,7 +542,7 @@ pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) 
     create(j_message, jwp, MessageType::Multisig).await;
 }
 
-/// Encrypts and sends the output from the monero-rpc
+/// Enciphers and sends the output from the monero-rpc
 ///
 /// `exchange_multisig_keys` method.
 pub async fn send_exchange_info(
@@ -564,7 +569,7 @@ pub async fn send_exchange_info(
         );
     }
     let message: Message = Message {
-        body: body_str.into_bytes(),
+        body: body_str,
         created: chrono::Utc::now().timestamp(),
         to: String::from(contact),
         ..Default::default()
@@ -574,7 +579,7 @@ pub async fn send_exchange_info(
     create(j_message, jwp, MessageType::Multisig).await;
 }
 
-/// Encrypts and sends the output from the monero-rpc
+/// Enciphers and sends the output from the monero-rpc
 ///
 /// `export_multisig_info` method.
 pub async fn send_export_info(orid: &String, contact: &String) {
@@ -587,7 +592,7 @@ pub async fn send_export_info(orid: &String, contact: &String) {
     let jwp = db::Interface::read(&s.env, &s.handle, &k);
     let body_str = format!("{}:{}:{}", EXPORT_MSIG, orid, &exchange_info.result.info);
     let message: Message = Message {
-        body: body_str.into_bytes(),
+        body: body_str,
         created: chrono::Utc::now().timestamp(),
         to: String::from(contact),
         ..Default::default()
@@ -622,7 +627,7 @@ pub async fn send_import_info(orid: &String, info: &Vec<String>) {
 
 /// Customer begins multisig orchestration by requesting the prepare info
 ///
-/// from the adjudicator and the vendor. In response they create an encrypted
+/// from the adjudicator and the vendor. In response they create an enciphered
 ///
 /// multisig message with the requested data. Customer manages multisig by
 ///

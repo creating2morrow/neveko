@@ -1204,17 +1204,17 @@ impl Default for XmrRpcQueryKeyResponse {
 }
 // END XMR Structs
 
-/// Container for the message decryption
+/// Container for the message decipher
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
-pub struct DecryptedMessageBody {
+pub struct DecipheredMessageBody {
     pub mid: String,
     pub body: String,
 }
 
-impl Default for DecryptedMessageBody {
+impl Default for DecipheredMessageBody {
     fn default() -> Self {
-        DecryptedMessageBody {
+        DecipheredMessageBody {
             mid: utils::empty_string(),
             body: utils::empty_string(),
         }
@@ -1279,7 +1279,7 @@ pub struct OrderRequest {
     pub cid: String,
     pub adjudicator: String,
     pub pid: String,
-    pub ship_address: Vec<u8>,
+    pub ship_address: String,
     pub quantity: u128,
 }
 
@@ -1289,7 +1289,7 @@ impl Default for OrderRequest {
             cid: utils::empty_string(),
             adjudicator: utils::empty_string(),
             pid: utils::empty_string(),
-            ship_address: Vec::new(),
+            ship_address: utils::empty_string(),
             quantity: 0,
         }
     }
@@ -1346,8 +1346,8 @@ impl Default for SignAndSubmitRequest {
 #[serde(crate = "rocket::serde")]
 pub struct FinalizeOrderResponse {
     pub orid: String,
-    /// This is encrypted by the customer NEVEKO gpg key
-    pub delivery_info: Vec<u8>,
+    /// This is enciphered by the customer Neveko Message Secret Key
+    pub delivery_info: String,
     /// This is used to finalize delivery confirmations
     pub vendor_update_success: bool,
 }
@@ -1356,7 +1356,7 @@ impl Default for FinalizeOrderResponse {
     fn default() -> Self {
         FinalizeOrderResponse {
             orid: utils::empty_string(),
-            delivery_info: Vec::new(),
+            delivery_info: utils::empty_string(),
             vendor_update_success: false,
         }
     }

@@ -1,28 +1,36 @@
-use neveko_core::*;
+use neveko_core::{
+    models::Message,
+    *,
+};
 use std::sync::mpsc::{
     Receiver,
     Sender,
 };
 
 pub struct MailBoxApp {
-    decrypted_message: String,
-    is_showing_decryption: bool,
+    deciphered: String,
+    is_showing_decipher: bool,
     messages: Vec<models::Message>,
     message_init: bool,
     refresh_on_delete_tx: Sender<bool>,
     refresh_on_delete_rx: Receiver<bool>,
+    deciphered_tx: Sender<String>,
+    deciphered_rx: Receiver<String>,
 }
 
 impl Default for MailBoxApp {
     fn default() -> Self {
         let (refresh_on_delete_tx, refresh_on_delete_rx) = std::sync::mpsc::channel();
+        let (deciphered_tx, deciphered_rx) = std::sync::mpsc::channel();
         MailBoxApp {
-            decrypted_message: utils::empty_string(),
-            is_showing_decryption: false,
+            deciphered: utils::empty_string(),
+            is_showing_decipher: false,
             messages: Vec::new(),
             message_init: false,
-            refresh_on_delete_rx,
             refresh_on_delete_tx,
+            refresh_on_delete_rx,
+            deciphered_rx,
+            deciphered_tx,
         }
     }
 }
@@ -37,6 +45,10 @@ impl eframe::App for MailBoxApp {
             }
         }
 
+        if let Ok(decipher) = self.deciphered_rx.try_recv() {
+            self.deciphered = decipher;
+        }
+
         // initial message load
         if !self.message_init {
             self.messages = message::find_all();
@@ -45,18 +57,18 @@ impl eframe::App for MailBoxApp {
 
         // Compose window
         //-----------------------------------------------------------------------------------
-        let mut is_showing_decryption = self.is_showing_decryption;
-        egui::Window::new("decrypted message")
-            .open(&mut is_showing_decryption)
+        let mut is_showing_decipher = self.is_showing_decipher;
+        egui::Window::new("decipher message")
+            .open(&mut is_showing_decipher)
             .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
-                ui.heading("Decrypted Message");
-                ui.label(format!("{}", self.decrypted_message));
+                ui.heading("Deciphered Message");
+                ui.label(format!("{}", self.deciphered));
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
-                    self.decrypted_message = utils::empty_string();
-                    self.is_showing_decryption = false;
+                    self.deciphered = utils::empty_string();
+                    self.is_showing_decipher = false;
                 }
             });
 
@@ -116,29 +128,19 @@ impl eframe::App for MailBoxApp {
                                 ui.label(format!("{}", m.to));
                             });
                             row.col(|ui| {
-                                ui.label(format!(
-                                    "{}",
-                                    String::from_utf8(m.body.iter().cloned().collect()).unwrap()
-                                ));
+                                ui.label(format!("{}", m.body));
                             });
                             row.col(|ui| {
                                 ui.style_mut().wrap = Some(false);
                                 ui.horizontal(|ui| {
                                     if m.uid == String::from("rx") {
-                                        if ui.button("Decrypt").clicked() {
-                                            let mut d = message::decrypt_body(m.mid.clone());
-                                            let mut bytes = hex::decode(d.body.into_bytes())
-                                                .unwrap_or(Vec::new());
-                                            self.decrypted_message = String::from_utf8(bytes)
-                                                .unwrap_or(utils::empty_string());
-                                            self.is_showing_decryption = true;
-                                            d = Default::default();
-                                            bytes = Vec::new();
-                                            log::debug!(
-                                                "cleared decryption bytes: {:?} string: {}",
-                                                bytes,
-                                                d.body
+                                        if ui.button("Decipher").clicked() {
+                                            decipher_req(
+                                                &m,
+                                                self.deciphered_tx.clone(),
+                                                ctx.clone(),
                                             );
+                                            self.is_showing_decipher = true;
                                         }
                                     }
                                     if ui.button("Delete").clicked() {
@@ -160,8 +162,21 @@ impl eframe::App for MailBoxApp {
 fn refresh_on_delete_req(tx: Sender<bool>, ctx: egui::Context) {
     tokio::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        log::error!("refreshing messages....");
+        log::info!("refreshing messages....");
         let _ = tx.send(true);
+        ctx.request_repaint();
+    });
+}
+
+fn decipher_req(m: &Message, tx: Sender<String>, ctx: egui::Context) {
+    let from: String = String::from(&m.from);
+    let body: String = String::from(&m.body);
+    tokio::spawn(async move {
+        log::info!("async decipher_req");
+        let contact = contact::find(&from);
+        let encipher = Some(String::from(neveko25519::ENCIPHER));
+        let deciphered = neveko25519::cipher(&contact.nmpk, body, encipher).await;
+        let _ = tx.send(deciphered);
         ctx.request_repaint();
     });
 }

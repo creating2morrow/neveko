@@ -1,10 +1,10 @@
 // Contact repo/service layer
 use crate::{
     db,
-    gpg,
     i2p,
     models::*,
     monero,
+    neveko25519,
     reqres,
     utils,
 };
@@ -41,7 +41,7 @@ pub async fn create(c: &Json<Contact>) -> Contact {
     info!("creating contact: {}", f_cid);
     let new_contact = Contact {
         cid: String::from(&f_cid),
-        gpg_key: c.gpg_key.iter().cloned().collect(),
+        nmpk: String::from(&c.nmpk),
         i2p_address: String::from(&c.i2p_address),
         is_vendor: false,
         xmr_address: String::from(&c.xmr_address),
@@ -50,8 +50,6 @@ pub async fn create(c: &Json<Contact>) -> Contact {
     if !is_valid {
         return Default::default();
     }
-    let import = c.gpg_key.iter().cloned().collect();
-    gpg::import_key(String::from(&f_cid), import).unwrap();
     debug!("insert contact: {:?}", &new_contact);
     let s = db::Interface::open();
     let k = &new_contact.cid;
@@ -115,7 +113,7 @@ async fn validate_contact(j: &Json<Contact>) -> bool {
     j.cid.len() < utils::string_limit()
         && j.i2p_address.len() < utils::string_limit()
         && j.i2p_address.contains(".b32.i2p")
-        && j.gpg_key.len() < utils::gpg_key_limit()
+        && j.nmpk.len() < utils::npmk_limit()
         && validate_address.result.valid
 }
 
@@ -130,12 +128,13 @@ pub async fn share() -> Contact {
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
     monero::close_wallet(&wallet_name, &wallet_password).await;
-    let gpg_key = gpg::export_key().unwrap_or(Vec::new());
+    let nmk = neveko25519::generate_neveko_message_keys().await;
+    let nmpk = nmk.hex_nmpk;
     let i2p_address = i2p::get_destination(None);
     let xmr_address = m_address.result.address;
     Contact {
         cid: utils::empty_string(),
-        gpg_key,
+        nmpk,
         i2p_address,
         is_vendor,
         xmr_address,
@@ -149,19 +148,6 @@ pub fn exists(from: &String) -> bool {
         addresses.push(c.i2p_address);
     }
     return addresses.contains(from);
-}
-
-/// Sign for trusted nevmes contacts
-///
-/// UI/UX should have some prompt about the implication of trusting keys
-///
-/// however that is beyond the scope of this app. nevmes assumes contacts
-///
-/// using the app already have some level of knowledge about each other.
-///
-/// Without signing the key message encryption and sending is not possible.
-pub fn trust_gpg(key: String) {
-    gpg::sign_key(&key).unwrap();
 }
 
 /// Get invoice for jwp creation
@@ -189,15 +175,13 @@ pub async fn request_invoice(contact: String) -> Result<reqres::Invoice, Box<dyn
     }
 }
 
-/// Send the request to contact to add them. Set the prune arg to 1
-///
-/// for gpg key removal.
-pub async fn add_contact_request(contact: String, prune: u32) -> Result<Contact, Box<dyn Error>> {
+/// Send the request to contact to add them.
+pub async fn add_contact_request(contact: String) -> Result<Contact, Box<dyn Error>> {
     let host = utils::get_i2p_http_proxy();
     let proxy = reqwest::Proxy::http(&host)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
     match client?
-        .get(format!("http://{}/share/{}", contact, prune))
+        .get(format!("http://{}/share", contact))
         .send()
         .await
     {

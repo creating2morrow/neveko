@@ -7,22 +7,22 @@ NEVidebla-EKOnomia (invisible economy)
 
 ![home](./assets/home.png)
 
-### gpg and i2p made simple for E2EE marketplace, messaging and more
+### i2p made simple for E2EE marketplace, messaging and more
 
 ## About
 
 * send messages over the invisible internet
 * vanity base32 addresses (advanced)
-* automated mandatory gpg key encryption
+* automated mandatory message encipher
 * self-hosted i2p marketplace
 * xmr multisig / payment integration
 
 ## Dev
 
-* stack - rust (egui, rocket), lmdb, i2p-zero, monero(rpc, daemon), gpg
+* stack - rust (egui, rocket), lmdb, i2p-zero, monero(rpc, daemon)
 * install dependencies
     * ubuntu example: `sudo apt update -y && sudo apt upgrade -y`
-    * `sudo apt install -y libssl-dev build-essential libgpgme-dev`
+    * `sudo apt install -y libssl-dev build-essential`
 * `git clone https://github.com/creating2morrow/neveko`
 * `cd neveko && ./scripts/build_all_and_run.sh "-- -h"`
 * Example to start neveko with remote stagenet node / i2p proxy remote for development:

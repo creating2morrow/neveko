@@ -37,13 +37,6 @@ pub async fn get_contacts(_token: auth::BearerToken) -> Custom<Json<Vec<Contact>
     Custom(Status::Ok, Json(contacts))
 }
 
-/// trust contact
-#[post("/<key>")]
-pub async fn trust_contact(key: String, _token: auth::BearerToken) -> Status {
-    contact::trust_gpg(key);
-    Status::Ok
-}
-
 /// prove payment
 #[get("/<contact>", data = "<proof_req>")]
 pub async fn prove_payment(

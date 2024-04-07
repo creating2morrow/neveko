@@ -15,7 +15,7 @@ async fn rocket() -> _ {
     env_logger::init();
     log::info!("neveko-message is online");
     rocket::custom(&config)
-        .mount("/message/decrypt", routes![controller::decrypt])
+        .mount("/message/decipher", routes![controller::decipher])
         .mount("/messages", routes![controller::get_messages])
         .mount("/tx", routes![controller::send_message])
 }

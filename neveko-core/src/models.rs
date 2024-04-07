@@ -91,14 +91,14 @@ pub struct Contact {
     pub i2p_address: String,
     pub is_vendor: bool,
     pub xmr_address: String,
-    pub gpg_key: Vec<u8>,
+    pub nmpk: String,
 }
 
 impl Default for Contact {
     fn default() -> Self {
         Contact {
             cid: utils::empty_string(),
-            gpg_key: Vec::new(),
+            nmpk: utils::empty_string(),
             i2p_address: utils::empty_string(),
             is_vendor: false,
             xmr_address: utils::empty_string(),
@@ -108,16 +108,15 @@ impl Default for Contact {
 
 impl Contact {
     pub fn to_db(c: &Contact) -> String {
-        let gpg = hex::encode(&c.gpg_key);
         format!(
             "{}!{}!{}!{}",
-            gpg, c.i2p_address, c.is_vendor, c.xmr_address
+            c.nmpk, c.i2p_address, c.is_vendor, c.xmr_address
         )
     }
     pub fn from_db(k: String, v: String) -> Contact {
         let values = v.split("!");
         let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
-        let gpg_key = hex::decode(v.remove(0)).unwrap_or(Vec::new());
+        let nmpk = v.remove(0);
         let i2p_address = v.remove(0);
         let is_vendor = match v.remove(0).parse::<bool>() {
             Ok(n) => n,
@@ -126,7 +125,7 @@ impl Contact {
         let xmr_address = v.remove(0);
         Contact {
             cid: k,
-            gpg_key,
+            nmpk,
             i2p_address,
             is_vendor,
             xmr_address,
@@ -139,7 +138,7 @@ impl Contact {
 pub struct Message {
     pub mid: String,
     pub uid: String,
-    pub body: Vec<u8>,
+    pub body: String,
     pub created: i64,
     pub from: String,
     pub to: String,
@@ -150,7 +149,7 @@ impl Default for Message {
         Message {
             mid: utils::empty_string(),
             uid: utils::empty_string(),
-            body: Vec::new(),
+            body: utils::empty_string(),
             created: 0,
             from: utils::empty_string(),
             to: utils::empty_string(),
@@ -160,14 +159,13 @@ impl Default for Message {
 
 impl Message {
     pub fn to_db(m: &Message) -> String {
-        let body = hex::encode(&m.body);
-        format!("{}:{}:{}:{}:{}", m.uid, body, m.created, m.from, m.to)
+        format!("{}:{}:{}:{}:{}", m.uid, m.body, m.created, m.from, m.to)
     }
     pub fn from_db(k: String, v: String) -> Message {
         let values = v.split(":");
         let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
         let uid = v.remove(0);
-        let body = hex::decode(v.remove(0)).unwrap_or(Vec::new());
+        let body = v.remove(0);
         let created_str = v.remove(0);
         let created = match created_str.parse::<i64>() {
             Ok(n) => n,
@@ -325,8 +323,8 @@ pub struct Order {
     pub adjudicator_kex_3: String,
     pub adjudicator_msig_make: String,
     pub adjudicator_msig_prepare: String,
-    /// Address gpg key encrypted bytes
-    pub ship_address: Vec<u8>,
+    /// Address enciphered by nmpk
+    pub ship_address: String,
     pub ship_date: i64,
     /// This is the final destination for the payment
     pub subaddress: String,
@@ -362,7 +360,7 @@ impl Default for Order {
             adjudicator_kex_3: utils::empty_string(),
             adjudicator_msig_make: utils::empty_string(),
             adjudicator_msig_prepare: utils::empty_string(),
-            ship_address: Vec::new(),
+            ship_address: utils::empty_string(),
             ship_date: 0,
             subaddress: utils::empty_string(),
             status: utils::empty_string(),
@@ -379,7 +377,6 @@ impl Default for Order {
 
 impl Order {
     pub fn to_db(o: &Order) -> String {
-        let ship_address = hex::encode(&o.ship_address);
         format!(
             "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
             o.cid,
@@ -398,7 +395,7 @@ impl Order {
             o.adjudicator_kex_1,
             o.adjudicator_kex_2,
             o.adjudicator_kex_3,
-            ship_address,
+            o.ship_address,
             o.ship_date,
             o.subaddress,
             o.status,
@@ -438,7 +435,7 @@ impl Order {
         let adjudicator_kex_1 = v.remove(0);
         let adjudicator_kex_2 = v.remove(0);
         let adjudicator_kex_3 = v.remove(0);
-        let ship_address = hex::decode(v.remove(0)).unwrap_or(Vec::new());
+        let ship_address = v.remove(0);
         let ship_date = match v.remove(0).parse::<i64>() {
             Ok(d) => d,
             Err(_) => 0,
@@ -507,7 +504,7 @@ impl Order {
             adjudicator_kex_3: String::from(&o.adjudicator_kex_3),
             adjudicator_msig_make: String::from(&o.adjudicator_msig_make),
             adjudicator_msig_prepare: String::from(&o.adjudicator_msig_prepare),
-            ship_address: o.ship_address.iter().cloned().collect(),
+            ship_address: String::from(&o.ship_address),
             ship_date: o.ship_date,
             subaddress: String::from(&o.subaddress),
             status: String::from(&o.status),

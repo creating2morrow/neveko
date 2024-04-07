@@ -24,9 +24,8 @@
 
 * go to `AddressBook` in the gui
 * enter .b32.i2p address of contact and click add
-* if all goes well you will have imported their public neveko gpg app key
-* dont reuse the app gpg keys anywhere else!
-* don't forget to trust the contact with `sign key` in the `check status` window
+* if all goes well you will have imported their public neveko message public key
+* dont reuse the neveko message keys anywhere else!
 
 ### Create JWP
 
@@ -38,7 +37,7 @@
 * click `check status` and `Create JWP`
 * when authorizing to send to contact an invoice will be generated
 * authorize payment and tx proof generation in the prompt
-* this tx proof will be used to create an encrypted json web proof of payment with each contact
+* this tx proof will be used to create an enciphered json web proof of payment with each contact
 * think of it as a reusable, unforgeable coupon or ticket
 * the invoice shows payment per blocks (time)
 * default is 1 piconero per day
@@ -55,7 +54,7 @@
 * verify recipient (.b32.i2p address) and press `send`
 * plain text messages never leave your machine
 * you can click `Refresh` button in the Mailbox to check for new messages
-* messages must be decrypted by clicking `decrypt`
+* messages must be deciphered by clicking `decipher`
 
 ### fts (failed-to-send)
 

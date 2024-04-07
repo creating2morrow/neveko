@@ -57,7 +57,7 @@ pub struct MarketApp {
     contact_timeout_tx: Sender<bool>,
     contact_timeout_rx: Receiver<bool>,
     customer_orders: Vec<models::Order>,
-    decrypted_delivery_info: String,
+    cipher: String,
     find_vendor: String,
     get_vendor_products_tx: Sender<Vec<models::Product>>,
     get_vendor_products_rx: Receiver<Vec<models::Product>>,
@@ -72,7 +72,7 @@ pub struct MarketApp {
     is_customer_viewing_orders: bool,
     is_managing_multisig: bool,
     is_product_image_set: bool,
-    is_showing_decrypted_delivery_info: bool,
+    is_showing_deciphered_delivery_info: bool,
     is_showing_products: bool,
     is_showing_product_image: bool,
     is_showing_product_update: bool,
@@ -116,6 +116,8 @@ pub struct MarketApp {
     submit_txset_rx: Receiver<bool>,
     cancel_request_tx: Sender<models::Order>,
     cancel_request_rx: Receiver<models::Order>,
+    ciphered_tx: Sender<String>,
+    ciphered_rx: Receiver<String>,
     dispute_request_tx: Sender<models::Dispute>,
     dispute_request_rx: Receiver<models::Dispute>,
     // ship_request_tx: Sender<models::Order>,
@@ -153,6 +155,7 @@ impl Default for MarketApp {
         let (order_funded_tx, order_funded_rx) = std::sync::mpsc::channel();
         let (submit_txset_tx, submit_txset_rx) = std::sync::mpsc::channel();
         let (upload_dinfo_tx, upload_dinfo_rx) = std::sync::mpsc::channel();
+        let (ciphered_tx, ciphered_rx) = std::sync::mpsc::channel();
         let contents = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
         MarketApp {
             contact_info_rx,
@@ -160,7 +163,9 @@ impl Default for MarketApp {
             contact_timeout_rx,
             contact_timeout_tx,
             customer_orders: Vec::new(),
-            decrypted_delivery_info: utils::empty_string(),
+            cipher: utils::empty_string(),
+            ciphered_tx,
+            ciphered_rx,
             find_vendor: utils::empty_string(),
             get_vendor_products_rx,
             get_vendor_products_tx,
@@ -175,7 +180,7 @@ impl Default for MarketApp {
             is_order_qr_set: false,
             is_pinging: false,
             is_product_image_set: false,
-            is_showing_decrypted_delivery_info: false,
+            is_showing_deciphered_delivery_info: false,
             is_showing_orders: false,
             is_showing_order_qr: false,
             is_showing_products: false,
@@ -329,6 +334,10 @@ impl eframe::App for MarketApp {
             self.is_loading = false;
         }
 
+        if let Ok(cipher) = self.ciphered_rx.try_recv() {
+            self.cipher = cipher;
+        }
+
         // TODO(c2m): automated trigger for nasr worked successfully
         //            doesn't seem like this is really needed anymore?
 
@@ -397,7 +406,6 @@ impl eframe::App for MarketApp {
                 ui.label(format!("tx proof: {}", self.vendor_status.txp));
                 ui.label(format!("jwp: {}", self.vendor_status.jwp));
                 ui.label(format!("expiration: {}", self.vendor_status.h_exp));
-                ui.label(format!("signed key: {}", self.vendor_status.signed_key));
                 if ui.button("Exit").clicked() {
                     self.is_showing_vendor_status = false;
                 }
@@ -795,18 +803,18 @@ impl eframe::App for MarketApp {
                 }
             });
 
-        let mut is_showing_decryption = self.is_showing_decrypted_delivery_info;
-        egui::Window::new("decrypted delivery info")
-            .open(&mut is_showing_decryption)
+        let mut is_showing_decipher = self.is_showing_deciphered_delivery_info;
+        egui::Window::new("deciphered delivery info")
+            .open(&mut is_showing_decipher)
             .title_bar(false)
             .vscroll(true)
             .show(&ctx, |ui| {
                 ui.heading("Delivery Info");
-                ui.label(format!("{}", self.decrypted_delivery_info));
+                ui.label(format!("{}", self.cipher));
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
-                    self.decrypted_delivery_info = utils::empty_string();
-                    self.is_showing_decrypted_delivery_info = false;
+                    self.cipher = utils::empty_string();
+                    self.is_showing_deciphered_delivery_info = false;
                 }
             });
 
@@ -890,14 +898,14 @@ impl eframe::App for MarketApp {
                                             String::from(neveko_core::DELIVERY_INFO_DB_KEY),
                                             String::from(&o.orid),
                                         );
-                                        let bytes =
-                                            hex::decode(e_info.into_bytes()).unwrap_or(Vec::new());
-                                        let d_bytes = gpg::decrypt(&String::from(&o.orid), &bytes);
-                                        let dinfo: String =
-                                            String::from_utf8(d_bytes.unwrap_or(Vec::new()))
-                                                .unwrap_or(utils::empty_string());
-                                        self.decrypted_delivery_info = dinfo;
-                                        self.is_showing_decrypted_delivery_info = true;
+                                        cipher_req(
+                                            String::from(&o.cid),
+                                            e_info,
+                                            None,
+                                            self.ciphered_tx.clone(),
+                                            ctx.clone(),
+                                        );
+                                        self.is_showing_deciphered_delivery_info = true;
                                     }
                                 });
                                 row.col(|ui| {
@@ -990,14 +998,19 @@ impl eframe::App for MarketApp {
                 }
                 if qty <= p_qty && qty > 0 {
                     if ui.button("Submit Order").clicked() {
-                        let address_bytes = self.new_order_shipping_address.clone().into_bytes();
-                        let encrypted_shipping_address =
-                            gpg::encrypt(self.vendor_status.i2p.clone(), &address_bytes);
+                        // encipher the shipping address
+                        cipher_req(
+                            self.new_order.cid.clone(),
+                            self.new_order_shipping_address.clone(),
+                            Some(String::from(neveko25519::ENCIPHER)),
+                            self.ciphered_tx.clone(),
+                            ctx.clone(),
+                        );
                         let new_order = reqres::OrderRequest {
                             cid: String::from(&self.new_order.cid),
                             adjudicator: String::from(&adjudicator),
                             pid: String::from(&self.new_order.pid),
-                            ship_address: encrypted_shipping_address.unwrap_or(Vec::new()),
+                            ship_address: self.cipher.clone(),
                             quantity: qty,
                             ..Default::default()
                         };
@@ -1050,7 +1063,7 @@ impl eframe::App for MarketApp {
                         // upload delivery info
                         let dinfo_str = String::from(&self.upload_dinfo_str);
                         upload_dinfo_req(
-                            dinfo_str.into_bytes().iter().cloned().collect(),
+                            dinfo_str,
                             self.new_order.orid.clone(),
                             ctx.clone(),
                             self.upload_dinfo_tx.clone(),
@@ -1165,15 +1178,10 @@ impl eframe::App for MarketApp {
                                                 )
                                                 .unwrap()
                                                 .to_string();
-                                            // MESSAGES WON'T BE SENT UNTIL KEY IS SIGNED AND
-                                            // TRUSTED!
-                                            self.vendor_status.signed_key =
-                                                check_signed_key(self.vendor_status.i2p.clone());
                                             send_contact_info_req(
                                                 self.contact_info_tx.clone(),
                                                 ctx.clone(),
                                                 self.vendor_status.i2p.clone(),
-                                                contact::Prune::Pruned.value(),
                                             );
                                             vendor_status_timeout(
                                                 self.contact_timeout_tx.clone(),
@@ -1190,7 +1198,6 @@ impl eframe::App for MarketApp {
                                             Err(_e) => 0,
                                         };
                                         if now < expire
-                                            && self.vendor_status.signed_key
                                             && self.vendor_status.jwp != utils::empty_string()
                                             && v.i2p_address == self.vendor_status.i2p
                                             && self.vendor_status.is_vendor
@@ -1247,7 +1254,6 @@ impl eframe::App for MarketApp {
                 ui.label(format!("tx proof: {}", self.vendor_status.txp));
                 ui.label(format!("jwp: {}", self.vendor_status.jwp));
                 ui.label(format!("expiration: {}", self.vendor_status.h_exp));
-                ui.label(format!("signed key: {}", self.vendor_status.signed_key));
                 if ui.button("Exit").clicked() {
                     self.is_showing_vendor_status = false;
                 }
@@ -1724,15 +1730,10 @@ fn _refresh_on_delete_product_req(_tx: Sender<bool>, _ctx: egui::Context) {
     });
 }
 
-fn send_contact_info_req(
-    tx: Sender<models::Contact>,
-    ctx: egui::Context,
-    contact: String,
-    prune: u32,
-) {
+fn send_contact_info_req(tx: Sender<models::Contact>, ctx: egui::Context, contact: String) {
     log::debug!("async send_contact_info_req");
     tokio::spawn(async move {
-        match contact::add_contact_request(contact, prune).await {
+        match contact::add_contact_request(contact).await {
             Ok(contact) => {
                 let _ = tx.send(contact);
                 ctx.request_repaint();
@@ -1740,11 +1741,6 @@ fn send_contact_info_req(
             _ => log::debug!("failed to request invoice"),
         }
     });
-}
-
-fn check_signed_key(contact: String) -> bool {
-    let v = utils::search_gui_db(String::from(crate::GUI_SIGNED_GPG_DB_KEY), contact);
-    v != utils::empty_string()
 }
 
 fn send_products_from_vendor_req(
@@ -2455,7 +2451,7 @@ fn release_txset(contact: String, orid: String, ctx: egui::Context, tx: Sender<b
     });
 }
 
-fn upload_dinfo_req(dinfo: Vec<u8>, orid: String, ctx: egui::Context, tx: Sender<bool>) {
+fn upload_dinfo_req(dinfo: String, orid: String, ctx: egui::Context, tx: Sender<bool>) {
     tokio::spawn(async move {
         log::info!("async upload_dinfo_req");
         let dinfo = order::upload_delivery_info(&orid, &dinfo).await;
@@ -2511,5 +2507,15 @@ fn create_dispute_req(
             let _ = tx.send(res);
             ctx.request_repaint();
         }
+    });
+}
+
+fn cipher_req(cid: String, m: String, e: Option<String>, tx: Sender<String>, ctx: egui::Context) {
+    tokio::spawn(async move {
+        log::info!("async decipher_req");
+        let contact = contact::find(&cid);
+        let ciphered = neveko25519::cipher(&contact.nmpk, m, e).await;
+        let _ = tx.send(ciphered);
+        ctx.request_repaint();
     });
 }
