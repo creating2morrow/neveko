@@ -3,10 +3,10 @@ use std::error::Error;
 use crate::{
     contact,
     db,
-    gpg,
     i2p,
     models::*,
     monero,
+    neveko25519,
     order,
     product,
     reqres,
@@ -56,7 +56,7 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
         cid: String::from(&j_order.cid),
         pid: String::from(&j_order.pid),
         date: ts,
-        ship_address: j_order.ship_address.iter().cloned().collect(),
+        ship_address: String::from(&j_order.ship_address),
         subaddress,
         status: StatusType::MultisigMissing.value(),
         quantity: j_order.quantity,
@@ -325,6 +325,8 @@ pub async fn cancel_order(orid: &String, signature: &String) -> Order {
 pub async fn validate_order_for_ship(orid: &String) -> reqres::FinalizeOrderResponse {
     info!("validating order for shipment");
     let m_order: Order = find(orid);
+    let contact: Contact = contact::find(&m_order.cid);
+    let hex_nmpk: String = contact.nmpk;
     let s = db::Interface::async_open().await;
     let k = String::from(crate::DELIVERY_INFO_DB_KEY);
     let delivery_info: String = db::Interface::async_read(&s.env, &s.handle, &k).await;
@@ -344,9 +346,15 @@ pub async fn validate_order_for_ship(orid: &String) -> reqres::FinalizeOrderResp
         j_order.status = StatusType::Shipped.value();
         order::modify(Json(j_order));
     }
+    let e_delivery_info: String = neveko25519::cipher(
+        &hex_nmpk,
+        hex::encode(delivery_info),
+        Some(String::from(neveko25519::ENCIPHER)),
+    )
+    .await;
     reqres::FinalizeOrderResponse {
         orid: String::from(orid),
-        delivery_info: hex::decode(delivery_info).unwrap_or(Vec::new()),
+        delivery_info: e_delivery_info,
         vendor_update_success: false,
     }
 }
@@ -386,8 +394,8 @@ pub async fn trigger_nasr(
     }
 }
 
-/// Write encrypted delivery info to lmdb. Once the customer releases the signed
-/// txset
+/// Write enciphered delivery info to lmdb. Once the customer releases the
+/// signed txset
 ///
 /// This will also attempt to notify the customer to trigger the NASR (neveko
 /// auto-ship request).
@@ -396,14 +404,20 @@ pub async fn trigger_nasr(
 /// etc.)
 pub async fn upload_delivery_info(
     orid: &String,
-    delivery_info: &Vec<u8>,
+    delivery_info: &String,
 ) -> reqres::FinalizeOrderResponse {
     info!("uploading delivery info");
     let lookup: Order = order::find(orid);
-    let e_delivery_info: Vec<u8> =
-        gpg::encrypt(String::from(&lookup.cid), &delivery_info).unwrap_or(Vec::new());
+    let contact: Contact = contact::find(&lookup.cid);
+    let hex_nmpk: String = contact.nmpk;
+    let e_delivery_info: String = neveko25519::cipher(
+        &hex_nmpk,
+        hex::encode(delivery_info),
+        Some(String::from(neveko25519::ENCIPHER)),
+    )
+    .await;
     if e_delivery_info.is_empty() {
-        error!("unable to encrypt delivery info");
+        error!("unable to encipher delivery info");
     }
     // get draft payment txset
     let wallet_password = utils::empty_string();
@@ -421,7 +435,7 @@ pub async fn upload_delivery_info(
     m_order.status = StatusType::Shipped.value();
     m_order.ship_date = chrono::offset::Utc::now().timestamp();
     m_order.vend_msig_txset = sweep.result.multisig_txset;
-    // delivery info will be stored encrypted and separate from the rest of the
+    // delivery info will be stored enciphered and separate from the rest of the
     // order
     let s = db::Interface::async_open().await;
     let k = String::from(crate::DELIVERY_INFO_DB_KEY);
@@ -439,7 +453,7 @@ pub async fn upload_delivery_info(
         return Default::default();
     }
     reqres::FinalizeOrderResponse {
-        delivery_info: delivery_info.to_vec(),
+        delivery_info: e_delivery_info,
         orid: String::from(orid),
         vendor_update_success: false,
     }

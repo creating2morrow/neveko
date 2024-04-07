@@ -78,7 +78,7 @@ fn hash_to_scalar(s: Vec<&str>) -> Scalar {
 /// Multiply the NMSK by the ed25519 basepoint to create the
 ///
 /// Neveko Message Public Key.
-async fn generate_neveko_message_keys() -> NevekoMessageKeys {
+pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
     log::info!("generating neveko message keys");
     let password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(utils::empty_string());
     let filename = String::from(crate::APP_NAME);
@@ -109,9 +109,9 @@ async fn generate_neveko_message_keys() -> NevekoMessageKeys {
 ///
 /// `m = "some message to encipher"`
 ///
-/// Return `x = m + h` as a string of the enciphered message
+/// Return `x = m + h` as a string of the enciphered message.
 ///
-/// encipher `true` will encipher otherwise decipher
+/// Pass `None` to encipher to perform deciphering.
 pub async fn cipher(hex_nmpk: &String, message: String, encipher: Option<String>) -> String {
     let unwrap_encipher: String = encipher.unwrap_or(utils::empty_string());
     let keys: NevekoMessageKeys = generate_neveko_message_keys().await;
@@ -192,7 +192,7 @@ mod tests {
     #[test]
     pub fn encipher_decipher() {
         let message = String::from(
-            "This is message that will be encrypted by the network. 
+            "This is message that will be enciphered by the network. 
         it is really long for testing and breaking stuff",
         );
         let do_encipher = Some(String::from(ENCIPHER));

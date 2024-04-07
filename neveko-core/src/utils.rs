@@ -3,7 +3,6 @@ use crate::{
     contact,
     db,
     dispute,
-    gpg,
     i2p,
     message,
     models,
@@ -20,7 +19,6 @@ use log::{
 };
 use rand_core::RngCore;
 use rocket::serde::json::Json;
-use std::time::Duration;
 extern crate rpassword;
 use rpassword::read_password;
 use std::io::Write;
@@ -41,8 +39,6 @@ pub struct ContactStatus {
     pub jwp: String,
     /// Alias for contact
     pub nick: String,
-    /// Must sign key for contacts befor messages can be sent
-    pub signed_key: bool,
     /// transaction proof signature of current status check
     pub txp: String,
 }
@@ -56,7 +52,6 @@ impl Default for ContactStatus {
             is_vendor: false,
             jwp: utils::empty_string(),
             nick: String::from("anon"),
-            signed_key: false,
             txp: utils::empty_string(),
         }
     }
@@ -306,7 +301,7 @@ pub fn contact_to_json(c: &models::Contact) -> Json<models::Contact> {
         i2p_address: String::from(&c.i2p_address),
         is_vendor: c.is_vendor,
         xmr_address: String::from(&c.xmr_address),
-        gpg_key: c.gpg_key.iter().cloned().collect(),
+        nmpk: String::from(&c.nmpk),
     };
     Json(r_contact)
 }
@@ -314,7 +309,7 @@ pub fn contact_to_json(c: &models::Contact) -> Json<models::Contact> {
 /// convert message to json so only core module does the work
 pub fn message_to_json(m: &models::Message) -> Json<models::Message> {
     let r_message: models::Message = models::Message {
-        body: m.body.iter().cloned().collect(),
+        body: String::from(&m.body),
         mid: String::from(&m.mid),
         uid: utils::empty_string(),
         created: m.created,
@@ -343,7 +338,7 @@ pub fn order_to_json(o: &reqres::OrderRequest) -> Json<reqres::OrderRequest> {
         cid: String::from(&o.cid),
         adjudicator: String::from(&o.adjudicator),
         pid: String::from(&o.pid),
-        ship_address: o.ship_address.iter().cloned().collect(),
+        ship_address: String::from(&o.ship_address),
         quantity: o.quantity,
     };
     Json(r_order)
@@ -369,8 +364,8 @@ pub const fn string_limit() -> usize {
     512
 }
 
-pub const fn gpg_key_limit() -> usize {
-    4096
+pub const fn npmk_limit() -> usize {
+    128
 }
 
 pub const fn message_limit() -> usize {
@@ -379,20 +374,6 @@ pub const fn message_limit() -> usize {
 
 pub const fn image_limit() -> usize {
     9999
-}
-
-/// Generate application gpg keys at startup if none exist
-async fn gen_app_gpg() {
-    let mut gpg_key = gpg::find_key().unwrap_or(utils::empty_string());
-    if gpg_key == utils::empty_string() {
-        info!("no gpg key found for neveko, creating it...");
-        // wait for key gen
-        gpg::write_gen_batch().unwrap();
-        gpg::gen_key();
-        tokio::time::sleep(Duration::new(9, 0)).await;
-        gpg_key = gpg::find_key().unwrap_or(utils::empty_string());
-    }
-    debug!("gpg key: {}", gpg_key);
 }
 
 /// Handles panic! for missing wallet directory
@@ -576,7 +557,6 @@ pub async fn start_up() {
     if !args.i2p_advanced {
         i2p::start().await;
     }
-    gen_app_gpg().await;
     gen_app_wallet(&wallet_password).await;
     start_gui();
     // start async background tasks here
@@ -989,7 +969,7 @@ mod tests {
         std::thread::spawn(move || {
             rt.block_on(async {
                 loop {
-                    tokio::time::sleep(Duration::from_secs(3600)).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
                 }
             })
         });

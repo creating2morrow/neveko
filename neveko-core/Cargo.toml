@@ -11,7 +11,6 @@ clap = { version = "4.1.4", features = ["derive"] }
 curve25519-dalek = "4.1.2"
 diqwest = "1.1.1"
 env_logger = "0.10.0"
-gpgme = "0.11.0"
 hex = "0.4.3"
 hmac = "0.12.1"
 jwt = "0.16.0"

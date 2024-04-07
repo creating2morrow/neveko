@@ -14,7 +14,6 @@ pub const GUI_NICK_DB_KEY:          &str = "gui-nick";
 pub const GUI_OVL_DB_KEY:           &str = "gui-ovl";
 pub const GUI_TX_SIGNATURE_DB_KEY:  &str = "gui-txp-sig";
 pub const GUI_TX_HASH_DB_KEY:       &str = "gui-txp-hash";
-pub const GUI_SIGNED_GPG_DB_KEY:    &str = "gui-signed-key";
 pub const GUI_TX_SUBADDRESS_DB_KEY: &str = "gui-txp-subaddress";
 
 pub const GUI_MSIG_KEX_ONE_DB_KEY:  &str = "gui-kex-1";
@@ -26,9 +25,6 @@ pub const GUI_MSIG_ADJUDICATOR_DB_KEY: &str = "gui-adjudicator";
 pub const GUI_MSIG_PREPARE_DB_KEY:  &str = "gui-prepare";
 pub const GUI_MSIG_TXSET_DB_KEY:    &str = "gui-txset";
 // End LMDB keys
-
-/// Designate a contact as verified and trusted
-pub const SIGNED_GPG_KEY: &str = "1";
 
 /// key for fetching the login credential hash
 pub const CREDENTIAL_KEY: &str = "NEVEKO_GUI_KEY";

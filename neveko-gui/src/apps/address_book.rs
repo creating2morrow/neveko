@@ -326,7 +326,6 @@ impl eframe::App for AddressBookApp {
                 ui.label(format!("tx proof: {}", self.status.txp));
                 ui.label(format!("jwp: {}", self.status.jwp));
                 ui.label(format!("expiration: {}", self.status.h_exp));
-                ui.label(format!("signed key: {}", self.status.signed_key));
                 if self.status.jwp == utils::empty_string()
                     && !self.is_pinging
                     && status == "online"
@@ -342,17 +341,6 @@ impl eframe::App for AddressBookApp {
                         self.approve_payment = true;
                         self.showing_status = false;
                         self.is_approving_jwp = true;
-                    }
-                }
-                if !self.status.signed_key {
-                    if ui.button("Sign Key").clicked() {
-                        contact::trust_gpg(self.status.i2p.clone());
-                        utils::write_gui_db(
-                            String::from(crate::GUI_SIGNED_GPG_DB_KEY),
-                            self.status.i2p.clone(),
-                            String::from(crate::SIGNED_GPG_KEY),
-                        );
-                        self.showing_status = false;
                     }
                 }
                 let failed_to_prove = self.status.txp != utils::empty_string()
@@ -418,7 +406,7 @@ impl eframe::App for AddressBookApp {
             let i2p_address = self.s_contact.i2p_address.clone();
             let is_vendor = self.s_contact.is_vendor;
             let xmr_address = self.s_contact.xmr_address.clone();
-            let gpg_key = self.s_contact.gpg_key.iter().cloned().collect();
+            let nmpk = self.s_contact.nmpk.clone();
 
             // Contact added confirmation screen
             //-----------------------------------------------------------------------------------
@@ -455,10 +443,7 @@ impl eframe::App for AddressBookApp {
                     }
                     ui.label(format!("i2p: {}", i2p_address));
                     ui.label(format!("xmr: {}", xmr_address));
-                    ui.label(format!(
-                        "gpg: {}",
-                        String::from_utf8(gpg_key).unwrap_or(utils::empty_string())
-                    ));
+                    ui.label(format!("npmk: {}", nmpk));
                     ui.horizontal(|ui| {
                         if !is_loading {
                             if ui.button("Approve").clicked() {
@@ -470,7 +455,7 @@ impl eframe::App for AddressBookApp {
                                     i2p_address,
                                     is_vendor,
                                     xmr_address,
-                                    gpg_key: self.s_contact.gpg_key.iter().cloned().collect(),
+                                    nmpk,
                                 };
                                 send_create_contact_req(
                                     self.contact_add_tx.clone(),
@@ -491,13 +476,7 @@ impl eframe::App for AddressBookApp {
                 if ui.button("Add").clicked() {
                     // Get the contacts information from the /share API
                     let contact = self.contact.clone();
-                    let prune = contact::Prune::Full.value();
-                    send_contact_info_req(
-                        self.contact_info_tx.clone(),
-                        ctx.clone(),
-                        contact,
-                        prune,
-                    );
+                    send_contact_info_req(self.contact_info_tx.clone(), ctx.clone(), contact);
                     add_contact_timeout(self.contact_timeout_tx.clone(), ctx.clone());
                     self.is_adding = true;
                 }
@@ -592,15 +571,10 @@ impl eframe::App for AddressBookApp {
                                             chrono::NaiveDateTime::from_timestamp_opt(expire, 0)
                                                 .unwrap()
                                                 .to_string();
-                                        // MESSAGES WON'T BE SENT UNTIL KEY IS SIGNED AND TRUSTED!
-                                        self.status.signed_key =
-                                            check_signed_key(self.status.i2p.clone());
-                                        let prune = contact::Prune::Pruned.value();
                                         send_contact_info_req(
                                             self.contact_info_tx.clone(),
                                             ctx.clone(),
                                             self.status.i2p.clone(),
-                                            prune,
                                         );
                                         self.showing_status = true;
                                         self.is_pinging = true;
@@ -613,7 +587,6 @@ impl eframe::App for AddressBookApp {
                                         Err(_e) => 0,
                                     };
                                     if now < expire
-                                        && self.status.signed_key
                                         && self.status.jwp != utils::empty_string()
                                         && c.i2p_address == self.status.i2p
                                     {
@@ -632,15 +605,10 @@ impl eframe::App for AddressBookApp {
 
 // Send asyc requests to neveko-core
 //------------------------------------------------------------------------------
-fn send_contact_info_req(
-    tx: Sender<models::Contact>,
-    ctx: egui::Context,
-    contact: String,
-    prune: u32,
-) {
+fn send_contact_info_req(tx: Sender<models::Contact>, ctx: egui::Context, contact: String) {
     log::debug!("async send_contact_info_req");
     tokio::spawn(async move {
-        match contact::add_contact_request(contact, prune).await {
+        match contact::add_contact_request(contact).await {
             Ok(contact) => {
                 let _ = tx.send(contact);
                 ctx.request_repaint();
@@ -825,7 +793,7 @@ fn send_payment_req(
 fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: String, jwp: String) {
     log::debug!("constructing message");
     let m: models::Message = models::Message {
-        body: body.into_bytes(),
+        body: body,
         to,
         mid: utils::empty_string(),
         uid: utils::empty_string(),
@@ -842,11 +810,6 @@ fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: Stri
             ctx.request_repaint();
         }
     });
-}
-
-fn check_signed_key(contact: String) -> bool {
-    let v = utils::search_gui_db(String::from(crate::GUI_SIGNED_GPG_DB_KEY), contact);
-    v != utils::empty_string()
 }
 
 fn change_nick_req(contact: String, nick: String) {

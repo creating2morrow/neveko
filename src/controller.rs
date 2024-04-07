@@ -41,21 +41,10 @@ pub async fn get_i2p_status() -> Custom<Json<i2p::HttpProxyStatus>> {
 
 /// Share your contact information.
 ///
-/// 0 - returns full info with gpg key
-///
-/// 1 - return pruned info without gpg key
-///
 /// Protected: false
-#[get("/<pruned>")]
-pub async fn share_contact_info(pruned: u32) -> Custom<Json<models::Contact>> {
+#[get("/")]
+pub async fn share_contact_info() -> Custom<Json<models::Contact>> {
     let info: models::Contact = contact::share().await;
-    if pruned == contact::Prune::Pruned.value() {
-        let p_info: models::Contact = models::Contact {
-            gpg_key: Vec::new(),
-            ..info
-        };
-        return Custom(Status::Ok, Json(p_info));
-    }
     Custom(Status::Ok, Json(info))
 }
 
