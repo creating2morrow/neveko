@@ -712,7 +712,7 @@ mod tests {
         let _enter = rt.enter();
         let body: String = String::from("test body");
         let message = Message {
-            body: body.into_bytes(),
+            body: body,
             ..Default::default()
         };
         let j_message = utils::message_to_json(&message);
@@ -734,7 +734,7 @@ mod tests {
         let _enter = rt.enter();
         let body: String = String::from("test body");
         let expected_message = Message {
-            body: body.into_bytes(),
+            body: body,
             ..Default::default()
         };
         let k = "test-key";
@@ -757,7 +757,7 @@ mod tests {
         let _enter = rt.enter();
         let body: String = String::from("test body");
         let message = Message {
-            body: body.into_bytes(),
+            body: body,
             ..Default::default()
         };
         let j_message = utils::message_to_json(&message);
