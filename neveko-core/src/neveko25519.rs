@@ -57,14 +57,7 @@ fn hash_to_scalar(s: Vec<&str>) -> Scalar {
         hasher.update(&result);
         let hash = hasher.finalize().to_owned();
         let mut hash_container: [u8; 32] = [0u8; 32];
-        let mut index = 0;
-        for byte in result.as_bytes() {
-            if index == hash_container.len() - 1 {
-                break;
-            }
-            hash_container[index] = *byte;
-            index += 1;
-        }
+        hex::decode_to_slice(result, &mut hash_container as &mut [u8]).unwrap_or_default();
         let hash_value = BigInt::from_bytes_le(Sign::Plus, &hash_container);
         if hash_value < curve_l_as_big_int() {
             return Scalar::from_bytes_mod_order(hash_container);
