@@ -92,13 +92,6 @@ pub struct Args {
     /// Marketplace admin port
     #[arg(long, help = "Set app marketplace admin port", default_value = "9046")]
     pub marketplace_port: u16,
-    /// Start with gui
-    #[arg(
-        long,
-        help = "Start the graphical user interface",
-        default_value = "false"
-    )]
-    pub gui: bool,
     /// i2p http proxy host
     #[arg(
         long,
@@ -127,13 +120,6 @@ pub struct Args {
         default_value = "false"
     )]
     pub full_node: bool,
-    /// Connect to micro servers
-    #[arg(
-        long,
-        help = "allow remote access to mirco server functionality",
-        default_value = "false"
-    )]
-    pub remote_access: bool,
     /// Remove all failed-to-send messages from db on app startup
     #[arg(
         long,

@@ -9,7 +9,7 @@ set -eo pipefail
 
 # Check source without compiling
 ./scripts/check_all.sh
-echo "source code checks passed"
+echo "source code checks complete"
 
 # Run the formatter
 ./scripts/fmtall.sh

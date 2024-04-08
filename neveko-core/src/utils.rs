@@ -460,72 +460,11 @@ pub fn get_jwp_secret_key() -> String {
     r
 }
 
-/// Start the remote access microservers `--remote-access` flag
-fn start_micro_servers() {
-    info!("starting auth server");
-    let mut auth_path = "neveko-auth/target/debug/neveko_auth";
-    let env = get_release_env();
-    if env == ReleaseEnvironment::Production {
-        auth_path = "neveko_auth";
-    }
-    let a_output = std::process::Command::new(auth_path)
-        .spawn()
-        .expect("failed to start auth server");
-    debug!("{:?}", a_output.stdout);
-    info!("starting contact server");
-    let mut contact_path = "neveko-contact/target/debug/neveko_contact";
-    if env == ReleaseEnvironment::Production {
-        contact_path = "neveko_contact";
-    }
-    let c_output = std::process::Command::new(contact_path)
-        .spawn()
-        .expect("failed to start contact server");
-    debug!("{:?}", c_output.stdout);
-    info!("starting marketplace admin server");
-    let mut market_path = "neveko-market/target/debug/neveko_market";
-    if env == ReleaseEnvironment::Production {
-        market_path = "neveko_market";
-    }
-    let market_output = std::process::Command::new(market_path)
-        .spawn()
-        .expect("failed to start marketplace server");
-    debug!("{:?}", market_output.stdout);
-    info!("starting message server");
-    let mut message_path = "neveko-message/target/debug/neveko_message";
-    if env == ReleaseEnvironment::Production {
-        message_path = "neveko_message";
-    }
-    let m_output = std::process::Command::new(message_path)
-        .spawn()
-        .expect("failed to start message server");
-    debug!("{:?}", m_output.stdout);
-}
-
-/// open gui from neveko core launch
-fn start_gui() {
-    let args = args::Args::parse();
-    if args.gui {
-        info!("starting gui");
-        let mut gui_path = "neveko-gui/target/debug/neveko_gui";
-        let env = get_release_env();
-        if env == ReleaseEnvironment::Production {
-            gui_path = "neveko-gui";
-        }
-        let g_output = std::process::Command::new(gui_path)
-            .spawn()
-            .expect("failed to start gui");
-        debug!("{:?}", g_output.stdout);
-    }
-}
-
 /// Put all app pre-checks here
 pub async fn start_up() {
     info!("neveko is starting up");
     warn!("monero multisig is experimental and usage of neveko may lead to loss of funds");
     let args = args::Args::parse();
-    if args.remote_access {
-        start_micro_servers();
-    }
     if args.clear_fts {
         clear_fts();
     }
@@ -558,7 +497,6 @@ pub async fn start_up() {
         i2p::start().await;
     }
     gen_app_wallet(&wallet_password).await;
-    start_gui();
     // start async background tasks here
     {
         tokio::spawn(async {
@@ -569,6 +507,8 @@ pub async fn start_up() {
     info!("{} - neveko is online", env);
 }
 
+/// TODO(?): get rid of this after implementing monero bindings
+///
 /// Called by gui for cleaning up monerod, rpc, etc.
 ///
 /// pass true from gui connection manager so not to kill neveko
@@ -625,23 +565,17 @@ fn clear_disputes() {
     db::Interface::delete(&s.env, &s.handle, crate::DISPUTE_LIST_DB_KEY);
 }
 
-/// Destroy temp files
-pub fn stage_cleanup(f: String) {
-    info!("staging {} for cleanup", &f);
-    let output = std::process::Command::new("bash")
-        .args(["-c", &format!("rm {}", &f)])
-        .spawn()
-        .expect("cleanup staging failed");
-    debug!("{:?}", output.stdout);
-}
-
+/// TODO(?): get rid of this after implementing monero bindings
+///
 /// Handle the request from user to additional software
 ///
 /// from gui startup. Power users will most like install
 ///
 /// software on their own. Note that software pull is over
 ///
-/// clearnet. TODO(c2m): trusted download locations over tor.
+/// clearnet. TODO(c2m): remove this after monero and i2pd
+///
+/// are completed.
 pub async fn install_software(installations: Installations) -> bool {
     let mut valid_i2p_zero_hash = true;
     let mut valid_xmr_hash = true;
