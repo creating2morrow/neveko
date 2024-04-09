@@ -31,6 +31,18 @@ pub struct NevekoMessageKeys {
     /// Hex encoding of NMPK
     pub hex_nmpk: String,
 }
+
+impl Default for NevekoMessageKeys {
+    fn default() -> Self {
+        NevekoMessageKeys {
+            nmpk: [0u8; 32],
+            nmsk: [0u8; 32],
+            hex_nmpk: utils::empty_string(),
+            hex_nmsk: utils::empty_string(),
+        }
+    }
+}
+
 /// L value as defined at https://eprint.iacr.org/2008/013.pdf
 const CURVE_L: &str = "edd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010";
 pub const ENCIPHER: &str = "ENCIPHER";
@@ -66,11 +78,13 @@ fn hash_to_scalar(s: Vec<&str>) -> Scalar {
     }
 }
 
-/// Hash the secret view key to a valid scalar.
+/// Hash the secret view key and the application name
+///
+/// to a valid scalar creating the Neveko Secret Message Key.
 ///
 /// Multiply the NMSK by the ed25519 basepoint to create the
 ///
-/// Neveko Message Public Key.
+/// Neveko Message Public Key (NMPK).
 pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
     log::info!("generating neveko message keys");
     let password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(utils::empty_string());
@@ -78,19 +92,20 @@ pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
     let m_wallet = monero::open_wallet(&filename, &password).await;
     if !m_wallet {
         log::error!("failed to open wallet");
+        return Default::default();
     }
     let svk_res = monero::query_view_key().await;
     monero::close_wallet(&filename, &password).await;
     let svk = svk_res.result.key;
     let scalar_nmsk = hash_to_scalar(vec![&svk[..], crate::APP_NAME]);
     let point_nmpk = EdwardsPoint::mul_base(&scalar_nmsk);
-    let nmsk = scalar_nmsk.as_bytes();
+    let nmsk = *scalar_nmsk.as_bytes();
     let nmpk: [u8; 32] = *point_nmpk.compress().as_bytes();
     let hex_nmpk = hex::encode(&nmpk);
     let hex_nmsk = hex::encode(&nmsk);
     NevekoMessageKeys {
         nmpk,
-        nmsk: *nmsk,
+        nmsk,
         hex_nmpk,
         hex_nmsk,
     }
@@ -98,26 +113,24 @@ pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
 
 /// Encipher a string by using the contact's Neveko Message Public Key.
 ///
-/// E.g. ss_alice = pvk_bob(address) * svk_alice = h`
+/// E.g. shared_secret_alice = nmpk_bob * nmsk_alice = h`
 ///
 /// `m = "some message to encipher"`
 ///
 /// Return `x = m + h` as a string of the enciphered message.
 ///
-/// Pass `None` to encipher to perform deciphering.
+/// Pass `None` to encipher parameter to perform deciphering.
 pub async fn cipher(hex_nmpk: &String, message: String, encipher: Option<String>) -> String {
     let unwrap_encipher: String = encipher.unwrap_or(utils::empty_string());
     let keys: NevekoMessageKeys = generate_neveko_message_keys().await;
-    log::debug!("neveko keys: {:?}", keys);
-    // shared secret = pvk * svk
-    let scalar_svk = Scalar::from_bytes_mod_order(keys.nmsk);
+    // shared secret = nmpk * nmsk
+    let scalar_nmsk = Scalar::from_bytes_mod_order(keys.nmsk);
     let mut nmpk: [u8; 32] = [0u8; 32];
     hex::decode_to_slice(hex_nmpk, &mut nmpk as &mut [u8]).unwrap_or_default();
     let compress_y = CompressedEdwardsY::from_slice(&nmpk).unwrap_or_default();
-    let pvk = compress_y.decompress().unwrap_or_default();
-    let shared_secret = pvk * scalar_svk;
+    let compress_nmpk = compress_y.decompress().unwrap_or_default();
+    let shared_secret = compress_nmpk * scalar_nmsk;
     let ss_hex = hex::encode(shared_secret.compress().as_bytes());
-    log::debug!("shared_secret: {:?}", ss_hex);
     // x = m + h or x = m - h'
     let h = hash_to_scalar(vec![&ss_hex[..]]);
     let h_bi = BigInt::from_bytes_le(Sign::Plus, h.as_bytes());
