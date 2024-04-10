@@ -1175,7 +1175,7 @@ dependencies = [
 
 [[package]]
 name = "neveko_core"
-version = "0.1.0-beta"
+version = "0.1.1-beta"
 dependencies = [
  "chrono",
  "clap",
@@ -1203,7 +1203,7 @@ dependencies = [
 
 [[package]]
 name = "neveko_market"
-version = "0.1.0-beta"
+version = "0.1.1-beta"
 dependencies = [
  "chrono",
  "env_logger",
