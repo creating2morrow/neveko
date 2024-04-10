@@ -1,3 +1,5 @@
+//! TODO: replace i2p-zero with i2pd bindings
+
 use crate::{
     args,
     utils,

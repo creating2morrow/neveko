@@ -1,3 +1,5 @@
+//! Custom object relational mapping (ORM) for structs into LMBD
+
 use crate::utils;
 use rocket::serde::{
     json::Json,

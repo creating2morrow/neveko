@@ -1,3 +1,5 @@
+//! Structs for all http requests
+
 use crate::utils;
 use serde::{
     Deserialize,

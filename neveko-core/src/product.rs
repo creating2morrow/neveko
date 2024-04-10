@@ -1,4 +1,5 @@
-// Product repo/service layer
+//! Marketplace products upload, modification, etc module
+
 use crate::{
     db,
     models::*,

@@ -1,4 +1,5 @@
-// db created and exported from here
+//! Primary LMDB interface for read, write, delete etc.
+
 extern crate lmdb_rs as lmdb;
 
 use lmdb::{

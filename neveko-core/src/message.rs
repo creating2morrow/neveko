@@ -1,4 +1,5 @@
-// Message repo/service layer
+//! Message processing module
+
 use crate::{
     contact,
     db,

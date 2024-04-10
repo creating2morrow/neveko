@@ -1,23 +1,24 @@
-pub mod args;       // command line arguments
-pub mod auth;       // internal auth repo/service layer
-pub mod contact;    // contact repo/service layer
-pub mod neveko25519;    // cipher logic
-pub mod dispute;    // dispute repo/service layer
-pub mod db;         // lmdb interface
-pub mod i2p;        // i2p repo/service layer
-pub mod message;    // message repo/service layer
-pub mod models;     // db structs
-pub mod monero;     // monero-wallet-rpc interface
-pub mod order;      // order repo/service layer
-pub mod product;    // product repo/service layer
-pub mod proof;      // external auth/payment proof module
-pub mod reqres;     // http request/responses
-pub mod user;       // user repo/service layer
-pub mod utils;      // misc.
+pub mod args;
+pub mod auth;
+pub mod contact;
+pub mod neveko25519;
+pub mod dispute;
+pub mod db;
+pub mod i2p;
+pub mod message;
+pub mod models;
+pub mod monero;
+pub mod order;
+pub mod product;
+pub mod proof;
+pub mod reqres;
+pub mod user;
+pub mod utils;
 
 pub const APP_NAME: &str = "neveko";
 pub const NEVEKO_JWP_SECRET_KEY: &str = "NEVEKO_JWP_SECRET_KEY";
 pub const NEVEKO_JWT_SECRET_KEY: &str = "NEVEKO_JWT_SECRET_KEY";
+pub const NEVEKO_NMPK: &str = "NEVEKO_NMPK";
 
 // LMDB Keys
 pub const AUTH_DB_KEY:                  &str = "a";

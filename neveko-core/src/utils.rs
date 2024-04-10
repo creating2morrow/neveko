@@ -1,7 +1,17 @@
 //! Generic functions for startup and convenience
 
 use crate::{
-    args, contact, db, dispute, i2p, message, models, monero, neveko25519, reqres, utils
+    args,
+    contact,
+    db,
+    dispute,
+    i2p,
+    message,
+    models,
+    monero,
+    neveko25519,
+    reqres,
+    utils,
 };
 use clap::Parser;
 use log::{

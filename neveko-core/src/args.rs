@@ -1,3 +1,4 @@
+//! core command line arguments
 use clap::Parser;
 
 /// cmd line args

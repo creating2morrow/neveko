@@ -51,13 +51,13 @@ curl -iv http://localhost:9044/contacts
 ## send message
 
 ```bash
-curl -ivk http://localhost:9045/tx -d '{"uid":"123", "mid": "", "body": [1,2,3 <PLAINTEXT_BYTES>], "from": "alice.b32.i2p", "created": 0, "to": "bob.b32.i2p"}' -H 'Content-Type: application/json'
+curl -ivk http://localhost:9045/tx -d '{"uid":"123", "mid": "", "body": "string", "from": "alice.b32.i2p", "created": 0, "to": "bob.b32.i2p"}' -H 'Content-Type: application/json'
 ```
 
 ## receive message
 
 ```bash
-curl -iv http://alice.b32.i2p/message/rx -d '{"uid":"", "mid": "", "body": [1,2,3 <ENCRYPTED_BYTES>], "from": "bob.b32.i2p", "created": 0, "to": "alice.b32.i2p"}' -H 'Content-Type: application/json' -H 'proof: eyJhbGciOiJIUzUxMiJ9...'
+curl -iv http://alice.b32.i2p/message/rx -d '{"uid":"", "mid": "", "body": "string", "from": "bob.b32.i2p", "created": 0, "to": "alice.b32.i2p"}' -H 'Content-Type: application/json' -H 'proof: eyJhbGciOiJIUzUxMiJ9...'
 ```
 
 ## view messages

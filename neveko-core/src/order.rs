@@ -1,3 +1,5 @@
+//! Marketplace order logic module
+
 use std::error::Error;
 
 use crate::{

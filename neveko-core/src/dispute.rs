@@ -1,3 +1,5 @@
+//! Marketplace disputes operations module
+
 use std::error::Error;
 
 use crate::{

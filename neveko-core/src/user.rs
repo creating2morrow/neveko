@@ -1,4 +1,6 @@
-// User repo/service layer
+//! TODO(c2m): remove this module since there is only support for a single
+//! authenticated user
+
 use crate::{
     db,
     models::*,
@@ -10,10 +12,6 @@ use log::{
     info,
 };
 use rocket::serde::json::Json;
-
-// This module is only used for remote access
-// TODO(c2m): remove this module since there is only support for a single
-// authenticated user
 
 /// Create a new user
 pub fn create(address: &String) -> User {

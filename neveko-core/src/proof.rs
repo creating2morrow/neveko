@@ -1,3 +1,5 @@
+//! External authorization module via JWPs
+
 use crate::{
     db,
     monero,

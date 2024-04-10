@@ -1,3 +1,5 @@
+//! Internal authorization module that uses JWTs
+
 use crate::{
     args,
     db,
