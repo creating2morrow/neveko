@@ -1,10 +1,10 @@
-// Contact repo/service layer
+//! contact operations module
+
 use crate::{
     db,
     i2p,
     models::*,
     monero,
-    neveko25519,
     reqres,
     utils,
 };
@@ -128,8 +128,7 @@ pub async fn share() -> Contact {
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
     monero::close_wallet(&wallet_name, &wallet_password).await;
-    let nmk = neveko25519::generate_neveko_message_keys().await;
-    let nmpk = nmk.hex_nmpk;
+    let nmpk = utils::get_nmpk();
     let i2p_address = i2p::get_destination(None);
     let xmr_address = m_address.result.address;
     Contact {

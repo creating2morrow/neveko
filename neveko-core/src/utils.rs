@@ -1,14 +1,7 @@
+//! Generic functions for startup and convenience
+
 use crate::{
-    args,
-    contact,
-    db,
-    dispute,
-    i2p,
-    message,
-    models,
-    monero,
-    reqres,
-    utils,
+    args, contact, db, dispute, i2p, message, models, monero, neveko25519, reqres, utils
 };
 use clap::Parser;
 use log::{
@@ -460,6 +453,28 @@ pub fn get_jwp_secret_key() -> String {
     r
 }
 
+/// Returns the hex encoded neveko message public key from LMDB
+pub fn get_nmpk() -> String {
+    let s = db::Interface::open();
+    let r = db::Interface::read(&s.env, &s.handle, crate::NEVEKO_NMPK);
+    if r == utils::empty_string() {
+        error!("neveko message public key not found");
+        return Default::default();
+    }
+    r
+}
+
+async fn generate_nmpk() {
+    info!("generating neveko message public key");
+    let nmpk: String = get_nmpk();
+    // send to db
+    let s = db::Interface::open();
+    if nmpk == utils::empty_string() {
+        let nmk: neveko25519::NevekoMessageKeys = neveko25519::generate_neveko_message_keys().await;
+        db::Interface::write(&s.env, &s.handle, crate::NEVEKO_NMPK, &nmk.hex_nmpk);
+    }
+}
+
 /// Put all app pre-checks here
 pub async fn start_up() {
     info!("neveko is starting up");
@@ -492,6 +507,7 @@ pub async fn start_up() {
         wallet_password = read_password().unwrap();
         std::env::set_var(crate::MONERO_WALLET_PASSWORD, &wallet_password);
     }
+    generate_nmpk().await;
     let env: String = get_release_env().value();
     if !args.i2p_advanced {
         i2p::start().await;

@@ -1,3 +1,5 @@
+//! NEVEKO modified ed25519 library extending curve25519-dalek
+
 use curve25519_dalek::{
     edwards::{
         CompressedEdwardsY,
@@ -69,7 +71,14 @@ fn hash_to_scalar(s: Vec<&str>) -> Scalar {
         hasher.update(&result);
         let hash = hasher.finalize().to_owned();
         let mut hash_container: [u8; 32] = [0u8; 32];
-        hex::decode_to_slice(result, &mut hash_container as &mut [u8]).unwrap_or_default();
+        let mut index = 0;
+        for byte in result.as_bytes() {
+            if index == hash_container.len() - 1 {
+                break;
+            }
+            hash_container[index] = *byte;
+            index += 1;
+        }
         let hash_value = BigInt::from_bytes_le(Sign::Plus, &hash_container);
         if hash_value < curve_l_as_big_int() {
             return Scalar::from_bytes_mod_order(hash_container);
@@ -98,6 +107,7 @@ pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
     monero::close_wallet(&filename, &password).await;
     let svk = svk_res.result.key;
     let scalar_nmsk = hash_to_scalar(vec![&svk[..], crate::APP_NAME]);
+    log::debug!("scalar_nmsk: {:?}", &scalar_nmsk);
     let point_nmpk = EdwardsPoint::mul_base(&scalar_nmsk);
     let nmsk = *scalar_nmsk.as_bytes();
     let nmpk: [u8; 32] = *point_nmpk.compress().as_bytes();
@@ -173,13 +183,12 @@ mod tests {
             hex_nmpk,
             hex_nmsk,
         };
-        // shared secret = pvk * svk
-        let scalar_svk = Scalar::from_bytes_mod_order(keys.nmsk);
+        // shared secret = nmpk * nmks
+        let scalar_nmsk = Scalar::from_bytes_mod_order(keys.nmsk);
         let compress_y = CompressedEdwardsY::from_slice(&nmpk).unwrap_or_default();
-        let pvk = compress_y.decompress().unwrap_or_default();
-        let shared_secret = pvk * scalar_svk;
+        let nmpk_compress = compress_y.decompress().unwrap_or_default();
+        let shared_secret = nmpk_compress * scalar_nmsk;
         let ss_hex = hex::encode(shared_secret.compress().as_bytes());
-        log::debug!("shared_secret: {:?}", ss_hex);
         // x = m + h or x = m - h'
         let h = hash_to_scalar(vec![&ss_hex[..]]);
         let h_bi = BigInt::from_bytes_le(Sign::Plus, h.as_bytes());
