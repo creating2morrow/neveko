@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use rocket::{
+    delete,
     get,
     http::Status,
     post,
@@ -35,6 +36,14 @@ pub async fn send_message(
 /// Return all messages
 #[get("/")]
 pub async fn get_messages(_token: auth::BearerToken) -> Custom<Json<Vec<Message>>> {
+    let messages = message::find_all();
+    Custom(Status::Ok, Json(messages))
+}
+
+/// Delete a message by mid
+#[delete("/<mid>")]
+pub async fn remove_message(mid: String, _token: auth::BearerToken) -> Custom<Json<Vec<Message>>> {
+    message::delete(&mid);
     let messages = message::find_all();
     Custom(Status::Ok, Json(messages))
 }

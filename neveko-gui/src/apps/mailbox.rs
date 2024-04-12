@@ -173,9 +173,8 @@ fn decipher_req(m: &Message, tx: Sender<String>, ctx: egui::Context) {
     let body: String = String::from(&m.body);
     tokio::spawn(async move {
         log::info!("async decipher_req");
-        let contact = contact::find(&from);
-        let encipher = Some(String::from(neveko25519::ENCIPHER));
-        let deciphered = neveko25519::cipher(&contact.nmpk, body, encipher).await;
+        let contact = contact::find_by_i2p_address(&from);
+        let deciphered = neveko25519::cipher(&contact.nmpk, body, None).await;
         let _ = tx.send(deciphered);
         ctx.request_repaint();
     });

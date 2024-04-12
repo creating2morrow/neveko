@@ -16,6 +16,9 @@ async fn rocket() -> _ {
     log::info!("neveko-contact is online");
     rocket::custom(&config)
         .mount("/prove", routes![controller::prove_payment])
-        .mount("/contact", routes![controller::add_contact])
+        .mount(
+            "/contact",
+            routes![controller::add_contact, controller::remove_contact],
+        )
         .mount("/contacts", routes![controller::get_contacts])
 }

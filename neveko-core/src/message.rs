@@ -317,7 +317,7 @@ async fn send_message(out: &Message, jwp: &str, m_type: MessageType) -> Result<(
 /// Returns deciphered message
 pub async fn decipher_body(mid: String) -> reqres::DecipheredMessageBody {
     let m = find(&mid);
-    let contact = contact::find(&m.from);
+    let contact = contact::find_by_i2p_address(&m.from);
     let nmpk = contact.nmpk;
     let message = String::from(&m.body);
     let body = neveko25519::cipher(&nmpk, message, None).await;

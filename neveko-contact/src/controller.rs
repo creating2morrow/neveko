@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use rocket::{
+    delete,
     get,
     http::Status,
     post,
@@ -33,6 +34,17 @@ pub async fn add_contact(
 /// Return all contacts
 #[get("/")]
 pub async fn get_contacts(_token: auth::BearerToken) -> Custom<Json<Vec<Contact>>> {
+    let contacts = contact::find_all();
+    Custom(Status::Ok, Json(contacts))
+}
+
+/// Delete a contact by CID
+#[delete("/remove/<contact>")]
+pub async fn remove_contact(
+    contact: String,
+    _token: auth::BearerToken,
+) -> Custom<Json<Vec<Contact>>> {
+    contact::delete(&contact);
     let contacts = contact::find_all();
     Custom(Status::Ok, Json(contacts))
 }

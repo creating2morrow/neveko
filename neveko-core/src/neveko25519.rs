@@ -107,7 +107,6 @@ pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
     monero::close_wallet(&filename, &password).await;
     let svk = svk_res.result.key;
     let scalar_nmsk = hash_to_scalar(vec![&svk[..], crate::APP_NAME]);
-    log::debug!("scalar_nmsk: {:?}", &scalar_nmsk);
     let point_nmpk = EdwardsPoint::mul_base(&scalar_nmsk);
     let nmsk = *scalar_nmsk.as_bytes();
     let nmpk: [u8; 32] = *point_nmpk.compress().as_bytes();

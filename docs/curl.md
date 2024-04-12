@@ -39,13 +39,19 @@ curl -iv http://bob.b32.i2p/xmr/version -H 'proof: eyJhbGciOiJIUzUxMiJ9...'
 ## add contact
 
 ```bash
-curl -iv -X POST http://localhost:9044/contact -d '{"cid": "KEEP EMPTY", "npmk": "string", "i2p_address": "", "xmr_address": ""}' -H 'Content-Type: application/json' 
+curl -iv -X POST http://localhost:9044/contact -d '{"cid": "KEEP EMPTY", "nmpk": "string", "i2p_address": "", "xmr_address": "", "is_vendor": false}' -H 'Content-Type: application/json' 
 ```
 
 ## view contacts
 
 ```bash
 curl -iv http://localhost:9044/contacts
+```
+
+## remove contact
+
+```bash
+curl -iv -X DELETE http://localhost:9044/contact/remove/<CID>
 ```
 
 ## send message
@@ -64,6 +70,12 @@ curl -iv http://alice.b32.i2p/message/rx -d '{"uid":"", "mid": "", "body": "stri
 
 ```bash
 curl -iv http://localhost:9045/messages
+```
+
+## remove message
+
+```bash
+curl -iv -X DELETE http://localhost:9045/message/remove/<MID>
 ```
 
 ## decipher message

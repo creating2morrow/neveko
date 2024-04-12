@@ -80,6 +80,28 @@ pub fn find(cid: &String) -> Contact {
     Contact::from_db(String::from(cid), r)
 }
 
+/// Contact lookup
+pub fn find_by_i2p_address(i2p_address: &String) -> Contact {
+    let contacts = find_all();
+    for c in contacts {
+        if c.i2p_address == String::from(i2p_address) {
+            return c;
+        }
+    }
+    Default::default()
+}
+
+/// Contact deletion
+pub fn delete(cid: &String) {
+    let s = db::Interface::open();
+    let r = db::Interface::read(&s.env, &s.handle, &String::from(cid));
+    if r == utils::empty_string() {
+        error!("contact not found");
+        return;
+    }
+    db::Interface::delete(&s.env, &s.handle, &cid);
+}
+
 /// All contact lookup
 pub fn find_all() -> Vec<Contact> {
     info!("looking up all contacts");
