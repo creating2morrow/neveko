@@ -17,7 +17,7 @@ pub struct Args {
     #[arg(
         long,
         help = "Monero download absolute path.",
-        default_value = "monero-x86_64-linux-gnu-v0.18.3.1"
+        default_value = "monero-x86_64-linux-gnu-v0.18.3.3"
     )]
     pub monero_location: String,
     /// Monero RPC host
