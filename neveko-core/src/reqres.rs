@@ -46,6 +46,11 @@ pub struct XmrRpcOpenWalletParams {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcPrepareParams {
+    pub enable_experimental_multisig: bool
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcMakeParams {
     pub multisig_info: Vec<String>,
     pub threshold: u8,
@@ -224,6 +229,14 @@ pub struct XmrRpcBalanceRequest {
     pub id: String,
     pub method: String,
     pub params: XmrRpcBalanceParams,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct XmrRpcPrepareRequest {
+    pub jsonrpc: String,
+    pub id: String,
+    pub method: String,
+    pub params: XmrRpcPrepareParams,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

@@ -72,9 +72,7 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
         monero::close_wallet(&orid, &wallet_password).await;
         return Default::default();
     }
-    // enable multisig
     monero::close_wallet(&orid, &order_wallet_password).await;
-    monero::enable_experimental_multisig(&orid);
     debug!("insert order: {:?}", &new_order);
     let s = db::Interface::async_open().await;
     // inject adjudicator separately, modifying the order model is mendokusai
@@ -826,7 +824,5 @@ pub async fn init_adjudicator_wallet(orid: &String) {
     if !m_wallet {
         log::error!("failed to create adjudicator wallet");
     }
-    // enable multisig
     monero::close_wallet(&orid, &password).await;
-    monero::enable_experimental_multisig(&orid);
 }
