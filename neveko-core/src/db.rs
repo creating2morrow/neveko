@@ -1,6 +1,6 @@
 //! Primary LMDB interface for read, write, delete etc.
 
-extern crate lmdb_rs as lmdb;
+extern crate kn0sys_lmdb_rs as lmdb;
 
 use lmdb::{
     DbFlags,
