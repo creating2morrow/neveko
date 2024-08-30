@@ -41,7 +41,7 @@ NEVidebla-EKOnomia (invisible economy)
   * just remember to put cli password in the original window, not the log file window
   * https://stackoverflow.com/questions/6674327/redirect-all-output-to-file-in-bash
 * gui built with rust [egui](https://docs.rs/egui/latest/egui/)
-* darknet release server links are located at: http://c2m66oddrzozztxyzjegbdwtgbeiibq5vz2tpchmqamrzcahcfoq.b32.i2p/index.txt
+* darknet release server links are located at: http://neveko.i2p/index.txt
 
 ## Installation Mananger
 
