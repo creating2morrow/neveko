@@ -17,11 +17,7 @@ use log::{
 };
 use std::{
     error::Error,
-    io::Write,
-    process::{
-        Command,
-        Stdio,
-    },
+    process::Command,
 };
 
 use lazy_static::lazy_static;
@@ -184,7 +180,7 @@ pub fn start_daemon() {
     let mut socks_proxy_host = utils::get_i2p_wallet_proxy_host();
     if socks_proxy_host.contains("http://") {
         let values = socks_proxy_host.split("http://");
-        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        let mut v: Vec<String> = values.map(String::from).collect();
         socks_proxy_host = v.remove(1);
     };
     let tx_proxy = format!("i2p,{}", socks_proxy_host);
@@ -241,7 +237,7 @@ pub fn start_rpc() {
     let mut proxy_host = utils::get_i2p_wallet_proxy_host();
     if proxy_host.contains("http://") {
         let values = proxy_host.split("http://");
-        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        let mut v: Vec<String> = values.map(String::from).collect();
         proxy_host = v.remove(1);
     }
     let mut args = vec![
@@ -281,9 +277,9 @@ pub fn start_rpc() {
 
 fn get_rpc_port() -> String {
     let args = args::Args::parse();
-    let rpc = String::from(args.monero_rpc_host);
+    let rpc = args.monero_rpc_host;
     let values = rpc.split(":");
-    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    let mut v: Vec<String> = values.map(String::from).collect();
     let port = v.remove(2);
     debug!("monero-wallet-rpc port: {}", port);
     port
@@ -291,28 +287,22 @@ fn get_rpc_port() -> String {
 
 pub fn get_daemon_port() -> u16 {
     let args = args::Args::parse();
-    let rpc = String::from(args.monero_rpc_daemon);
+    let rpc = args.monero_rpc_daemon;
     let values = rpc.split(":");
-    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    let mut v: Vec<String> = values.map(String::from).collect();
     let port = v.remove(2);
     debug!("monerod port: {}", port);
-    match port.parse::<u16>() {
-        Ok(p) => p,
-        Err(_) => 0,
-    }
+    port.parse::<u16>().unwrap_or(0)
 }
 
 pub fn get_tx_proxy_port() -> u16 {
     let args = args::Args::parse();
-    let rpc = String::from(args.i2p_socks_proxy_host);
+    let rpc = args.i2p_socks_proxy_host;
     let values = rpc.split(":");
-    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    let mut v: Vec<String> = values.map(String::from).collect();
     let port = v.remove(2);
     debug!("i2p socks port: {}", port);
-    match port.parse::<u16>() {
-        Ok(p) => p,
-        Err(_) => 0,
-    }
+    port.parse::<u16>().unwrap_or(0)
 }
 
 pub fn get_anon_inbound_port() -> u16 {
@@ -323,7 +313,7 @@ pub fn get_anon_inbound_port() -> u16 {
 /// Get monero rpc host from command line argument
 fn get_blockchain_dir() -> String {
     let args = args::Args::parse();
-    String::from(args.monero_blockchain_dir)
+    args.monero_blockchain_dir
 }
 
 /// Get monero download location
@@ -338,7 +328,7 @@ fn get_rpc_host() -> String {
     let args = args::Args::parse();
     let gui_host = std::env::var(crate::MONERO_WALLET_RPC_HOST).unwrap_or(utils::empty_string());
     let rpc = if gui_host == utils::empty_string() {
-        String::from(args.monero_rpc_host)
+        args.monero_rpc_host
     } else {
         gui_host
     };
@@ -348,8 +338,8 @@ fn get_rpc_host() -> String {
 /// Get creds from the `--monero-rpc-daemon` cli arg
 fn get_rpc_creds() -> RpcLogin {
     let args = args::Args::parse();
-    let username = String::from(args.monero_rpc_username);
-    let credential = String::from(args.monero_rpc_cred);
+    let username = args.monero_rpc_username;
+    let credential = args.monero_rpc_cred;
     RpcLogin {
         username,
         credential,
@@ -360,7 +350,7 @@ fn get_rpc_daemon() -> String {
     let args = args::Args::parse();
     let gui_host = std::env::var(crate::MONERO_DAEMON_HOST).unwrap_or(utils::empty_string());
     if gui_host == utils::empty_string() {
-        String::from(args.monero_rpc_daemon)
+        args.monero_rpc_daemon
     } else {
         gui_host
     }
@@ -396,7 +386,7 @@ pub async fn get_version() -> reqres::XmrRpcVersionResponse {
 }
 
 /// Helper function for checking xmr rpc online during app startup
-pub async fn check_rpc_connection() -> () {
+pub async fn check_rpc_connection() {
     let res: reqres::XmrRpcVersionResponse = get_version().await;
     if res.result.version == INVALID_VERSION {
         error!("failed to connect to monero-wallet-rpc");
@@ -531,10 +521,10 @@ fn update_wallet_lock(filename: &String, closing: bool) -> bool {
     }
     if !closing {
         *IS_WALLET_BUSY.lock().unwrap() = true;
-        return true;
+        true
     } else {
         *IS_WALLET_BUSY.lock().unwrap() = false;
-        return true;
+        true
     }
 }
 
@@ -576,7 +566,7 @@ pub async fn open_wallet(filename: &String, password: &String) -> bool {
                     if r.contains("-1") {
                         return false;
                     }
-                    return true;
+                    true
                 }
                 _ => false,
             }
@@ -615,10 +605,7 @@ pub async fn close_wallet(filename: &String, password: &String) -> bool {
             // The result from wallet operation is empty
             let res = response.text().await;
             debug!("{} response: {:?}", RpcFields::Close.value(), res);
-            match res {
-                Ok(_) => true,
-                _ => false,
-            }
+            res.is_ok()
         }
         Err(_) => false,
     }
@@ -662,7 +649,7 @@ pub async fn change_wallet_password(new_password: &String) -> bool {
                     if r.contains("-1") {
                         return false;
                     }
-                    return true;
+                    true
                 }
                 _ => false,
             }

@@ -7,6 +7,7 @@ use std::sync::mpsc::{
     Sender,
 };
 
+#[allow(dead_code)]
 pub struct MultisigManagement {
     pub completed_kex_init: bool,
     pub completed_kex_final: bool,

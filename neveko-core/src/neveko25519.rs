@@ -54,7 +54,7 @@ fn curve_l_as_big_int() -> BigInt {
 }
 
 fn big_int_to_string(b: &BigInt) -> String {
-    String::from(String::from_utf8(b.to_signed_bytes_le()).unwrap_or_default())
+    String::from_utf8(b.to_signed_bytes_le()).unwrap_or_default()
 }
 
 /// Hash string input to scalar
@@ -110,8 +110,8 @@ pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
     let point_nmpk = EdwardsPoint::mul_base(&scalar_nmsk);
     let nmsk = *scalar_nmsk.as_bytes();
     let nmpk: [u8; 32] = *point_nmpk.compress().as_bytes();
-    let hex_nmpk = hex::encode(&nmpk);
-    let hex_nmsk = hex::encode(&nmsk);
+    let hex_nmpk = hex::encode(nmpk);
+    let hex_nmsk = hex::encode(nmsk);
     NevekoMessageKeys {
         nmpk,
         nmsk,
@@ -143,15 +143,15 @@ pub async fn cipher(hex_nmpk: &String, message: String, encipher: Option<String>
     // x = m + h or x = m - h'
     let h = hash_to_scalar(vec![&ss_hex[..]]);
     let h_bi = BigInt::from_bytes_le(Sign::Plus, h.as_bytes());
-    if unwrap_encipher == String::from(ENCIPHER) {
-        let msg_bi = BigInt::from_bytes_le(Sign::Plus, &message.as_bytes());
+    if unwrap_encipher == *ENCIPHER {
+        let msg_bi = BigInt::from_bytes_le(Sign::Plus, message.as_bytes());
         let x = msg_bi + h_bi;
-        return hex::encode(x.to_bytes_le().1);
+        hex::encode(x.to_bytes_le().1)
     } else {
         let msg_bi = BigInt::from_bytes_le(Sign::Plus, &hex::decode(&message).unwrap_or_default());
         let x = msg_bi - h_bi;
-        return big_int_to_string(&x);
-    };
+        big_int_to_string(&x)
+    }
 }
 
 // Tests

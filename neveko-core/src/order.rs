@@ -98,7 +98,7 @@ pub fn backup(order: &Order) {
     let s = db::Interface::open();
     let k = &order.orid;
     db::Interface::delete(&s.env, &s.handle, k);
-    db::Interface::write(&s.env, &s.handle, k, &Order::to_db(&order));
+    db::Interface::write(&s.env, &s.handle, k, &Order::to_db(order));
     // in order to retrieve all orders, write keys to with col
     let list_key = crate::CUSTOMER_ORDER_LIST_DB_KEY;
     let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
@@ -135,7 +135,7 @@ pub fn find_all() -> Vec<Order> {
         error!("order index not found");
     }
     let i_v_oid = i_r.split(",");
-    let i_v: Vec<String> = i_v_oid.map(|s| String::from(s)).collect();
+    let i_v: Vec<String> = i_v_oid.map(String::from).collect();
     let mut orders: Vec<Order> = Vec::new();
     for o in i_v {
         let order: Order = find(&o);
@@ -155,7 +155,7 @@ pub fn find_all_backup() -> Vec<Order> {
         error!("customer order index not found");
     }
     let i_v_oid = i_r.split(",");
-    let i_v: Vec<String> = i_v_oid.map(|s| String::from(s)).collect();
+    let i_v: Vec<String> = i_v_oid.map(String::from).collect();
     let mut orders: Vec<Order> = Vec::new();
     for o in i_v {
         let order: Order = find(&o);
@@ -179,7 +179,7 @@ pub async fn find_all_customer_orders(cid: String) -> Vec<Order> {
         error!("order index not found");
     }
     let i_v_oid = i_r.split(",");
-    let i_v: Vec<String> = i_v_oid.map(|s| String::from(s)).collect();
+    let i_v: Vec<String> = i_v_oid.map(String::from).collect();
     let mut orders: Vec<Order> = Vec::new();
     for o in i_v {
         let order: Order = find(&o);
@@ -200,7 +200,7 @@ pub fn find_all_vendor_orders() -> Vec<Order> {
         error!("order index not found");
     }
     let i_v_oid = i_r.split(",");
-    let i_v: Vec<String> = i_v_oid.map(|s| String::from(s)).collect();
+    let i_v: Vec<String> = i_v_oid.map(String::from).collect();
     let mut orders: Vec<Order> = Vec::new();
     let vendor_b32: String = i2p::get_destination(None);
     for o in i_v {
@@ -229,7 +229,7 @@ pub fn modify(o: Json<Order>) -> Order {
     let s = db::Interface::open();
     db::Interface::delete(&s.env, &s.handle, &u_order.orid);
     db::Interface::write(&s.env, &s.handle, &u_order.orid, &Order::to_db(&u_order));
-    return u_order;
+    u_order
 }
 
 /// Sign and submit multisig
@@ -239,12 +239,12 @@ pub async fn sign_and_submit_multisig(
 ) -> reqres::XmrRpcSubmitMultisigResponse {
     info!("signing and submitting multisig");
     let wallet_password = utils::empty_string();
-    monero::open_wallet(&orid, &wallet_password).await;
+    monero::open_wallet(orid, &wallet_password).await;
     let r_sign: reqres::XmrRpcSignMultisigResponse =
         monero::sign_multisig(String::from(tx_data_hex)).await;
     let r_submit: reqres::XmrRpcSubmitMultisigResponse =
         monero::submit_multisig(r_sign.result.tx_data_hex).await;
-    monero::close_wallet(&orid, &wallet_password).await;
+    monero::close_wallet(orid, &wallet_password).await;
     if r_submit.result.tx_hash_list.is_empty() {
         error!("unable to submit payment for order: {}", orid);
     }
@@ -262,7 +262,7 @@ pub async fn sign_and_submit_multisig(
 pub async fn secure_retrieval(orid: &String, signature: &String) -> Order {
     info!("secure order retrieval for {}", orid);
     // get customer address for NEVEKO NOT order wallet
-    let m_order: Order = find(&orid);
+    let m_order: Order = find(orid);
     let mut xmr_address: String = String::new();
     let a_customers: Vec<Contact> = contact::find_all();
     for customer in a_customers {
@@ -292,7 +292,7 @@ pub async fn secure_retrieval(orid: &String, signature: &String) -> Order {
 pub async fn cancel_order(orid: &String, signature: &String) -> Order {
     info!("cancel order {}", orid);
     // get customer address for NEVEKO NOT order wallet
-    let mut m_order: Order = find(&orid);
+    let mut m_order: Order = find(orid);
     let mut xmr_address: String = String::new();
     let a_customers: Vec<Contact> = contact::find_all();
     for customer in a_customers {
@@ -316,7 +316,7 @@ pub async fn cancel_order(orid: &String, signature: &String) -> Order {
     // update the order status and send to customer
     m_order.status = order::StatusType::Cancelled.value();
     order::modify(Json(m_order));
-    order::find(&orid)
+    order::find(orid)
 }
 
 /// Check for import multisig info, validate block time and that the
@@ -335,10 +335,10 @@ pub async fn validate_order_for_ship(orid: &String) -> reqres::FinalizeOrderResp
     let price = m_product.price;
     let total = price * &m_order.quantity;
     let wallet_password = utils::empty_string();
-    monero::open_wallet(&orid, &wallet_password).await;
+    monero::open_wallet(orid, &wallet_password).await;
     // check balance and unlock_time
     let r_balance = monero::get_balance().await;
-    monero::close_wallet(&orid, &wallet_password).await;
+    monero::close_wallet(orid, &wallet_password).await;
     // update the order status to multisig complete
     let ready_to_ship: bool = r_balance.result.balance >= total as u128
         && r_balance.result.blocks_to_unlock < monero::LockTimeLimit::Blocks.value();
@@ -421,11 +421,11 @@ pub async fn upload_delivery_info(
     }
     // get draft payment txset
     let wallet_password = utils::empty_string();
-    monero::open_wallet(&orid, &wallet_password).await;
+    monero::open_wallet(orid, &wallet_password).await;
     monero::refresh().await;
     let sweep: reqres::XmrRpcSweepAllResponse =
         monero::sweep_all(String::from(&lookup.subaddress)).await;
-    monero::close_wallet(&orid, &wallet_password).await;
+    monero::close_wallet(orid, &wallet_password).await;
     if sweep.result.multisig_txset.is_empty() {
         error!("unable to create draft txset");
         return Default::default();
@@ -439,7 +439,7 @@ pub async fn upload_delivery_info(
     // order
     let s = db::Interface::async_open().await;
     let k = String::from(crate::DELIVERY_INFO_DB_KEY);
-    db::Interface::async_write(&s.env, &s.handle, &k, &hex::encode(&delivery_info)).await;
+    db::Interface::async_write(&s.env, &s.handle, &k, &hex::encode(delivery_info)).await;
     modify(Json(m_order));
     // trigger nasr, this will cause the customer's neveko instance to request the
     // txset
@@ -560,7 +560,7 @@ pub async fn trigger_finalize_request(
         return Default::default();
     }
     let unwrap: reqres::FinalizeOrderResponse = finalize.unwrap();
-    let mut m_order: Order = order::find(&orid);
+    let mut m_order: Order = order::find(orid);
     m_order.status = order::StatusType::Delivered.value();
     backup(&m_order);
     unwrap
@@ -578,7 +578,7 @@ pub async fn d_trigger_finalize_request(
     let jwp = db::Interface::async_read(&s.env, &s.handle, &k).await;
     info!("executing d_trigger_finalize_request");
     // request finalize if the order status is shipped
-    let order: Order = order::find(&orid);
+    let order: Order = order::find(orid);
     if order.status != order::StatusType::Shipped.value() {
         let trigger = trigger_finalize_request(contact, &jwp, orid).await;
         if trigger.vendor_update_success {
@@ -808,7 +808,7 @@ pub async fn d_trigger_cancel_request(contact: &String, orid: &String) -> Order 
     let jwp = db::Interface::async_read(&s.env, &s.handle, &k).await;
     info!("executing d_trigger_cancel_request");
     // request cancel if the order status is not MultisigComplete
-    let order: Order = order::find(&orid);
+    let order: Order = order::find(orid);
     if order.status != order::StatusType::MulitsigComplete.value() {
         let trigger = trigger_cancel_request(contact, &jwp, orid).await;
         if trigger.status == order::StatusType::Cancelled.value() {
@@ -824,5 +824,5 @@ pub async fn init_adjudicator_wallet(orid: &String) {
     if !m_wallet {
         log::error!("failed to create adjudicator wallet");
     }
-    monero::close_wallet(&orid, &password).await;
+    monero::close_wallet(orid, &password).await;
 }

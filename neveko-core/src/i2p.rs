@@ -49,17 +49,11 @@ struct Tunnel {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[derive(Default)]
 struct Tunnels {
     tunnels: Vec<Tunnel>,
 }
 
-impl Default for Tunnels {
-    fn default() -> Self {
-        Tunnels {
-            tunnels: Vec::new(),
-        }
-    }
-}
 
 /// Looks for the `tunnels-config.json` at /home/$USER/.i2p-zero/config/
 ///
@@ -77,7 +71,7 @@ async fn find_tunnels() {
     let proxy_port = get_i2p_proxy_port();
     let socks_proxy_port = get_i2p_socks_proxy_port();
     let has_http_tunnel = contents.contains(&proxy_port);
-    let has_socks_proxy_tunnel = contents.contains(&format!("{}", &socks_proxy_port));
+    let has_socks_proxy_tunnel = contents.contains(&socks_proxy_port.to_string());
     let has_anon_inbound_tunnel = contents.contains(&format!("{}", args.anon_inbound_port));
     if !has_app_tunnel || !has_http_tunnel || !has_anon_inbound_tunnel || !has_socks_proxy_tunnel {
         tokio::time::sleep(Duration::new(120, 0)).await;
@@ -112,7 +106,7 @@ pub async fn start() {
         Ok(child) => debug!("{:?}", child.stdout),
         _ => {
             warn!("i2p-zero not installed, manual tunnel creation required");
-            ()
+            
         }
     }
     find_tunnels().await;
@@ -150,7 +144,7 @@ fn create_socks_proxy_tunnel() {
     let args = args::Args::parse();
     let path = args.i2p_zero_dir;
     let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
-        .args(["socks.create", &format!("{}", get_i2p_socks_proxy_port())])
+        .args(["socks.create", &get_i2p_socks_proxy_port().to_string()])
         .spawn()
         .expect("i2p-zero failed to create a socks proxy tunnel");
     debug!("{:?}", output.stdout);
@@ -176,18 +170,18 @@ fn create_anon_inbound_tunnel() {
 fn get_i2p_proxy_port() -> String {
     let proxy_host = utils::get_i2p_http_proxy();
     let values = proxy_host.split(":");
-    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
-    let port = v.remove(2);
-    port
+    let mut v: Vec<String> = values.map(String::from).collect();
+    
+    v.remove(2)
 }
 
 /// Extract i2p socks port from command line arg
 fn get_i2p_socks_proxy_port() -> String {
     let proxy_host = utils::get_i2p_wallet_proxy_host();
     let values = proxy_host.split(":");
-    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
-    let port = v.remove(2);
-    port
+    let mut v: Vec<String> = values.map(String::from).collect();
+    
+    v.remove(2)
 }
 
 /// Create the http proxy if it doesn't exist
@@ -216,7 +210,7 @@ pub fn get_destination(port: Option<u16>) -> String {
     let args = args::Args::parse();
     let is_advanced_mode =
         std::env::var(crate::NEVEKO_I2P_ADVANCED_MODE).unwrap_or(utils::empty_string());
-    if args.i2p_advanced || is_advanced_mode == String::from("1") {
+    if args.i2p_advanced || is_advanced_mode == *"1" {
         let advanced_tunnel =
             std::env::var(crate::NEVEKO_I2P_TUNNELS_JSON).unwrap_or(utils::empty_string());
         let manual_tunnel = if advanced_tunnel == utils::empty_string() {
@@ -232,7 +226,7 @@ pub fn get_destination(port: Option<u16>) -> String {
         _ => utils::empty_string(),
     };
     if contents != utils::empty_string() {
-        let input = format!(r#"{contents}"#);
+        let input = contents.to_string();
         let j: Tunnels = serde_json::from_str(&input).unwrap_or(Default::default());
         let mut destination: String = utils::empty_string();
         let tunnels: Vec<Tunnel> = j.tunnels;

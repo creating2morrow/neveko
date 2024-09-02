@@ -70,7 +70,7 @@ pub fn find_all() -> Vec<Dispute> {
         error!("dispute index not found");
     }
     let d_v_did = d_r.split(",");
-    let d_v: Vec<String> = d_v_did.map(|s| String::from(s)).collect();
+    let d_v: Vec<String> = d_v_did.map(String::from).collect();
     let mut disputes: Vec<Dispute> = Vec::new();
     for o in d_v {
         let dispute: Dispute = find(&o);
@@ -112,7 +112,7 @@ pub async fn settle_dispute() {
             info!("dispute index not found");
         }
         let v_mid = r.split(",");
-        let d_vec: Vec<String> = v_mid.map(|s| String::from(s)).collect();
+        let d_vec: Vec<String> = v_mid.map(String::from).collect();
         debug!("dispute contents: {:#?}", d_vec);
         let cleared = is_dispute_clear(r);
         if cleared {
@@ -127,7 +127,7 @@ pub async fn settle_dispute() {
                 let now = chrono::offset::Utc::now().timestamp();
                 let settle_date = dispute.created + crate::DISPUTE_AUTO_SETTLE as i64;
                 if settle_date > now {
-                    let wallet_name = String::from(dispute.orid);
+                    let wallet_name = dispute.orid;
                     let wallet_password = utils::empty_string();
                     monero::open_wallet(&wallet_name, &wallet_password).await;
                     let signed = monero::sign_multisig(dispute.tx_set).await;
@@ -147,15 +147,15 @@ pub async fn settle_dispute() {
 
 fn is_dispute_clear(r: String) -> bool {
     let v_mid = r.split(",");
-    let v: Vec<String> = v_mid.map(|s| String::from(s)).collect();
+    let v: Vec<String> = v_mid.map(String::from).collect();
     debug!("dispute index contents: {:#?}", v);
     let limit = v.len() <= 1;
     if !limit {
-        return v.len() >= 2
+        v.len() >= 2
             && v[v.len() - 1] == utils::empty_string()
-            && v[0] == utils::empty_string();
+            && v[0] == utils::empty_string()
     } else {
-        return limit;
+        limit
     }
 }
 

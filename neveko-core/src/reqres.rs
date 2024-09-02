@@ -473,16 +473,12 @@ pub struct XmrRpcGetTxProofResult {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[derive(Default)]
 pub struct SubAddressIndex {
     pub major: u64,
     pub minor: u64,
 }
 
-impl Default for SubAddressIndex {
-    fn default() -> Self {
-        SubAddressIndex { major: 0, minor: 0 }
-    }
-}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Transfer {
@@ -809,17 +805,11 @@ impl Default for XmrDaemonGetBlockResponse {
 
 /// Only extract the json string. TODO(c2m): map to a struct
 #[derive(Serialize, Deserialize, Debug)]
+#[derive(Default)]
 pub struct XmrDaemonGetTransactionsResponse {
     pub txs_as_json: Vec<String>,
 }
 
-impl Default for XmrDaemonGetTransactionsResponse {
-    fn default() -> Self {
-        XmrDaemonGetTransactionsResponse {
-            txs_as_json: Vec::new(),
-        }
-    }
-}
 
 #[derive(Deserialize, Debug)]
 pub struct XmrRpcSignResponse {
@@ -1380,12 +1370,8 @@ impl Default for FinalizeOrderResponse {
 /// Response for the vendor mode
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
+#[derive(Default)]
 pub struct VendorModeResponse {
     pub mode: bool,
 }
 
-impl Default for VendorModeResponse {
-    fn default() -> Self {
-        VendorModeResponse { mode: false }
-    }
-}

@@ -133,10 +133,10 @@ pub async fn rx(m: Json<Message>) {
 /// Parse the multisig message type and info
 async fn parse_multisig_message(mid: String) -> MultisigMessageData {
     let d: reqres::DecipheredMessageBody = decipher_body(mid).await;
-    let mut bytes = hex::decode(d.body.into_bytes()).unwrap_or(Vec::new());
+    let mut bytes = hex::decode(d.body.into_bytes()).unwrap_or_default();
     let decoded = String::from_utf8(bytes).unwrap_or(utils::empty_string());
     let values = decoded.split(":");
-    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    let mut v: Vec<String> = values.map(String::from).collect();
     if v.len() != VALID_MSIG_MSG_LENGTH {
         error!("invalid msig message length");
         return Default::default();
@@ -247,7 +247,7 @@ pub fn find_all() -> Vec<Message> {
         error!("message index not found");
     }
     let i_v_mid = i_r.split(",");
-    let i_v: Vec<String> = i_v_mid.map(|s| String::from(s)).collect();
+    let i_v: Vec<String> = i_v_mid.map(String::from).collect();
     let mut messages: Vec<Message> = Vec::new();
     for m in i_v {
         let message: Message = find(&m);
@@ -262,7 +262,7 @@ pub fn find_all() -> Vec<Message> {
         error!("message index not found");
     }
     let o_v_mid = o_r.split(",");
-    let o_v: Vec<String> = o_v_mid.map(|s| String::from(s)).collect();
+    let o_v: Vec<String> = o_v_mid.map(String::from).collect();
     for m in o_v {
         let message: Message = find(&m);
         if message.mid != utils::empty_string() {
@@ -286,7 +286,7 @@ async fn send_message(out: &Message, jwp: &str, m_type: MessageType) -> Result<(
         .await
         .unwrap_or(false);
     if is_online {
-        return match client?
+        match client?
             .post(url)
             .header("proof", jwp)
             .json(&out)
@@ -298,7 +298,7 @@ async fn send_message(out: &Message, jwp: &str, m_type: MessageType) -> Result<(
                 debug!("send response: {:?}", status.as_str());
                 if status == StatusCode::OK || status == StatusCode::PAYMENT_REQUIRED {
                     remove_from_fts(String::from(&out.mid));
-                    return Ok(());
+                    Ok(())
                 } else {
                     Ok(())
                 }
@@ -307,7 +307,7 @@ async fn send_message(out: &Message, jwp: &str, m_type: MessageType) -> Result<(
                 error!("failed to send message due to: {:?}", e);
                 Ok(())
             }
-        };
+        }
     } else {
         send_to_retry(String::from(&out.mid)).await;
         Ok(())
@@ -385,7 +385,7 @@ async fn send_to_retry(mid: String) {
     // restart fts if not empty
     let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
     let v_mid = r.split(",");
-    let v: Vec<String> = v_mid.map(|s| String::from(s)).collect();
+    let v: Vec<String> = v_mid.map(String::from).collect();
     debug!("fts contents: {:#?}", v);
     let cleared = is_fts_clear(r);
     if !cleared {
@@ -440,7 +440,7 @@ pub async fn retry_fts() {
             break; // terminate fts if no message to send
         }
         let v_mid = r.split(",");
-        let v: Vec<String> = v_mid.map(|s| String::from(s)).collect();
+        let v: Vec<String> = v_mid.map(String::from).collect();
         debug!("fts contents: {:#?}", v);
         let cleared = is_fts_clear(r);
         if cleared {
@@ -482,15 +482,15 @@ fn validate_message(j: &Json<Message>) -> bool {
 
 fn is_fts_clear(r: String) -> bool {
     let v_mid = r.split(",");
-    let v: Vec<String> = v_mid.map(|s| String::from(s)).collect();
+    let v: Vec<String> = v_mid.map(String::from).collect();
     debug!("fts contents: {:#?}", v);
     let limit = v.len() <= 1;
     if !limit {
-        return v.len() >= 2
+        v.len() >= 2
             && v[v.len() - 1] == utils::empty_string()
-            && v[0] == utils::empty_string();
+            && v[0] == utils::empty_string()
     } else {
-        return limit;
+        limit
     }
 }
 
@@ -516,7 +516,7 @@ pub async fn send_prepare_info(orid: &String, contact: &String) {
         ..Default::default()
     };
     let j_message: Json<Message> = utils::message_to_json(&message);
-    monero::close_wallet(&orid, &wallet_password).await;
+    monero::close_wallet(orid, &wallet_password).await;
     create(j_message, jwp, MessageType::Multisig).await;
 }
 
@@ -539,7 +539,7 @@ pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) 
         ..Default::default()
     };
     let j_message: Json<Message> = utils::message_to_json(&message);
-    monero::close_wallet(&orid, &wallet_password).await;
+    monero::close_wallet(orid, &wallet_password).await;
     create(j_message, jwp, MessageType::Multisig).await;
 }
 
@@ -576,7 +576,7 @@ pub async fn send_exchange_info(
         ..Default::default()
     };
     let j_message: Json<Message> = utils::message_to_json(&message);
-    monero::close_wallet(&orid, &wallet_password).await;
+    monero::close_wallet(orid, &wallet_password).await;
     create(j_message, jwp, MessageType::Multisig).await;
 }
 
@@ -599,7 +599,7 @@ pub async fn send_export_info(orid: &String, contact: &String) {
         ..Default::default()
     };
     let j_message: Json<Message> = utils::message_to_json(&message);
-    monero::close_wallet(&orid, &wallet_password).await;
+    monero::close_wallet(orid, &wallet_password).await;
     create(j_message, jwp, MessageType::Multisig).await;
 }
 
@@ -613,7 +613,7 @@ pub async fn send_import_info(orid: &String, info: &Vec<String>) {
     let wallet_password = utils::empty_string();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let pre_import = monero::import_multisig_info(info.to_vec()).await;
-    monero::close_wallet(&orid, &wallet_password).await;
+    monero::close_wallet(orid, &wallet_password).await;
     if pre_import.result.n_outputs == 0 {
         error!("unable to import multisig info for order: {}", orid);
         return;

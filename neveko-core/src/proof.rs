@@ -94,7 +94,7 @@ pub async fn create_jwp(proof: &TxProof) -> String {
         return utils::empty_string();
     }
     let jwp_secret_key = utils::get_jwp_secret_key();
-    let key: Hmac<Sha512> = Hmac::new_from_slice(&jwp_secret_key.as_bytes()).expect("hash");
+    let key: Hmac<Sha512> = Hmac::new_from_slice(jwp_secret_key.as_bytes()).expect("hash");
     let header = Header {
         algorithm: AlgorithmType::Hs512,
         ..Default::default()
@@ -193,7 +193,7 @@ impl<'r> FromRequest<'r> for PaymentProof {
             Some(proof) => {
                 // check validity of address, payment amount and tx confirmations
                 let jwp_secret_key = utils::get_jwp_secret_key();
-                let key: Hmac<Sha512> = Hmac::new_from_slice(&jwp_secret_key.as_bytes()).expect("");
+                let key: Hmac<Sha512> = Hmac::new_from_slice(jwp_secret_key.as_bytes()).expect("");
                 let jwp: Result<
                     Token<jwt::Header, BTreeMap<std::string::String, std::string::String>, _>,
                     jwt::Error,
@@ -301,5 +301,5 @@ async fn validate_subaddress(subaddress: &String) -> bool {
     for s_address in all_address {
         address_list.push(s_address.address);
     }
-    return address_list.contains(&subaddress);
+    address_list.contains(subaddress)
 }

@@ -68,19 +68,12 @@ enum ExternalSoftware {
 }
 
 /// Handles the state for the installation manager popup
+#[derive(Default)]
 pub struct Installations {
     pub xmr: bool,
     pub i2p_zero: bool,
 }
 
-impl Default for Installations {
-    fn default() -> Self {
-        Installations {
-            xmr: false,
-            i2p_zero: false,
-        }
-    }
-}
 
 /// Handles the state for the connection manager popup
 pub struct Connections {
@@ -191,16 +184,16 @@ pub fn start_core(conn: &Connections) {
     ];
     if conn.is_i2p_advanced {
         // set the i2p proxy host for advanced user re-use
-        std::env::set_var(crate::NEVEKO_I2P_PROXY_HOST, &conn.i2p_proxy_host.clone());
+        std::env::set_var(crate::NEVEKO_I2P_PROXY_HOST, conn.i2p_proxy_host.clone());
         std::env::set_var(
             crate::NEVEKO_I2P_TUNNELS_JSON,
-            &conn.i2p_tunnels_json.clone(),
+            conn.i2p_tunnels_json.clone(),
         );
         std::env::set_var(crate::NEVEKO_I2P_ADVANCED_MODE, String::from("1"));
     }
     if conn.is_remote_node {
-        std::env::set_var(crate::MONERO_DAEMON_HOST, &conn.daemon_host.clone());
-        std::env::set_var(crate::MONERO_WALLET_RPC_HOST, &conn.rpc_host.clone());
+        std::env::set_var(crate::MONERO_DAEMON_HOST, conn.daemon_host.clone());
+        std::env::set_var(crate::MONERO_WALLET_RPC_HOST, conn.rpc_host.clone());
         std::env::set_var(crate::GUI_REMOTE_NODE, crate::GUI_SET_REMOTE_NODE)
     }
     let output = std::process::Command::new("./neveko")
@@ -230,11 +223,11 @@ pub fn generate_rnd() -> String {
 /// Helper for separation of dev and prod concerns
 pub fn get_release_env() -> ReleaseEnvironment {
     let args = args::Args::parse();
-    let env = String::from(args.release_env);
+    let env = args.release_env;
     if env == "prod" {
-        return ReleaseEnvironment::Production;
+        ReleaseEnvironment::Production
     } else {
-        return ReleaseEnvironment::Development;
+        ReleaseEnvironment::Development
     }
 }
 
@@ -327,7 +320,7 @@ pub fn product_to_json(m: &models::Product) -> Json<models::Product> {
     let r_product: models::Product = models::Product {
         pid: String::from(&m.pid),
         description: String::from(&m.description),
-        image: m.image.iter().cloned().collect(),
+        image: m.image.to_vec(),
         in_stock: m.in_stock,
         name: String::from(&m.name),
         price: m.price,
@@ -675,7 +668,7 @@ fn validate_installation_hash(sw: ExternalSoftware, filename: &String) -> bool {
         .expect("hash validation failed");
     let str_sha = String::from_utf8(sha_output.stdout).unwrap();
     let split1 = str_sha.split(" ");
-    let mut v: Vec<String> = split1.map(|s| String::from(s)).collect();
+    let mut v: Vec<String> = split1.map(String::from).collect();
     let actual_hash = v.remove(0);
     debug!("actual hash: {}", actual_hash);
     debug!("expected hash: {}", expected_hash);
@@ -708,7 +701,7 @@ pub async fn estimate_fee() -> u128 {
     let mut v_fee: Vec<u128> = Vec::new();
     let mut r_height: reqres::XmrDaemonGetHeightResponse = Default::default();
     let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
-    let remote_set = remote_var == String::from(crate::GUI_SET_REMOTE_NODE);
+    let remote_set = remote_var == *crate::GUI_SET_REMOTE_NODE;
     if remote_set {
         let p_height = monero::p_get_height().await;
         r_height = p_height.unwrap_or(r_height);
@@ -726,12 +719,12 @@ pub async fn estimate_fee() -> u128 {
         }
         // TODO(?): determine a more effecient fix than this for slow fee estimation
         // over i2p
-        if v_fee.len() >= 1 && remote_set {
+        if !v_fee.is_empty() && remote_set {
             break;
         }
         height = r_height.height - count;
         let mut block: reqres::XmrDaemonGetBlockResponse = Default::default();
-        if remote_var == String::from(crate::GUI_SET_REMOTE_NODE) {
+        if remote_var == *crate::GUI_SET_REMOTE_NODE {
             let p_block = monero::p_get_block(height).await;
             block = p_block.unwrap_or(block);
         } else {
@@ -748,10 +741,10 @@ pub async fn estimate_fee() -> u128 {
             }
             for tx in transactions.txs_as_json {
                 let pre_fee_split = tx.split("txnFee\":");
-                let mut v1: Vec<String> = pre_fee_split.map(|s| String::from(s)).collect();
+                let mut v1: Vec<String> = pre_fee_split.map(String::from).collect();
                 let fee_split = v1.remove(1);
                 let post_fee_split = fee_split.split(",");
-                let mut v2: Vec<String> = post_fee_split.map(|s| String::from(s)).collect();
+                let mut v2: Vec<String> = post_fee_split.map(String::from).collect();
                 let fee: u128 = match v2.remove(0).trim().parse::<u128>() {
                     Ok(n) => n,
                     Err(_e) => 0,
@@ -797,7 +790,7 @@ pub fn toggle_vendor_enabled() -> bool {
             contact::NEVEKO_VENDOR_ENABLED,
             contact::NEVEKO_VENDOR_MODE_ON,
         );
-        return true;
+        true
     } else {
         info!("neveko vendor mode disabled");
         db::Interface::write(
@@ -806,7 +799,7 @@ pub fn toggle_vendor_enabled() -> bool {
             contact::NEVEKO_VENDOR_ENABLED,
             contact::NEVEKO_VENDOR_MODE_OFF,
         );
-        return false;
+        false
     }
 }
 

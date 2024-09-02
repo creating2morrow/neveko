@@ -40,7 +40,7 @@ impl Authorization {
     }
     pub fn from_db(k: String, v: String) -> Authorization {
         let values = v.split(":");
-        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        let mut v: Vec<String> = values.map(String::from).collect();
         let created_str = v.remove(0);
         let created = match created_str.parse::<i64>() {
             Ok(n) => n,
@@ -117,7 +117,7 @@ impl Contact {
     }
     pub fn from_db(k: String, v: String) -> Contact {
         let values = v.split("!");
-        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        let mut v: Vec<String> = values.map(String::from).collect();
         let nmpk = v.remove(0);
         let i2p_address = v.remove(0);
         let is_vendor = match v.remove(0).parse::<bool>() {
@@ -165,7 +165,7 @@ impl Message {
     }
     pub fn from_db(k: String, v: String) -> Message {
         let values = v.split(":");
-        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        let mut v: Vec<String> = values.map(String::from).collect();
         let uid = v.remove(0);
         let body = v.remove(0);
         let created_str = v.remove(0);
@@ -210,7 +210,7 @@ impl User {
     }
     pub fn from_db(k: String, v: String) -> User {
         let values = v.split(":");
-        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        let mut v: Vec<String> = values.map(String::from).collect();
         let name = v.remove(0);
         let xmr_address = v.remove(0);
         User {
@@ -264,22 +264,13 @@ impl Product {
     }
     pub fn from_db(k: String, v: String) -> Product {
         let values = v.split(":");
-        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        let mut v: Vec<String> = values.map(String::from).collect();
         let description = v.remove(0);
-        let image = hex::decode(v.remove(0)).unwrap_or(Vec::new());
-        let in_stock = match v.remove(0).parse::<bool>() {
-            Ok(b) => b,
-            Err(_) => false,
-        };
+        let image = hex::decode(v.remove(0)).unwrap_or_default();
+        let in_stock = v.remove(0).parse::<bool>().unwrap_or(false);
         let name = v.remove(0);
-        let price = match v.remove(0).parse::<u128>() {
-            Ok(p) => p,
-            Err(_) => 0,
-        };
-        let qty = match v.remove(0).parse::<u128>() {
-            Ok(q) => q,
-            Err(_) => 0,
-        };
+        let price = v.remove(0).parse::<u128>().unwrap_or(0);
+        let qty = v.remove(0).parse::<u128>().unwrap_or(0);
         Product {
             pid: k,
             description,
@@ -294,7 +285,7 @@ impl Product {
         Product {
             pid: p.pid,
             description: String::from(&jp.description),
-            image: jp.image.iter().cloned().collect(),
+            image: jp.image.to_vec(),
             in_stock: jp.in_stock,
             name: String::from(&jp.name),
             price: jp.price,
@@ -413,7 +404,7 @@ impl Order {
     }
     pub fn from_db(k: String, v: String) -> Order {
         let values = v.split(":");
-        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        let mut v: Vec<String> = values.map(String::from).collect();
         let orid = k;
         let cid = v.remove(0);
         let pid = v.remove(0);
@@ -423,14 +414,8 @@ impl Order {
         let cust_msig_make = v.remove(0);
         let cust_msig_prepare = v.remove(0);
         let cust_msig_txset = v.remove(0);
-        let date = match v.remove(0).parse::<i64>() {
-            Ok(d) => d,
-            Err(_) => 0,
-        };
-        let deliver_date = match v.remove(0).parse::<i64>() {
-            Ok(d) => d,
-            Err(_) => 0,
-        };
+        let date = v.remove(0).parse::<i64>().unwrap_or(0);
+        let deliver_date = v.remove(0).parse::<i64>().unwrap_or(0);
         let hash = v.remove(0);
         let adjudicator_msig_make = v.remove(0);
         let adjudicator_msig_prepare = v.remove(0);
@@ -438,16 +423,10 @@ impl Order {
         let adjudicator_kex_2 = v.remove(0);
         let adjudicator_kex_3 = v.remove(0);
         let ship_address = v.remove(0);
-        let ship_date = match v.remove(0).parse::<i64>() {
-            Ok(d) => d,
-            Err(_) => 0,
-        };
+        let ship_date = v.remove(0).parse::<i64>().unwrap_or(0);
         let subaddress = v.remove(0);
         let status = v.remove(0);
-        let quantity = match v.remove(0).parse::<u128>() {
-            Ok(d) => d,
-            Err(_) => 0,
-        };
+        let quantity = v.remove(0).parse::<u128>().unwrap_or(0);
         let vend_kex_1 = v.remove(0);
         let vend_kex_2 = v.remove(0);
         let vend_kex_3 = v.remove(0);
@@ -548,11 +527,8 @@ impl Dispute {
     }
     pub fn from_db(k: String, v: String) -> Dispute {
         let values = v.split(":");
-        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
-        let created = match v.remove(0).parse::<i64>() {
-            Ok(t) => t,
-            Err(_) => 0,
-        };
+        let mut v: Vec<String> = values.map(String::from).collect();
+        let created = v.remove(0).parse::<i64>().unwrap_or(0);
         let orid = v.remove(0);
         let tx_set = v.remove(0);
         Dispute {

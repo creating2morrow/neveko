@@ -13,7 +13,7 @@ use egui_winit::winit;
 
 use crate::{epi, Result};
 
-use super::epi_integration::{self, EpiIntegration};
+use super::epi_integration::{self};
 
 // ----------------------------------------------------------------------------
 
@@ -58,10 +58,6 @@ enum EventResult {
 }
 
 trait WinitApp {
-    fn is_focused(&self) -> bool;
-
-    fn integration(&self) -> Option<&EpiIntegration>;
-
     fn window(&self) -> Option<&winit::window::Window>;
 
     fn save_and_destroy(&mut self);
@@ -736,14 +732,6 @@ mod glow_integration {
     }
 
     impl WinitApp for GlowWinitApp {
-        fn is_focused(&self) -> bool {
-            self.is_focused
-        }
-
-        fn integration(&self) -> Option<&EpiIntegration> {
-            self.running.as_ref().map(|r| &r.integration)
-        }
-
         fn window(&self) -> Option<&winit::window::Window> {
             self.running.as_ref().map(|r| r.gl_window.window())
         }

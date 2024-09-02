@@ -84,7 +84,7 @@ pub fn find(cid: &String) -> Contact {
 pub fn find_by_i2p_address(i2p_address: &String) -> Contact {
     let contacts = find_all();
     for c in contacts {
-        if c.i2p_address == String::from(i2p_address) {
+        if c.i2p_address == *i2p_address {
             return c;
         }
     }
@@ -99,7 +99,7 @@ pub fn delete(cid: &String) {
         error!("contact not found");
         return;
     }
-    db::Interface::delete(&s.env, &s.handle, &cid);
+    db::Interface::delete(&s.env, &s.handle, cid);
 }
 
 /// All contact lookup
@@ -113,7 +113,7 @@ pub fn find_all() -> Vec<Contact> {
         return Default::default();
     }
     let v_cid = r.split(",");
-    let v: Vec<String> = v_cid.map(|s| String::from(s)).collect();
+    let v: Vec<String> = v_cid.map(String::from).collect();
     let mut contacts: Vec<Contact> = Vec::new();
     for id in v {
         if id != utils::empty_string() {
@@ -168,7 +168,7 @@ pub fn exists(from: &String) -> bool {
     for c in all {
         addresses.push(c.i2p_address);
     }
-    return addresses.contains(from);
+    addresses.contains(from)
 }
 
 /// Get invoice for jwp creation

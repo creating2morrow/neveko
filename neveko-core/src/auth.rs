@@ -85,7 +85,7 @@ fn update_expiration(f_auth: &Authorization, address: &String) -> Authorization 
         &u_auth.aid,
         &Authorization::to_db(&u_auth),
     );
-    return u_auth;
+    u_auth
 }
 
 /// Performs the signature verfication against stored auth
@@ -130,7 +130,7 @@ pub async fn verify_login(aid: String, uid: String, signature: String) -> Author
             &Authorization::to_db(&u_auth),
         );
         monero::close_wallet(&wallet_name, &wallet_password).await;
-        return u_auth;
+        u_auth
     } else if f_user.xmr_address != utils::empty_string() {
         info!("returning user");
         let m_access = verify_access(&address, &signature).await;
@@ -174,7 +174,7 @@ async fn verify_access(address: &String, signature: &String) -> bool {
         return false;
     }
     info!("auth verified");
-    return true;
+    true
 }
 
 /// get the auth expiration command line configuration
@@ -185,7 +185,7 @@ fn get_auth_expiration() -> i64 {
 
 fn create_token(address: String, created: i64) -> String {
     let jwt_secret_key = utils::get_jwt_secret_key();
-    let key: Hmac<Sha384> = Hmac::new_from_slice(&jwt_secret_key.as_bytes()).expect("hash");
+    let key: Hmac<Sha384> = Hmac::new_from_slice(jwt_secret_key.as_bytes()).expect("hash");
     let header = Header {
         algorithm: AlgorithmType::Hs384,
         ..Default::default()
@@ -201,6 +201,13 @@ fn create_token(address: String, created: i64) -> String {
 /// This token is used for internal micro server authentication
 #[derive(Debug)]
 pub struct BearerToken(String);
+
+impl BearerToken {
+    pub fn get_token(self) -> String {
+        self.0
+    }
+}
+
 
 #[derive(Debug)]
 pub enum BearerTokenError {
@@ -232,7 +239,7 @@ impl<'r> FromRequest<'r> for BearerToken {
             Some(token) => {
                 // check validity
                 let jwt_secret_key = utils::get_jwt_secret_key();
-                let key: Hmac<Sha384> = Hmac::new_from_slice(&jwt_secret_key.as_bytes()).expect("");
+                let key: Hmac<Sha384> = Hmac::new_from_slice(jwt_secret_key.as_bytes()).expect("");
                 let jwt: Result<
                     Token<jwt::Header, BTreeMap<std::string::String, std::string::String>, _>,
                     jwt::Error,
@@ -250,10 +257,7 @@ impl<'r> FromRequest<'r> for BearerToken {
                         }
                         // verify expiration
                         let now: i64 = chrono::offset::Utc::now().timestamp();
-                        let expire = match claims["expiration"].parse::<i64>() {
-                            Ok(n) => n,
-                            Err(_) => 0,
-                        };
+                        let expire = claims["expiration"].parse::<i64>().unwrap_or(0);
                         if now > expire {
                             return Outcome::Failure((
                                 Status::Unauthorized,

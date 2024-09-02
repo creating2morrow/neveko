@@ -135,18 +135,18 @@ pub async fn get_multisig_info(
     r_info: Json<reqres::MultisigInfoRequest>,
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Order>> {
-    let info: Vec<String> = r_info.info.iter().cloned().collect();
-    if r_info.msig_type == String::from(message::PREPARE_MSIG) {
+    let info: Vec<String> = r_info.info.to_vec();
+    if r_info.msig_type == *message::PREPARE_MSIG {
         // adjudicator won't have wallet for order yet do that first
         if r_info.init_adjudicator {
             order::init_adjudicator_wallet(&r_info.orid).await;
         }
         message::send_prepare_info(&r_info.orid, &r_info.contact).await;
-    } else if r_info.msig_type == String::from(message::MAKE_MSIG) {
+    } else if r_info.msig_type == *message::MAKE_MSIG {
         message::send_make_info(&r_info.orid, &r_info.contact, info).await;
-    } else if r_info.msig_type == String::from(message::EXPORT_MSIG) {
+    } else if r_info.msig_type == *message::EXPORT_MSIG {
         message::send_export_info(&r_info.orid, &r_info.contact).await;
-    } else if r_info.msig_type == String::from(message::IMPORT_MSIG) {
+    } else if r_info.msig_type == *message::IMPORT_MSIG {
         message::send_import_info(&r_info.orid, &r_info.info).await;
     } else {
         message::send_exchange_info(&r_info.orid, &r_info.contact, info, r_info.kex_init).await;

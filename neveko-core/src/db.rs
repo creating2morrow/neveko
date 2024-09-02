@@ -44,7 +44,7 @@ impl Interface {
             // increase map size for writing the multisig txset
             .map_size(crate::LMDB_MAPSIZE)
             .open(format!("{}/{}", file_path, env_str), 0o777)
-            .expect(&format!("could not open LMDB at {}", file_path));
+            .unwrap_or_else(|_| panic!("could not open LMDB at {}", file_path));
         let handle = env.get_default_db(DbFlags::empty()).unwrap();
         Interface { env, handle }
     }
@@ -66,16 +66,13 @@ impl Interface {
         let txn = e.new_transaction().unwrap();
         {
             // get a database bound to this transaction
-            let db = txn.bind(&h);
-            let pair = vec![(k, v)];
+            let db = txn.bind(h);
+            let pair = [(k, v)];
             for &(key, value) in pair.iter() {
                 db.set(&key, &value).unwrap();
             }
         }
-        match txn.commit() {
-            Err(_) => error!("failed to commit!"),
-            Ok(_) => (),
-        }
+        if txn.commit().is_err() { error!("failed to commit!") }
     }
     pub async fn async_write(e: &Environment, h: &DbHandle, k: &str, v: &str) {
         info!("excecuting lmdb async write");
@@ -95,8 +92,8 @@ impl Interface {
             return utils::empty_string();
         }
         let reader = e.get_reader().unwrap();
-        let db = reader.bind(&h);
-        let value = db.get::<&str>(&k).unwrap_or_else(|_| "");
+        let db = reader.bind(h);
+        let value = db.get::<&str>(&k).unwrap_or("");
         let r = String::from(value);
         {
             if r == utils::empty_string() {
@@ -125,13 +122,10 @@ impl Interface {
         let txn = e.new_transaction().unwrap();
         {
             // get a database bound to this transaction
-            let db = txn.bind(&h);
+            let db = txn.bind(h);
             db.del(&k).unwrap_or_else(|_| error!("failed to delete"));
         }
-        match txn.commit() {
-            Err(_) => error!("failed to commit!"),
-            Ok(_) => (),
-        }
+        if txn.commit().is_err() { error!("failed to commit!") }
     }
     pub async fn async_delete(e: &Environment, h: &DbHandle, k: &str) {
         info!("excecuting lmdb async delete");

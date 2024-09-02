@@ -69,7 +69,7 @@ pub const I2P_ZERO_RELEASE_VERSION: &str = "v1.21";
 pub const I2P_ZERO_RELEASH_HASH: &str =
     "14f34052ad6abb0c24b048816b0ea86b696ae350dd139dd1e90a67ca88e1d07a";
 
-pub const LMDB_MAPSIZE: u64 = 1 * 1024 * 1024 * 1024;
+pub const LMDB_MAPSIZE: u64 = 1024 * 1024 * 1024;
 pub const I2P_CONNECTIVITY_CHECK_INTERVAL: u32 = 600000;
 pub const FTS_RETRY_INTERVAL: u32 = 60000;
 /// There is a one week grace period for manual intervention of disputes
