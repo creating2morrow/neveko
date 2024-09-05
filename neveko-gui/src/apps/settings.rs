@@ -22,7 +22,7 @@ impl Default for SettingsApp {
     fn default() -> Self {
         let (change_wallet_password_tx, change_wallet_password_rx) = std::sync::mpsc::channel();
         SettingsApp {
-            credential: utils::empty_string(),
+            credential: String::new(),
             change_wallet_password_rx,
             change_wallet_password_tx,
             is_loading: false,
@@ -63,20 +63,23 @@ impl eframe::App for SettingsApp {
                 }
                 if ui.button("Change").clicked() {
                     self.is_loading = true;
-                    let s = db::Interface::open();
+
+                    // TODO: don't open the database in the GUI
+                    
+                    let s = db::DatabaseEnvironment::open(&utils::get_release_env().value()).unwrap();
                     let k = CREDENTIAL_KEY;
-                    db::Interface::delete(&s.env, &s.handle, &k);
+                    db::DatabaseEnvironment::delete(&s.env, &s.handle, &k);
                     let mut hasher = Sha512::new();
                     hasher.update(self.credential.clone());
                     let result = hasher.finalize();
-                    db::Interface::write(&s.env, &s.handle, &k, &hex::encode(&result[..]));
+                    db::write_chunks(&s.env, &s.handle, &k, &hex::encode(&result[..]));
                     // update wallet rpc
                     change_wallet_password(
                         self.change_wallet_password_tx.clone(),
                         &self.credential,
                         ctx.clone(),
                     );
-                    self.credential = utils::empty_string();
+                    self.credential = String::new();
                 }
             });
         });

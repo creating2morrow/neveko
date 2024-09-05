@@ -15,7 +15,7 @@ struct LockScreen {
 impl Default for LockScreen {
     fn default() -> Self {
         LockScreen {
-            credential: utils::empty_string(),
+            credential: String::new(),
         }
     }
 }
@@ -62,8 +62,8 @@ impl eframe::App for LockScreenApp {
                     self.lock_screen.credential.clone(),
                 );
                 // Get the credential hash from lmdb
-                let s = db::Interface::open();
-                let r = db::Interface::read(&s.env, &s.handle, CREDENTIAL_KEY);
+                let s = db::DatabaseEnvironment::open(&utils::get_release_env().value()).unwrap();
+                let r = db::DatabaseEnvironment::read(&s.env, &s.handle, CREDENTIAL_KEY);
                 // hash the text entered and compare
                 let mut hasher = Sha512::new();
                 hasher.update(self.lock_screen.credential.clone());

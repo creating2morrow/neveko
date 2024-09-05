@@ -319,15 +319,15 @@ fn get_blockchain_dir() -> String {
 /// Get monero download location
 fn get_monero_location() -> String {
     let args = args::Args::parse();
-    let user = std::env::var("USER").unwrap_or(utils::empty_string());
+    let user = std::env::var("USER").unwrap_or(String::new());
     format!("/home/{}/{}", &user, &args.monero_location)
 }
 
 /// Get monero rpc host from the `--monero-rpc-host` cli arg
 fn get_rpc_host() -> String {
     let args = args::Args::parse();
-    let gui_host = std::env::var(crate::MONERO_WALLET_RPC_HOST).unwrap_or(utils::empty_string());
-    let rpc = if gui_host == utils::empty_string() {
+    let gui_host = std::env::var(crate::MONERO_WALLET_RPC_HOST).unwrap_or(String::new());
+    let rpc = if gui_host.is_empty() {
         args.monero_rpc_host
     } else {
         gui_host
@@ -348,8 +348,8 @@ fn get_rpc_creds() -> RpcLogin {
 
 fn get_rpc_daemon() -> String {
     let args = args::Args::parse();
-    let gui_host = std::env::var(crate::MONERO_DAEMON_HOST).unwrap_or(utils::empty_string());
-    if gui_host == utils::empty_string() {
+    let gui_host = std::env::var(crate::MONERO_DAEMON_HOST).unwrap_or(String::new());
+    if gui_host.is_empty() {
         args.monero_rpc_daemon
     } else {
         gui_host

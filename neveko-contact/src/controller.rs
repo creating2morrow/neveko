@@ -25,7 +25,7 @@ pub async fn add_contact(
     _token: auth::BearerToken,
 ) -> Custom<Json<Contact>> {
     let res_contact = contact::create(&req_contact).await;
-    if res_contact.cid == utils::empty_string() {
+    if res_contact.cid.is_empty() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
     Custom(Status::Ok, Json(res_contact))

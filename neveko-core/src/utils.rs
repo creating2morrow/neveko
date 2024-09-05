@@ -14,6 +14,7 @@ use crate::{
     utils,
 };
 use clap::Parser;
+use kn0sys_lmdb_rs::MdbError;
 use log::{
     debug,
     error,
@@ -49,13 +50,13 @@ pub struct ContactStatus {
 impl Default for ContactStatus {
     fn default() -> Self {
         ContactStatus {
-            exp: utils::empty_string(),
-            h_exp: utils::empty_string(),
-            i2p: utils::empty_string(),
+            exp: String::new(),
+            h_exp: String::new(),
+            i2p: String::new(),
             is_vendor: false,
-            jwp: utils::empty_string(),
+            jwp: String::new(),
             nick: String::from("anon"),
-            txp: utils::empty_string(),
+            txp: String::new(),
         }
     }
 }
@@ -307,7 +308,7 @@ pub fn message_to_json(m: &models::Message) -> Json<models::Message> {
     let r_message: models::Message = models::Message {
         body: String::from(&m.body),
         mid: String::from(&m.mid),
-        uid: utils::empty_string(),
+        uid: String::new(),
         created: m.created,
         from: String::from(&m.from),
         to: String::from(&m.to),
@@ -348,11 +349,6 @@ pub fn dispute_to_json(d: &models::Dispute) -> Json<models::Dispute> {
         tx_set: String::from(&d.tx_set),
     };
     Json(dispute)
-}
-
-/// Instead of putting `String::from("")`
-pub fn empty_string() -> String {
-    String::from("")
 }
 
 // DoS prevention
@@ -411,35 +407,40 @@ async fn gen_app_wallet(password: &String) {
 }
 
 /// Secret keys for signing internal/external auth tokens
-fn gen_signing_keys() {
+fn gen_signing_keys() -> Result<(), MdbError> {
     info!("generating signing keys");
     let jwp = get_jwp_secret_key();
     let jwt = get_jwt_secret_key();
     // send to db
-    let s = db::Interface::open();
-    if jwp == utils::empty_string() {
-        let rnd_jwp = generate_rnd();
-        db::Interface::write(&s.env, &s.handle, crate::NEVEKO_JWP_SECRET_KEY, &rnd_jwp);
+    let env = utils::get_release_env();
+    if jwp.is_empty() {
+        let mut data = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut data);
+        let s = db::DatabaseEnvironment::open(&env.value())?;
+        db::write_chunks(&s.env, &s.handle?, crate::NEVEKO_JWP_SECRET_KEY.as_bytes(), &data);
     }
-    if jwt == utils::empty_string() {
-        let rnd_jwt = generate_rnd();
-        db::Interface::write(&s.env, &s.handle, crate::NEVEKO_JWT_SECRET_KEY, &rnd_jwt);
+    if jwt.is_empty() {
+        let mut data = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut data);
+        let s = db::DatabaseEnvironment::open(&env.value())?;
+        db::write_chunks(&s.env, &s.handle?, crate::NEVEKO_JWT_SECRET_KEY.as_bytes(), &data);
     }
+    Ok(())
 }
 
 /// TODO(c2m): add a button to gui to call this
 ///
 /// dont' forget to generate new keys as well
 pub fn revoke_signing_keys() {
-    let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, crate::NEVEKO_JWT_SECRET_KEY);
-    db::Interface::delete(&s.env, &s.handle, crate::NEVEKO_JWP_SECRET_KEY);
+    let s = db::DatabaseEnvironment::open();
+    db::DatabaseEnvironment::delete(&s.env, &s.handle, crate::NEVEKO_JWT_SECRET_KEY);
+    db::DatabaseEnvironment::delete(&s.env, &s.handle, crate::NEVEKO_JWP_SECRET_KEY);
 }
 
 pub fn get_jwt_secret_key() -> String {
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, crate::NEVEKO_JWT_SECRET_KEY);
-    if r == utils::empty_string() {
+    let s = db::DatabaseEnvironment::open();
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, crate::NEVEKO_JWT_SECRET_KEY);
+    if r.is_empty() {
         error!("JWT key not found");
         return Default::default();
     }
@@ -447,9 +448,9 @@ pub fn get_jwt_secret_key() -> String {
 }
 
 pub fn get_jwp_secret_key() -> String {
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, crate::NEVEKO_JWP_SECRET_KEY);
-    if r == utils::empty_string() {
+    let s = db::DatabaseEnvironment::open();
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, crate::NEVEKO_JWP_SECRET_KEY);
+    if r.is_empty() {
         error!("JWP key not found");
         return Default::default();
     }
@@ -458,9 +459,9 @@ pub fn get_jwp_secret_key() -> String {
 
 /// Returns the hex encoded neveko message public key from LMDB
 pub fn get_nmpk() -> String {
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, crate::NEVEKO_NMPK);
-    if r == utils::empty_string() {
+    let s = db::DatabaseEnvironment::open();
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, crate::NEVEKO_NMPK);
+    if r.is_empty() {
         error!("neveko message public key not found");
         return Default::default();
     }
@@ -471,10 +472,10 @@ async fn generate_nmpk() {
     info!("generating neveko message public key");
     let nmpk: String = get_nmpk();
     // send to db
-    let s = db::Interface::open();
-    if nmpk == utils::empty_string() {
+    let s = db::DatabaseEnvironment::open();
+    if nmpk.is_empty() {
         let nmk: neveko25519::NevekoMessageKeys = neveko25519::generate_neveko_message_keys().await;
-        db::Interface::write(&s.env, &s.handle, crate::NEVEKO_NMPK, &nmk.hex_nmpk);
+        db::DatabaseEnvironment::write(&s.env, &s.handle, crate::NEVEKO_NMPK, &nmk.hex_nmpk);
     }
 }
 
@@ -573,106 +574,15 @@ pub fn restart_dispute_auto_settle() {
 /// Called on app startup if `--clear-fts` flag is passed.
 fn clear_fts() {
     info!("clear fts");
-    let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, crate::FTS_DB_KEY);
+    let s = db::DatabaseEnvironment::open();
+    db::DatabaseEnvironment::delete(&s.env, &s.handle, crate::FTS_DB_KEY);
 }
 
 /// Called on app startup if `--clear-dispute` flag is passed.
 fn clear_disputes() {
     info!("clear_disputes");
-    let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, crate::DISPUTE_LIST_DB_KEY);
-}
-
-/// TODO(?): get rid of this after implementing monero bindings
-///
-/// Handle the request from user to additional software
-///
-/// from gui startup. Power users will most like install
-///
-/// software on their own. Note that software pull is over
-///
-/// clearnet. TODO(c2m): remove this after monero and i2pd
-///
-/// are completed.
-pub async fn install_software(installations: Installations) -> bool {
-    let mut valid_i2p_zero_hash = true;
-    let mut valid_xmr_hash = true;
-    if installations.i2p_zero {
-        info!("installing i2p-zero");
-        let i2p_version = crate::I2P_ZERO_RELEASE_VERSION;
-        let i2p_zero_zip = format!("i2p-zero-linux.{}.zip", i2p_version);
-        let link = format!(
-            "https://github.com/creating2morrow/i2p-zero/releases/download/{}-neveko/{}",
-            i2p_version, i2p_zero_zip
-        );
-        let curl = std::process::Command::new("curl")
-            .args(["-LO#", &link])
-            .status();
-        match curl {
-            Ok(curl_output) => {
-                debug!("{:?}", curl_output);
-                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                let unzip_output = std::process::Command::new("unzip")
-                    .arg(&i2p_zero_zip)
-                    .spawn()
-                    .expect("i2p unzip failed");
-                debug!("{:?}", unzip_output.stdout);
-            }
-            _ => error!("i2p-zero download failed"),
-        }
-        valid_i2p_zero_hash = validate_installation_hash(ExternalSoftware::I2PZero, &i2p_zero_zip);
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    }
-    if installations.xmr {
-        info!("installing monero");
-        let link = format!(
-            "https://downloads.getmonero.org/cli/{}",
-            crate::MONERO_RELEASE_VERSION
-        );
-        let curl = std::process::Command::new("curl")
-            .args(["-O#", &link])
-            .status();
-        match curl {
-            Ok(curl_output) => {
-                debug!("{:?}", curl_output);
-                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                let tar_output = std::process::Command::new("tar")
-                    .args(["-xvf", crate::MONERO_RELEASE_VERSION])
-                    .spawn()
-                    .expect("monero tar extraction failed");
-                debug!("{:?}", tar_output.stdout);
-            }
-            _ => error!("monero download failed"),
-        }
-        valid_xmr_hash = validate_installation_hash(
-            ExternalSoftware::XMR,
-            &String::from(crate::MONERO_RELEASE_VERSION),
-        );
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    }
-    valid_i2p_zero_hash && valid_xmr_hash
-}
-
-/// Linux specific hash validation using the command `sha256sum`
-fn validate_installation_hash(sw: ExternalSoftware, filename: &String) -> bool {
-    debug!("validating hash");
-    let expected_hash = if sw == ExternalSoftware::I2PZero {
-        String::from(crate::I2P_ZERO_RELEASH_HASH)
-    } else {
-        String::from(crate::MONERO_RELEASE_HASH)
-    };
-    let sha_output = std::process::Command::new("sha256sum")
-        .arg(filename)
-        .output()
-        .expect("hash validation failed");
-    let str_sha = String::from_utf8(sha_output.stdout).unwrap();
-    let split1 = str_sha.split(" ");
-    let mut v: Vec<String> = split1.map(String::from).collect();
-    let actual_hash = v.remove(0);
-    debug!("actual hash: {}", actual_hash);
-    debug!("expected hash: {}", expected_hash);
-    actual_hash == expected_hash
+    let s = db::DatabaseEnvironment::open();
+    db::DatabaseEnvironment::delete(&s.env, &s.handle, crate::DISPUTE_LIST_DB_KEY);
 }
 
 /// ### The highly ineffecient fee estimator.
@@ -700,7 +610,7 @@ pub async fn estimate_fee() -> u128 {
     let mut count: u64 = 1;
     let mut v_fee: Vec<u128> = Vec::new();
     let mut r_height: reqres::XmrDaemonGetHeightResponse = Default::default();
-    let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
+    let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or(String::new());
     let remote_set = remote_var == *crate::GUI_SET_REMOTE_NODE;
     if remote_set {
         let p_height = monero::p_get_height().await;
@@ -780,11 +690,11 @@ pub async fn can_transfer(invoice: u128) -> bool {
 /// Gui toggle for vendor mode
 pub fn toggle_vendor_enabled() -> bool {
     // TODO(c2m): Dont toggle vendors with orders status != Delivered
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, contact::NEVEKO_VENDOR_ENABLED);
+    let s = db::DatabaseEnvironment::open();
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, contact::NEVEKO_VENDOR_ENABLED);
     if r != contact::NEVEKO_VENDOR_MODE_ON {
         info!("neveko vendor mode enabled");
-        db::Interface::write(
+        db::DatabaseEnvironment::write(
             &s.env,
             &s.handle,
             contact::NEVEKO_VENDOR_ENABLED,
@@ -793,7 +703,7 @@ pub fn toggle_vendor_enabled() -> bool {
         true
     } else {
         info!("neveko vendor mode disabled");
-        db::Interface::write(
+        db::DatabaseEnvironment::write(
             &s.env,
             &s.handle,
             contact::NEVEKO_VENDOR_ENABLED,
@@ -804,21 +714,21 @@ pub fn toggle_vendor_enabled() -> bool {
 }
 
 pub fn search_gui_db(f: String, data: String) -> String {
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     let k = format!("{}-{}", f, data);
-    db::Interface::read(&s.env, &s.handle, &k)
+    db::DatabaseEnvironment::read(&s.env, &s.handle, &k)
 }
 
 pub fn write_gui_db(f: String, key: String, data: String) {
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     let k = format!("{}-{}", f, key);
-    db::Interface::write(&s.env, &s.handle, &k, &data);
+    db::DatabaseEnvironment::write(&s.env, &s.handle, &k, &data);
 }
 
 pub fn clear_gui_db(f: String, key: String) {
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     let k = format!("{}-{}", f, key);
-    db::Interface::delete(&s.env, &s.handle, &k);
+    db::DatabaseEnvironment::delete(&s.env, &s.handle, &k);
 }
 
 // Tests

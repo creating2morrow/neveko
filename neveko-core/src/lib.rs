@@ -4,6 +4,7 @@ pub mod contact;
 pub mod neveko25519;
 pub mod dispute;
 pub mod db;
+pub mod error;
 pub mod i2p;
 pub mod message;
 pub mod models;
@@ -59,15 +60,6 @@ pub const MONERO_WALLET_RPC_HOST: &str = "MONERO_WALLET_RPC_HOST";
 /// Reference to check if gui set remote node flag
 pub const GUI_REMOTE_NODE: &str = "GUI_REMOTE_NODE";
 pub const GUI_SET_REMOTE_NODE: &str = "1";
-
-/// The latest monero release download
-pub const MONERO_RELEASE_VERSION: &str = "monero-linux-x64-v0.18.3.2.tar.bz2";
-pub const MONERO_RELEASE_HASH: &str =
-    "9dafd70230a7b3a73101b624f3b5f439cc5b84a19b12c17c24e6aab94b678cbb";
-/// The latest i2p-zero release version
-pub const I2P_ZERO_RELEASE_VERSION: &str = "v1.21";
-pub const I2P_ZERO_RELEASH_HASH: &str =
-    "14f34052ad6abb0c24b048816b0ea86b696ae350dd139dd1e90a67ca88e1d07a";
 
 pub const LMDB_MAPSIZE: u64 = 1024 * 1024 * 1024;
 pub const I2P_CONNECTIVITY_CHECK_INTERVAL: u32 = 600000;

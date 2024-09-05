@@ -15,11 +15,7 @@ use sha2::{
     Digest,
     Sha512,
 };
-
-use crate::{
-    monero,
-    utils,
-};
+use crate::monero;
 
 #[derive(Debug)]
 /// Container for the Neveko Message Keys
@@ -39,8 +35,8 @@ impl Default for NevekoMessageKeys {
         NevekoMessageKeys {
             nmpk: [0u8; 32],
             nmsk: [0u8; 32],
-            hex_nmpk: utils::empty_string(),
-            hex_nmsk: utils::empty_string(),
+            hex_nmpk: String::new(),
+            hex_nmsk: String::new(),
         }
     }
 }
@@ -96,7 +92,7 @@ fn hash_to_scalar(s: Vec<&str>) -> Scalar {
 /// Neveko Message Public Key (NMPK).
 pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
     log::info!("generating neveko message keys");
-    let password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(utils::empty_string());
+    let password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::new());
     let filename = String::from(crate::APP_NAME);
     let m_wallet = monero::open_wallet(&filename, &password).await;
     if !m_wallet {
@@ -130,7 +126,7 @@ pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
 ///
 /// Pass `None` to encipher parameter to perform deciphering.
 pub async fn cipher(hex_nmpk: &String, message: String, encipher: Option<String>) -> String {
-    let unwrap_encipher: String = encipher.unwrap_or(utils::empty_string());
+    let unwrap_encipher: String = encipher.unwrap_or(String::new());
     let keys: NevekoMessageKeys = generate_neveko_message_keys().await;
     // shared secret = nmpk * nmsk
     let scalar_nmsk = Scalar::from_bytes_mod_order(keys.nmsk);
@@ -162,7 +158,7 @@ mod tests {
     use super::*;
 
     fn test_cipher(message: &String, encipher: Option<String>) -> String {
-        let unwrap_encipher: String = encipher.unwrap_or(utils::empty_string());
+        let unwrap_encipher: String = encipher.unwrap_or(String::new());
         let test_nmpk: [u8; 32] = [
             203, 2, 188, 13, 167, 96, 59, 189, 38, 238, 2, 71, 84, 155, 153, 73, 241, 137, 9, 30,
             28, 134, 91, 137, 134, 73, 231, 45, 174, 98, 103, 158,

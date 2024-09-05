@@ -14,7 +14,7 @@ pub struct LoginApp {
 
 impl Default for LoginApp {
     fn default() -> Self {
-        let credential = utils::empty_string();
+        let credential = String::new();
         let is_cred_generated = false;
         let is_not_showing_password = true;
         LoginApp {
@@ -54,9 +54,9 @@ impl eframe::App for LoginApp {
                 let mut hasher = Sha512::new();
                 hasher.update(self.credential.clone());
                 let result = hasher.finalize();
-                let s = db::Interface::open();
-                db::Interface::write(&s.env, &s.handle, k, &hex::encode(&result[..]));
-                self.credential = utils::empty_string();
+                let s = db::DatabaseEnvironment::open();
+                db::DatabaseEnvironment::write(&s.env, &s.handle, k, &hex::encode(&result[..]));
+                self.credential = String::new();
             }
         });
     }

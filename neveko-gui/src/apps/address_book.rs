@@ -18,8 +18,8 @@ struct Compose {
 impl Default for Compose {
     fn default() -> Self {
         Compose {
-            message: utils::empty_string(),
-            to: utils::empty_string(),
+            message: String::new(),
+            to: String::new(),
         }
     }
 }
@@ -86,7 +86,7 @@ impl Default for AddressBookApp {
         let (payment_tx, payment_rx) = std::sync::mpsc::channel();
         let (send_message_tx, send_message_rx) = std::sync::mpsc::channel();
         AddressBookApp {
-            add_nick: utils::empty_string(),
+            add_nick: String::new(),
             approve_contact: false,
             approve_payment: false,
             added: false,
@@ -94,7 +94,7 @@ impl Default for AddressBookApp {
             can_transfer_rx,
             can_transfer_tx,
             compose: Default::default(),
-            contact: utils::empty_string(),
+            contact: String::new(),
             contacts: Vec::new(),
             contacts_init: false,
             contact_add_tx,
@@ -103,7 +103,7 @@ impl Default for AddressBookApp {
             contact_info_rx,
             contact_timeout_tx,
             contact_timeout_rx,
-            find_contact: utils::empty_string(),
+            find_contact: String::new(),
             invoice_tx,
             invoice_rx,
             is_adding: false,
@@ -134,7 +134,7 @@ impl eframe::App for AddressBookApp {
         //-----------------------------------------------------------------------------------
         if let Ok(contact_info) = self.contact_info_rx.try_recv() {
             self.s_contact = contact_info;
-            if self.s_contact.xmr_address != utils::empty_string() && !self.showing_status {
+            if !self.s_contact.xmr_address.is_empty() && !self.showing_status {
                 self.approve_contact = true;
             }
             if self.showing_status {
@@ -144,7 +144,7 @@ impl eframe::App for AddressBookApp {
 
         if let Ok(added_contact) = self.contact_add_rx.try_recv() {
             self.s_added_contact = added_contact;
-            if self.s_added_contact.cid != utils::empty_string() {
+            if !self.s_added_contact.cid.is_empty() {
                 self.added = true;
                 self.is_loading = false;
             }
@@ -156,7 +156,7 @@ impl eframe::App for AddressBookApp {
                 self.is_loading = false;
                 self.is_adding = false;
                 self.approve_contact = false;
-                self.contact = utils::empty_string();
+                self.contact = String::new();
             }
         }
 
@@ -186,7 +186,7 @@ impl eframe::App for AddressBookApp {
             if self.is_message_sent {
                 self.is_loading = false;
                 self.is_composing = false;
-                self.compose.message = utils::empty_string();
+                self.compose.message = String::new();
             }
         }
 
@@ -222,7 +222,7 @@ impl eframe::App for AddressBookApp {
                 });
                 if !self.is_loading {
                     self.compose.to = self.status.i2p.clone();
-                    if self.status.jwp != utils::empty_string() {
+                    if !self.status.jwp.is_empty() {
                         if ui.button("Send").clicked() {
                             self.is_loading = true;
                             send_message_req(
@@ -243,7 +243,7 @@ impl eframe::App for AddressBookApp {
         // Payment approval window
         //-----------------------------------------------------------------------------------
         let mut is_approving_payment =
-            self.approve_payment && self.s_invoice.address != utils::empty_string();
+            self.approve_payment && !self.s_invoice.address.is_empty();
         let address = self.s_invoice.address.clone();
         let amount = self.s_invoice.pay_threshold;
         let expire = self.s_invoice.conf_threshold;
@@ -265,7 +265,7 @@ impl eframe::App for AddressBookApp {
                 ui.label(format!("pay to: {}", address));
                 ui.label(format!("amount: {} piconero(s)", amount));
                 ui.label(format!("expiration: {} blocks", expire));
-                let show_approve = self.s_invoice.address != utils::empty_string()
+                let show_approve = !self.s_invoice.address.is_empty()
                     && self.can_transfer
                     && !self.is_estimating_fee;
                 if !self.is_loading {
@@ -316,7 +316,7 @@ impl eframe::App for AddressBookApp {
                     ui.add(egui::Spinner::new());
                     ui.label(spinner_text);
                 }
-                let status = if self.s_contact.xmr_address != utils::empty_string() {
+                let status = if !self.s_contact.xmr_address.is_empty() {
                     "online"
                 } else {
                     "offline"
@@ -326,10 +326,10 @@ impl eframe::App for AddressBookApp {
                 ui.label(format!("tx proof: {}", self.status.txp));
                 ui.label(format!("jwp: {}", self.status.jwp));
                 ui.label(format!("expiration: {}", self.status.h_exp));
-                if self.status.jwp == utils::empty_string()
+                if self.status.jwp.is_empty()
                     && !self.is_pinging
                     && status == "online"
-                    && self.status.txp == utils::empty_string()
+                    && self.status.txp.is_empty()
                 {
                     if ui.button("Create JWP").clicked() {
                         self.s_invoice = Default::default();
@@ -343,9 +343,9 @@ impl eframe::App for AddressBookApp {
                         self.is_approving_jwp = true;
                     }
                 }
-                let failed_to_prove = self.status.txp != utils::empty_string()
-                    && self.status.jwp == utils::empty_string();
-                if self.status.jwp != utils::empty_string() || failed_to_prove {
+                let failed_to_prove = !self.status.txp.is_empty()
+                    && self.status.jwp.is_empty();
+                if !self.status.jwp.is_empty() || failed_to_prove {
                     if ui.button("Clear stale JWP").clicked() {
                         utils::clear_gui_db(String::from("gui-txp"), self.status.i2p.clone());
                         utils::clear_gui_db(String::from("gui-jwp"), self.status.i2p.clone());
@@ -353,8 +353,8 @@ impl eframe::App for AddressBookApp {
                         self.showing_status = false;
                     }
                 }
-                if self.status.txp != utils::empty_string()
-                    && self.status.jwp == utils::empty_string()
+                if !self.status.txp.is_empty()
+                    && self.status.jwp.is_empty()
                     && status == "online"
                 {
                     if ui.button("Prove Retry").clicked() {
@@ -376,7 +376,7 @@ impl eframe::App for AddressBookApp {
                 });
                 if ui.button("Change nick").clicked() {
                     change_nick_req(self.status.i2p.clone(), self.add_nick.clone());
-                    self.add_nick = utils::empty_string();
+                    self.add_nick = String::new();
                 }
                 if ui.button("Exit").clicked() {
                     self.showing_status = false;
@@ -419,7 +419,7 @@ impl eframe::App for AddressBookApp {
                     ui.label(format!("i2p address: {}", self.s_added_contact.i2p_address));
                     if ui.button("Exit").clicked() {
                         self.added = false;
-                        self.contact = utils::empty_string();
+                        self.contact = String::new();
                         self.is_adding = false;
                         self.approve_contact = false;
                         self.contacts = contact::find_all();
@@ -541,7 +541,7 @@ impl eframe::App for AddressBookApp {
                                             String::from(crate::GUI_NICK_DB_KEY),
                                             String::from(&c.i2p_address),
                                         );
-                                        let nick = if nick_db == utils::empty_string() {
+                                        let nick = if nick_db.is_empty() {
                                             String::from("anon")
                                         } else {
                                             nick_db
@@ -587,7 +587,7 @@ impl eframe::App for AddressBookApp {
                                         Err(_e) => 0,
                                     };
                                     if now < expire
-                                        && self.status.jwp != utils::empty_string()
+                                        && !self.status.jwp.is_empty()
                                         && c.i2p_address == self.status.i2p
                                     {
                                         if ui.button("Compose").clicked() {
@@ -683,14 +683,14 @@ fn send_payment_req(
                 subaddress: ptxp_address,
                 confirmations: 0,
                 hash: ptxp_hash,
-                message: utils::empty_string(),
-                signature: utils::empty_string(),
+                message: String::new(),
+                signature: String::new(),
             };
             log::debug!("creating transaction proof for: {}", &ptxp.hash);
             // if we made it this far we can now request a JWP from our friend
             // wait a bit for the tx to propogate, i2p takes longer
             let wait = if std::env::var(neveko_core::GUI_REMOTE_NODE)
-                .unwrap_or(utils::empty_string())
+                .unwrap_or(String::new())
                 == String::from(neveko_core::GUI_SET_REMOTE_NODE)
             {
                 crate::I2P_PROPAGATION_TIME_IN_SECS_EST
@@ -705,7 +705,7 @@ fn send_payment_req(
                 subaddress: ftxp_address,
                 confirmations: 0,
                 hash: ftxp_hash,
-                message: utils::empty_string(),
+                message: String::new(),
                 signature: get_txp.result.signature,
             };
             utils::write_gui_db(
@@ -765,7 +765,7 @@ fn send_payment_req(
                 subaddress,
                 confirmations: 0,
                 hash: String::from(&hash),
-                message: utils::empty_string(),
+                message: String::new(),
                 signature,
             };
             log::debug!(
@@ -795,8 +795,8 @@ fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: Stri
     let m: models::Message = models::Message {
         body: body,
         to,
-        mid: utils::empty_string(),
-        uid: utils::empty_string(),
+        mid: String::new(),
+        uid: String::new(),
         created: 0,
         from: i2p::get_destination(None),
     };
@@ -804,7 +804,7 @@ fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: Stri
     tokio::spawn(async move {
         let m_type = message::MessageType::Normal;
         let result = message::create(j_message, jwp, m_type).await;
-        if result.mid != utils::empty_string() {
+        if !result.mid.is_empty() {
             log::info!("sent message: {}", result.mid);
             let _ = tx.send(true);
             ctx.request_repaint();

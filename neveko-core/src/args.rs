@@ -34,13 +34,6 @@ pub struct Args {
         default_value = "/home/user/.bitmonero"
     )]
     pub monero_blockchain_dir: String,
-    /// Absolute path to i2p zero
-    #[arg(
-        long,
-        help = "Absolute path to i2p-zero directroy",
-        default_value = "/home/user/i2p-zero-linux.v1.21"
-    )]
-    pub i2p_zero_dir: String,
     /// Monero RPC daemon host
     #[arg(
         long,

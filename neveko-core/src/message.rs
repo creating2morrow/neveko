@@ -36,20 +36,11 @@ pub enum MessageType {
     Multisig,
 }
 
+#[derive(Default)]
 struct MultisigMessageData {
     info: String,
     sub_type: String,
     orid: String,
-}
-
-impl Default for MultisigMessageData {
-    fn default() -> Self {
-        MultisigMessageData {
-            info: utils::empty_string(),
-            sub_type: utils::empty_string(),
-            orid: utils::empty_string(),
-        }
-    }
 }
 
 /// Create a new message
@@ -76,18 +67,18 @@ pub async fn create(m: Json<Message>, jwp: String, m_type: MessageType) -> Messa
         to: String::from(&m.to),
     };
     debug!("insert message: {:?}", &new_message);
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     let k = &new_message.mid;
-    db::Interface::write(&s.env, &s.handle, k, &Message::to_db(&new_message));
+    db::DatabaseEnvironment::write(&s.env, &s.handle, k, &Message::to_db(&new_message));
     // in order to retrieve all message, write keys to with ml
     let list_key = crate::MESSAGE_LIST_DB_KEY;
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
-    if r == utils::empty_string() {
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
+    if r.is_empty() {
         debug!("creating message index");
     }
     let msg_list = [r, String::from(&f_mid)].join(",");
     debug!("writing message index {} for id: {}", msg_list, list_key);
-    db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
+    db::DatabaseEnvironment::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
     info!("attempting to send message");
     let send = send_message(&new_message, &jwp, m_type).await;
     send.unwrap();
@@ -116,25 +107,25 @@ pub async fn rx(m: Json<Message>) {
         to: String::from(&m.to),
     };
     debug!("insert message: {:?}", &new_message);
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     let k = &new_message.mid;
-    db::Interface::write(&s.env, &s.handle, k, &Message::to_db(&new_message));
+    db::DatabaseEnvironment::write(&s.env, &s.handle, k, &Message::to_db(&new_message));
     // in order to retrieve all message, write keys to with rx
     let list_key = crate::RX_MESSAGE_DB_KEY;
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
-    if r == utils::empty_string() {
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
+    if r.is_empty() {
         debug!("creating message index");
     }
     let msg_list = [r, String::from(&f_mid)].join(",");
     debug!("writing message index {} for {}", msg_list, list_key);
-    db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
+    db::DatabaseEnvironment::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
 }
 
 /// Parse the multisig message type and info
 async fn parse_multisig_message(mid: String) -> MultisigMessageData {
     let d: reqres::DecipheredMessageBody = decipher_body(mid).await;
     let mut bytes = hex::decode(d.body.into_bytes()).unwrap_or_default();
-    let decoded = String::from_utf8(bytes).unwrap_or(utils::empty_string());
+    let decoded = String::from_utf8(bytes).unwrap_or(String::new());
     let values = decoded.split(":");
     let mut v: Vec<String> = values.map(String::from).collect();
     if v.len() != VALID_MSIG_MSG_LENGTH {
@@ -176,9 +167,9 @@ async fn parse_multisig_message(mid: String) -> MultisigMessageData {
 /// ```rust
 /// // lookup prepare info for vendor
 /// use neveko_core::db;
-/// let s = db::Interface::open();
+/// let s = db::DatabaseEnvironment::open();
 /// let key = "prepare-o123-test.b32.i2p";
-/// let info_str = db::Interface::read(&s.env, &s.handle, &key);
+/// let info_str = db::DatabaseEnvironment::read(&s.env, &s.handle, &key);
 /// ```
 pub async fn rx_multisig(m: Json<Message>) {
     // make sure the message isn't something strange
@@ -200,13 +191,13 @@ pub async fn rx_multisig(m: Json<Message>) {
         created: chrono::offset::Utc::now().timestamp(),
         to: String::from(&m.to),
     };
-    let s = db::Interface::async_open().await;
+    let s = db::DatabaseEnvironment::async_open().await;
     let k = &new_message.mid;
-    db::Interface::async_write(&s.env, &s.handle, k, &Message::to_db(&new_message)).await;
+    db::DatabaseEnvironment::async_write(&s.env, &s.handle, k, &Message::to_db(&new_message)).await;
     // in order to retrieve all msig messages, write keys to with msigl
     let list_key = crate::MSIG_MESSAGE_LIST_DB_KEY;
-    let r = db::Interface::async_read(&s.env, &s.handle, &String::from(list_key)).await;
-    if r == utils::empty_string() {
+    let r = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &String::from(list_key)).await;
+    if r.is_empty() {
         debug!("creating msig message index");
     }
     let msg_list = [r, String::from(&f_mid)].join(",");
@@ -214,7 +205,7 @@ pub async fn rx_multisig(m: Json<Message>) {
         "writing msig message index {} for id: {}",
         msg_list, list_key
     );
-    db::Interface::async_write(&s.env, &s.handle, &String::from(list_key), &msg_list).await;
+    db::DatabaseEnvironment::async_write(&s.env, &s.handle, &String::from(list_key), &msg_list).await;
     let data: MultisigMessageData = parse_multisig_message(new_message.mid).await;
     debug!(
         "writing multisig message type {} for order {}",
@@ -222,16 +213,16 @@ pub async fn rx_multisig(m: Json<Message>) {
     );
     // lookup msig message data by {type}-{order id}-{contact .b32.i2p address}
     // store info as {a_info}:{a_info (optional)}
-    let s_msig = db::Interface::async_open().await;
+    let s_msig = db::DatabaseEnvironment::async_open().await;
     let msig_key = format!("{}-{}-{}", &data.sub_type, &data.orid, &m.from);
-    db::Interface::async_write(&s_msig.env, &s_msig.handle, &msig_key, &data.info).await;
+    db::DatabaseEnvironment::async_write(&s_msig.env, &s_msig.handle, &msig_key, &data.info).await;
 }
 
 /// Message lookup
 pub fn find(mid: &String) -> Message {
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(mid));
-    if r == utils::empty_string() {
+    let s = db::DatabaseEnvironment::open();
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(mid));
+    if r.is_empty() {
         error!("message not found");
         return Default::default();
     }
@@ -240,10 +231,10 @@ pub fn find(mid: &String) -> Message {
 
 /// Message lookup
 pub fn find_all() -> Vec<Message> {
-    let i_s = db::Interface::open();
+    let i_s = db::DatabaseEnvironment::open();
     let i_list_key = crate::MESSAGE_LIST_DB_KEY;
-    let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
-    if i_r == utils::empty_string() {
+    let i_r = db::DatabaseEnvironment::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
+    if i_r.is_empty() {
         error!("message index not found");
     }
     let i_v_mid = i_r.split(",");
@@ -251,21 +242,21 @@ pub fn find_all() -> Vec<Message> {
     let mut messages: Vec<Message> = Vec::new();
     for m in i_v {
         let message: Message = find(&m);
-        if message.mid != utils::empty_string() {
+        if !message.mid.is_empty() {
             messages.push(message);
         }
     }
     let o_list_key = crate::RX_MESSAGE_DB_KEY;
-    let o_s = db::Interface::open();
-    let o_r = db::Interface::read(&o_s.env, &o_s.handle, &String::from(o_list_key));
-    if o_r == utils::empty_string() {
+    let o_s = db::DatabaseEnvironment::open();
+    let o_r = db::DatabaseEnvironment::read(&o_s.env, &o_s.handle, &String::from(o_list_key));
+    if o_r.is_empty() {
         error!("message index not found");
     }
     let o_v_mid = o_r.split(",");
     let o_v: Vec<String> = o_v_mid.map(String::from).collect();
     for m in o_v {
         let message: Message = find(&m);
-        if message.mid != utils::empty_string() {
+        if !message.mid.is_empty() {
             messages.push(message);
         }
     }
@@ -326,8 +317,8 @@ pub async fn decipher_body(mid: String) -> reqres::DecipheredMessageBody {
 
 /// Message deletion
 pub fn delete(mid: &String) {
-    let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, &String::from(mid));
+    let s = db::DatabaseEnvironment::open();
+    db::DatabaseEnvironment::delete(&s.env, &s.handle, &String::from(mid));
 }
 
 /// ping the contact health check over i2p
@@ -365,11 +356,11 @@ async fn is_contact_online(contact: &String, jwp: String) -> Result<bool, Box<dy
 /// stage message for async retry
 async fn send_to_retry(mid: String) {
     info!("sending {} to fts", &mid);
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     // in order to retrieve FTS (failed-to-send), write keys to db with fts
     let list_key = crate::FTS_DB_KEY;
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
-    if r == utils::empty_string() {
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
+    if r.is_empty() {
         debug!("creating fts message index");
     }
     let mut msg_list = [String::from(&r), String::from(&mid)].join(",");
@@ -381,9 +372,9 @@ async fn send_to_retry(mid: String) {
         "writing fts message index {} for id: {}",
         msg_list, list_key
     );
-    db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
+    db::DatabaseEnvironment::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
     // restart fts if not empty
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
     let v_mid = r.split(",");
     let v: Vec<String> = v_mid.map(String::from).collect();
     debug!("fts contents: {:#?}", v);
@@ -397,11 +388,11 @@ async fn send_to_retry(mid: String) {
 /// clear fts message from index
 fn remove_from_fts(mid: String) {
     info!("removing id {} from fts", &mid);
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     // in order to retrieve FTS (failed-to-send), write keys to with fts
     let list_key = crate::FTS_DB_KEY;
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
-    if r == utils::empty_string() {
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
+    if r.is_empty() {
         debug!("fts is empty");
     }
     let pre_v_fts = r.split(",");
@@ -410,7 +401,7 @@ fn remove_from_fts(mid: String) {
             if s != &mid {
                 String::from(s)
             } else {
-                utils::empty_string()
+                String::new()
             }
         })
         .collect();
@@ -419,7 +410,7 @@ fn remove_from_fts(mid: String) {
         "writing fts message index {} for id: {}",
         msg_list, list_key
     );
-    db::Interface::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
+    db::DatabaseEnvironment::write(&s.env, &s.handle, &String::from(list_key), &msg_list);
 }
 
 /// Triggered on app startup, retries to send fts every minute
@@ -432,10 +423,10 @@ pub async fn retry_fts() {
     loop {
         debug!("running retry failed-to-send thread");
         tick.recv().unwrap();
-        let s = db::Interface::open();
+        let s = db::DatabaseEnvironment::open();
         let list_key = crate::FTS_DB_KEY;
-        let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
-        if r == utils::empty_string() {
+        let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
+        if r.is_empty() {
             info!("fts message index not found");
             break; // terminate fts if no message to send
         }
@@ -446,17 +437,17 @@ pub async fn retry_fts() {
         if cleared {
             // index was created but cleared
             info!("terminating retry fts thread");
-            db::Interface::delete(&s.env, &s.handle, list_key);
+            db::DatabaseEnvironment::delete(&s.env, &s.handle, list_key);
             break;
         }
         for m in v {
             let message: Message = find(&m);
-            if message.mid != utils::empty_string() {
-                let s = db::Interface::open();
+            if !message.mid.is_empty() {
+                let s = db::DatabaseEnvironment::open();
                 // get jwp from db
                 let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &message.to);
-                let jwp = db::Interface::read(&s.env, &s.handle, &k);
-                if jwp != utils::empty_string() {
+                let jwp = db::DatabaseEnvironment::read(&s.env, &s.handle, &k);
+                if !jwp.is_empty() {
                     let m_type = if message.mid.contains("msig") {
                         MessageType::Multisig
                     } else {
@@ -487,8 +478,8 @@ fn is_fts_clear(r: String) -> bool {
     let limit = v.len() <= 1;
     if !limit {
         v.len() >= 2
-            && v[v.len() - 1] == utils::empty_string()
-            && v[0] == utils::empty_string()
+            && v[v.len() - 1].is_empty()
+            && v[0].is_empty()
     } else {
         limit
     }
@@ -498,13 +489,13 @@ fn is_fts_clear(r: String) -> bool {
 ///
 /// `prepare_multisig_info` method.
 pub async fn send_prepare_info(orid: &String, contact: &String) {
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     let wallet_name = String::from(orid);
-    let wallet_password = utils::empty_string();
+    let wallet_password = String::new();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let prepare_info = monero::prepare_wallet().await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
-    let jwp = db::Interface::read(&s.env, &s.handle, &k);
+    let jwp = db::DatabaseEnvironment::read(&s.env, &s.handle, &k);
     let body_str = format!(
         "{}:{}:{}",
         PREPARE_MSIG, orid, &prepare_info.result.multisig_info
@@ -524,13 +515,13 @@ pub async fn send_prepare_info(orid: &String, contact: &String) {
 ///
 /// `make_multisig_info` method.
 pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) {
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     let wallet_name = String::from(orid);
-    let wallet_password = utils::empty_string();
+    let wallet_password = String::new();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let make_info = monero::make_wallet(info).await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
-    let jwp = db::Interface::read(&s.env, &s.handle, &k);
+    let jwp = db::DatabaseEnvironment::read(&s.env, &s.handle, &k);
     let body_str = format!("{}:{}:{}", MAKE_MSIG, orid, &make_info.result.multisig_info);
     let message: Message = Message {
         body: body_str,
@@ -552,13 +543,13 @@ pub async fn send_exchange_info(
     info: Vec<String>,
     kex_init: bool,
 ) {
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     let wallet_name = String::from(orid);
-    let wallet_password = utils::empty_string();
+    let wallet_password = String::new();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let exchange_info = monero::exchange_multisig_keys(false, info, &wallet_password).await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
-    let jwp = db::Interface::read(&s.env, &s.handle, &k);
+    let jwp = db::DatabaseEnvironment::read(&s.env, &s.handle, &k);
     let mut body_str = format!(
         "{}:{}:{}",
         KEX_ONE_MSIG, orid, &exchange_info.result.multisig_info
@@ -584,13 +575,13 @@ pub async fn send_exchange_info(
 ///
 /// `export_multisig_info` method.
 pub async fn send_export_info(orid: &String, contact: &String) {
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     let wallet_name = String::from(orid);
-    let wallet_password = utils::empty_string();
+    let wallet_password = String::new();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let exchange_info = monero::export_multisig_info().await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
-    let jwp = db::Interface::read(&s.env, &s.handle, &k);
+    let jwp = db::DatabaseEnvironment::read(&s.env, &s.handle, &k);
     let body_str = format!("{}:{}:{}", EXPORT_MSIG, orid, &exchange_info.result.info);
     let message: Message = Message {
         body: body_str,
@@ -610,7 +601,7 @@ pub async fn send_export_info(orid: &String, contact: &String) {
 /// successfully the order needs to be updated to `MultisigComplete`.
 pub async fn send_import_info(orid: &String, info: &Vec<String>) {
     let wallet_name = String::from(orid);
-    let wallet_password = utils::empty_string();
+    let wallet_password = String::new();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let pre_import = monero::import_multisig_info(info.to_vec()).await;
     monero::close_wallet(orid, &wallet_password).await;
@@ -701,8 +692,8 @@ mod tests {
 
     async fn cleanup(k: &String) {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        let s = db::Interface::async_open().await;
-        db::Interface::async_delete(&s.env, &s.handle, k).await;
+        let s = db::DatabaseEnvironment::async_open().await;
+        db::DatabaseEnvironment::async_delete(&s.env, &s.handle, k).await;
     }
 
     #[test]
@@ -740,8 +731,8 @@ mod tests {
         };
         let k = "test-key";
         tokio::spawn(async move {
-            let s = db::Interface::async_open().await;
-            db::Interface::async_write(&s.env, &s.handle, k, &Message::to_db(&expected_message))
+            let s = db::DatabaseEnvironment::async_open().await;
+            db::DatabaseEnvironment::async_write(&s.env, &s.handle, k, &Message::to_db(&expected_message))
                 .await;
             let actual_message: Message = find(&String::from(k));
             assert_eq!(expected_message.body, actual_message.body);

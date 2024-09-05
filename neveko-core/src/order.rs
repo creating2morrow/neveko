@@ -65,7 +65,7 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
         ..Default::default()
     };
     debug!("insert order: {:?}", new_order);
-    let order_wallet_password = utils::empty_string();
+    let order_wallet_password = String::new();
     let m_wallet = monero::create_wallet(&orid, &order_wallet_password).await;
     if !m_wallet {
         error!("error creating msig wallet for order {}", &orid);
@@ -74,35 +74,35 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Order {
     }
     monero::close_wallet(&orid, &order_wallet_password).await;
     debug!("insert order: {:?}", &new_order);
-    let s = db::Interface::async_open().await;
+    let s = db::DatabaseEnvironment::async_open().await;
     // inject adjudicator separately, modifying the order model is mendokusai
     let adjudicator_k = format!("{}-{}", crate::ADJUDICATOR_DB_KEY, &orid);
-    db::Interface::async_write(&s.env, &s.handle, &adjudicator_k, &j_order.adjudicator).await;
+    db::DatabaseEnvironment::async_write(&s.env, &s.handle, &adjudicator_k, &j_order.adjudicator).await;
     let k = &new_order.orid;
-    db::Interface::async_write(&s.env, &s.handle, k, &Order::to_db(&new_order)).await;
+    db::DatabaseEnvironment::async_write(&s.env, &s.handle, k, &Order::to_db(&new_order)).await;
     // in order to retrieve all orders, write keys to with ol
     let list_key = crate::ORDER_LIST_DB_KEY;
-    let r = db::Interface::async_read(&s.env, &s.handle, &String::from(list_key)).await;
-    if r == utils::empty_string() {
+    let r = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &String::from(list_key)).await;
+    if r.is_empty() {
         debug!("creating order index");
     }
     let order_list = [r, String::from(&orid)].join(",");
     debug!("writing order index {} for id: {}", order_list, list_key);
-    db::Interface::async_write(&s.env, &s.handle, &String::from(list_key), &order_list).await;
+    db::DatabaseEnvironment::async_write(&s.env, &s.handle, &String::from(list_key), &order_list).await;
     new_order
 }
 
 /// Backup order for customer
 pub fn backup(order: &Order) {
     info!("creating backup of order: {}", order.orid);
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     let k = &order.orid;
-    db::Interface::delete(&s.env, &s.handle, k);
-    db::Interface::write(&s.env, &s.handle, k, &Order::to_db(order));
+    db::DatabaseEnvironment::delete(&s.env, &s.handle, k);
+    db::DatabaseEnvironment::write(&s.env, &s.handle, k, &Order::to_db(order));
     // in order to retrieve all orders, write keys to with col
     let list_key = crate::CUSTOMER_ORDER_LIST_DB_KEY;
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
-    if r == utils::empty_string() {
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
+    if r.is_empty() {
         debug!("creating customer order index");
     }
     let mut order_list = [String::from(&r), String::from(&order.orid)].join(",");
@@ -111,15 +111,15 @@ pub fn backup(order: &Order) {
         order_list = r;
     }
     debug!("writing order index {} for id: {}", order_list, list_key);
-    db::Interface::write(&s.env, &s.handle, &String::from(list_key), &order_list);
+    db::DatabaseEnvironment::write(&s.env, &s.handle, &String::from(list_key), &order_list);
 }
 
 /// Lookup order
 pub fn find(oid: &String) -> Order {
     info!("find order: {}", &oid);
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(oid));
-    if r == utils::empty_string() {
+    let s = db::DatabaseEnvironment::open();
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(oid));
+    if r.is_empty() {
         error!("order not found");
         return Default::default();
     }
@@ -128,10 +128,10 @@ pub fn find(oid: &String) -> Order {
 
 /// Lookup all orders from admin server
 pub fn find_all() -> Vec<Order> {
-    let i_s = db::Interface::open();
+    let i_s = db::DatabaseEnvironment::open();
     let i_list_key = crate::ORDER_LIST_DB_KEY;
-    let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
-    if i_r == utils::empty_string() {
+    let i_r = db::DatabaseEnvironment::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
+    if i_r.is_empty() {
         error!("order index not found");
     }
     let i_v_oid = i_r.split(",");
@@ -139,7 +139,7 @@ pub fn find_all() -> Vec<Order> {
     let mut orders: Vec<Order> = Vec::new();
     for o in i_v {
         let order: Order = find(&o);
-        if order.orid != utils::empty_string() {
+        if !order.orid.is_empty() {
             orders.push(order);
         }
     }
@@ -148,10 +148,10 @@ pub fn find_all() -> Vec<Order> {
 
 /// Lookup all orders that customer has saved from gui
 pub fn find_all_backup() -> Vec<Order> {
-    let i_s = db::Interface::open();
+    let i_s = db::DatabaseEnvironment::open();
     let i_list_key = crate::CUSTOMER_ORDER_LIST_DB_KEY;
-    let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
-    if i_r == utils::empty_string() {
+    let i_r = db::DatabaseEnvironment::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
+    if i_r.is_empty() {
         error!("customer order index not found");
     }
     let i_v_oid = i_r.split(",");
@@ -159,7 +159,7 @@ pub fn find_all_backup() -> Vec<Order> {
     let mut orders: Vec<Order> = Vec::new();
     for o in i_v {
         let order: Order = find(&o);
-        let visible = order.orid != utils::empty_string()
+        let visible = !order.orid.is_empty()
             && order.status != order::StatusType::Delivered.value()
             && order.status != order::StatusType::Cancelled.value();
         if visible {
@@ -172,10 +172,10 @@ pub fn find_all_backup() -> Vec<Order> {
 /// Lookup all orders for customer
 pub async fn find_all_customer_orders(cid: String) -> Vec<Order> {
     info!("lookup orders for customer: {}", &cid);
-    let i_s = db::Interface::open();
+    let i_s = db::DatabaseEnvironment::open();
     let i_list_key = crate::ORDER_LIST_DB_KEY;
-    let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
-    if i_r == utils::empty_string() {
+    let i_r = db::DatabaseEnvironment::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
+    if i_r.is_empty() {
         error!("order index not found");
     }
     let i_v_oid = i_r.split(",");
@@ -183,7 +183,7 @@ pub async fn find_all_customer_orders(cid: String) -> Vec<Order> {
     let mut orders: Vec<Order> = Vec::new();
     for o in i_v {
         let order: Order = find(&o);
-        if order.orid != utils::empty_string() && order.cid == cid {
+        if !order.orid.is_empty() && order.cid == cid {
             orders.push(order);
         }
     }
@@ -193,10 +193,10 @@ pub async fn find_all_customer_orders(cid: String) -> Vec<Order> {
 /// Lookup all orders for vendor
 pub fn find_all_vendor_orders() -> Vec<Order> {
     info!("lookup orders for vendor");
-    let i_s = db::Interface::open();
+    let i_s = db::DatabaseEnvironment::open();
     let i_list_key = crate::ORDER_LIST_DB_KEY;
-    let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
-    if i_r == utils::empty_string() {
+    let i_r = db::DatabaseEnvironment::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
+    if i_r.is_empty() {
         error!("order index not found");
     }
     let i_v_oid = i_r.split(",");
@@ -205,7 +205,7 @@ pub fn find_all_vendor_orders() -> Vec<Order> {
     let vendor_b32: String = i2p::get_destination(None);
     for o in i_v {
         let order: Order = find(&o);
-        if order.orid != utils::empty_string() && order.cid != vendor_b32 {
+        if !order.orid.is_empty() && order.cid != vendor_b32 {
             // TODO(c2m): separate functionality for archived orders
             if order.status != order::StatusType::Cancelled.value()
                 && order.status != order::StatusType::Delivered.value()
@@ -221,14 +221,14 @@ pub fn find_all_vendor_orders() -> Vec<Order> {
 pub fn modify(o: Json<Order>) -> Order {
     info!("modify order: {}", &o.orid);
     let f_order: Order = find(&o.orid);
-    if f_order.orid == utils::empty_string() {
+    if f_order.orid.is_empty() {
         error!("order not found");
         return Default::default();
     }
     let u_order = Order::update(String::from(&f_order.orid), &o);
-    let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, &u_order.orid);
-    db::Interface::write(&s.env, &s.handle, &u_order.orid, &Order::to_db(&u_order));
+    let s = db::DatabaseEnvironment::open();
+    db::DatabaseEnvironment::delete(&s.env, &s.handle, &u_order.orid);
+    db::DatabaseEnvironment::write(&s.env, &s.handle, &u_order.orid, &Order::to_db(&u_order));
     u_order
 }
 
@@ -238,7 +238,7 @@ pub async fn sign_and_submit_multisig(
     tx_data_hex: &String,
 ) -> reqres::XmrRpcSubmitMultisigResponse {
     info!("signing and submitting multisig");
-    let wallet_password = utils::empty_string();
+    let wallet_password = String::new();
     monero::open_wallet(orid, &wallet_password).await;
     let r_sign: reqres::XmrRpcSignMultisigResponse =
         monero::sign_multisig(String::from(tx_data_hex)).await;
@@ -327,14 +327,14 @@ pub async fn validate_order_for_ship(orid: &String) -> reqres::FinalizeOrderResp
     let m_order: Order = find(orid);
     let contact: Contact = contact::find(&m_order.cid);
     let hex_nmpk: String = contact.nmpk;
-    let s = db::Interface::async_open().await;
+    let s = db::DatabaseEnvironment::async_open().await;
     let k = String::from(crate::DELIVERY_INFO_DB_KEY);
-    let delivery_info: String = db::Interface::async_read(&s.env, &s.handle, &k).await;
+    let delivery_info: String = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &k).await;
     let mut j_order: Order = find(orid);
     let m_product: Product = product::find(&m_order.pid);
     let price = m_product.price;
     let total = price * &m_order.quantity;
-    let wallet_password = utils::empty_string();
+    let wallet_password = String::new();
     monero::open_wallet(orid, &wallet_password).await;
     // check balance and unlock_time
     let r_balance = monero::get_balance().await;
@@ -420,7 +420,7 @@ pub async fn upload_delivery_info(
         error!("unable to encipher delivery info");
     }
     // get draft payment txset
-    let wallet_password = utils::empty_string();
+    let wallet_password = String::new();
     monero::open_wallet(orid, &wallet_password).await;
     monero::refresh().await;
     let sweep: reqres::XmrRpcSweepAllResponse =
@@ -437,17 +437,17 @@ pub async fn upload_delivery_info(
     m_order.vend_msig_txset = sweep.result.multisig_txset;
     // delivery info will be stored enciphered and separate from the rest of the
     // order
-    let s = db::Interface::async_open().await;
+    let s = db::DatabaseEnvironment::async_open().await;
     let k = String::from(crate::DELIVERY_INFO_DB_KEY);
-    db::Interface::async_write(&s.env, &s.handle, &k, &hex::encode(delivery_info)).await;
+    db::DatabaseEnvironment::async_write(&s.env, &s.handle, &k, &hex::encode(delivery_info)).await;
     modify(Json(m_order));
     // trigger nasr, this will cause the customer's neveko instance to request the
     // txset
     let i2p_address = i2p::get_destination(None);
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     // get jwp from db
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &lookup.cid);
-    let jwp = db::Interface::read(&s.env, &s.handle, &k);
+    let jwp = db::DatabaseEnvironment::read(&s.env, &s.handle, &k);
     let nasr_order = trigger_nasr(&lookup.cid, &i2p_address, &jwp, orid).await;
     if nasr_order.is_err() {
         return Default::default();
@@ -468,12 +468,12 @@ pub async fn finalize_order(orid: &String) -> reqres::FinalizeOrderResponse {
     info!("finalizing order: {}", orid);
     // verify recipient and unlock time
     let mut m_order: Order = order::find(orid);
-    if m_order.vend_msig_txset == utils::empty_string() {
+    if m_order.vend_msig_txset.is_empty() {
         error!("txset missing");
         return Default::default();
     }
     // get draft payment txset
-    let wallet_password = utils::empty_string();
+    let wallet_password = String::new();
     monero::open_wallet(orid, &wallet_password).await;
     monero::refresh().await;
     let address: String = String::from(&m_order.subaddress);
@@ -573,9 +573,9 @@ pub async fn d_trigger_finalize_request(
 ) -> reqres::FinalizeOrderResponse {
     // ugh, sorry seems we need to get jwp for vendor from fts cache
     // get jwp from db
-    let s = db::Interface::async_open().await;
+    let s = db::DatabaseEnvironment::async_open().await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-    let jwp = db::Interface::async_read(&s.env, &s.handle, &k).await;
+    let jwp = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &k).await;
     info!("executing d_trigger_finalize_request");
     // request finalize if the order status is shipped
     let order: Order = order::find(orid);
@@ -738,9 +738,9 @@ pub async fn trigger_cancel_request(contact: &String, jwp: &String, orid: &Strin
 pub async fn d_trigger_ship_request(contact: &String, orid: &String) -> Order {
     // ugh, sorry seems we need to get jwp for vendor from fts cache
     // get jwp from db
-    let s = db::Interface::async_open().await;
+    let s = db::DatabaseEnvironment::async_open().await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-    let jwp = db::Interface::async_read(&s.env, &s.handle, &k).await;
+    let jwp = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &k).await;
     info!("executing d_trigger_ship_request");
     // request shipment if the order status is MultisigComplete
     let trigger = trigger_ship_request(contact, &jwp, orid).await;
@@ -753,7 +753,7 @@ pub async fn d_trigger_ship_request(contact: &String, orid: &String) -> Order {
         let u_ship_res = ship_res.unwrap_or(Default::default());
         let hex_delivery_info: String = hex::encode(u_ship_res.delivery_info);
         let key = format!("{}-{}", crate::DELIVERY_INFO_DB_KEY, orid);
-        db::Interface::write(&s.env, &s.handle, &key, &hex_delivery_info);
+        db::DatabaseEnvironment::write(&s.env, &s.handle, &key, &hex_delivery_info);
     }
     trigger
 }
@@ -803,9 +803,9 @@ pub async fn transmit_cancel_request(
 pub async fn d_trigger_cancel_request(contact: &String, orid: &String) -> Order {
     // ugh, sorry seems we need to get jwp for vendor from fts cache
     // get jwp from db
-    let s = db::Interface::async_open().await;
+    let s = db::DatabaseEnvironment::async_open().await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-    let jwp = db::Interface::async_read(&s.env, &s.handle, &k).await;
+    let jwp = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &k).await;
     info!("executing d_trigger_cancel_request");
     // request cancel if the order status is not MultisigComplete
     let order: Order = order::find(orid);
@@ -819,7 +819,7 @@ pub async fn d_trigger_cancel_request(contact: &String, orid: &String) -> Order 
 }
 
 pub async fn init_adjudicator_wallet(orid: &String) {
-    let password = utils::empty_string();
+    let password = String::new();
     let m_wallet = monero::create_wallet(orid, &password).await;
     if !m_wallet {
         log::error!("failed to create adjudicator wallet");

@@ -10,6 +10,7 @@ use crate::{
     utils,
 };
 use clap::Parser;
+use kn0sys_lmdb_rs::MdbError;
 use log::{
     debug,
     error,
@@ -32,7 +33,7 @@ use sha2::Sha384;
 use std::collections::BTreeMap;
 
 /// Create authorization data to sign and expiration
-pub fn create(address: &String) -> Authorization {
+pub fn create(address: &String) -> Result<Authorization, MdbError> {
     info!("creating auth");
     let aid: String = format!("{}{}", crate::AUTH_DB_KEY, utils::generate_rnd());
     let rnd: String = utils::generate_rnd();
@@ -41,32 +42,35 @@ pub fn create(address: &String) -> Authorization {
     let new_auth = Authorization {
         aid,
         created,
-        uid: utils::empty_string(),
+        uid: String::new(),
         rnd,
         token,
         xmr_address: String::from(address),
     };
-    let s = db::Interface::open();
+    let env = utils::get_release_env();
+    let s = db::DatabaseEnvironment::open(&env.value())?;
     debug!("insert auth: {:?}", &new_auth);
-    let k = &new_auth.aid;
-    db::Interface::write(&s.env, &s.handle, k, &Authorization::to_db(&new_auth));
-    new_auth
+    let k = &new_auth.aid.as_bytes();
+    let v = bincode::serialize(&new_auth).unwrap_or_default();
+    db::write_chunks(&s.env, &s.handle?, k, &v);
+    Ok(new_auth)
 }
 
 /// Authorization lookup for recurring requests
-pub fn find(aid: &String) -> Authorization {
+pub fn find(aid: &String) -> Result<Authorization, MdbError> {
     info!("searching for auth: {}", aid);
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(aid));
-    debug!("auth read: {}", r);
-    if r == utils::empty_string() {
-        return Default::default();
+    let env = utils::get_release_env();
+    let s = db::DatabaseEnvironment::open(&env.value())?;
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &aid.as_bytes().to_vec())?;
+    if r.is_empty() {
+        return Err(MdbError::NotFound);
     }
-    Authorization::from_db(String::from(aid), r)
+    let result: Authorization = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
 /// Update new authorization creation time
-fn update_expiration(f_auth: &Authorization, address: &String) -> Authorization {
+fn update_expiration(f_auth: &Authorization, address: &String) -> Result<Authorization, MdbError> {
     info!("modify auth expiration");
     let data = utils::generate_rnd();
     let time: i64 = chrono::offset::Utc::now().timestamp();
@@ -77,27 +81,26 @@ fn update_expiration(f_auth: &Authorization, address: &String) -> Authorization 
         data,
         create_token(String::from(address), time),
     );
-    let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, &u_auth.aid);
-    db::Interface::write(
-        &s.env,
-        &s.handle,
-        &u_auth.aid,
-        &Authorization::to_db(&u_auth),
-    );
-    u_auth
+    let env = utils::get_release_env();
+    let s = db::DatabaseEnvironment::open(&env.value())?;
+    db::DatabaseEnvironment::delete(&s.env, &s.handle?, &u_auth.aid.as_bytes().to_vec());
+    let k = u_auth.aid.as_bytes();
+    let v = bincode::serialize(&u_auth).unwrap_or_default();
+    let s = db::DatabaseEnvironment::open(&env.value())?;
+    db::write_chunks(&s.env, &s.handle?, k, &v);
+    Ok(u_auth)
 }
 
 /// Performs the signature verfication against stored auth
-pub async fn verify_login(aid: String, uid: String, signature: String) -> Authorization {
+pub async fn verify_login(aid: String, uid: String, signature: String) -> Result<Authorization, MdbError> {
     let wallet_name = String::from(crate::APP_NAME);
     let wallet_password =
         std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
     let address = m_address.result.address;
-    let f_auth: Authorization = find(&aid);
-    if f_auth.xmr_address == utils::empty_string() {
+    let f_auth: Authorization = find(&aid)?;
+    if f_auth.xmr_address.is_empty() {
         error!("auth not found");
         monero::close_wallet(&wallet_name, &wallet_password).await;
         return create(&address);
@@ -113,51 +116,49 @@ pub async fn verify_login(aid: String, uid: String, signature: String) -> Author
     if sig_address == utils::ApplicationErrors::LoginError.value() {
         error!("signature validation failed");
         monero::close_wallet(&wallet_name, &wallet_password).await;
-        return f_auth;
+        return Ok(f_auth);
     }
-    let f_user: User = user::find(&uid);
-    if f_user.xmr_address == utils::empty_string() {
+    let f_user: User = user::find(&uid)?;
+    if f_user.xmr_address.is_empty() {
         info!("creating new user");
-        let u: User = user::create(&address);
+        let u: User = user::create(&address)?;
         // update auth with uid
         let u_auth = Authorization::update_uid(f_auth, String::from(&u.uid));
-        let s = db::Interface::open();
-        db::Interface::delete(&s.env, &s.handle, &u_auth.aid);
-        db::Interface::write(
-            &s.env,
-            &s.handle,
-            &u_auth.aid,
-            &Authorization::to_db(&u_auth),
-        );
+        let env = utils::get_release_env();
+        let s = db::DatabaseEnvironment::open(&env.value())?;
+        db::DatabaseEnvironment::delete(&s.env, &s.handle?, &u_auth.aid.as_bytes());
+        let v = bincode::serialize(&u_auth).unwrap_or_default();
+        let s = db::DatabaseEnvironment::open(&env.value())?;
+        db::write_chunks(&s.env, &s.handle?, u_auth.aid.as_bytes(), &v);
         monero::close_wallet(&wallet_name, &wallet_password).await;
-        u_auth
-    } else if f_user.xmr_address != utils::empty_string() {
+        Ok(u_auth)
+    } else if !f_user.xmr_address.is_empty() {
         info!("returning user");
-        let m_access = verify_access(&address, &signature).await;
+        let m_access = verify_access(&address, &signature).await?;
         if !m_access {
             monero::close_wallet(&wallet_name, &wallet_password).await;
-            return Default::default();
+            return Ok(Default::default());
         }
         monero::close_wallet(&wallet_name, &wallet_password).await;
-        return f_auth;
+        return Ok(f_auth);
     } else {
         error!("error creating user");
         monero::close_wallet(&wallet_name, &wallet_password).await;
-        return Default::default();
+        return Ok(Default::default());
     }
 }
 
 /// Called during auth flow to update data to sign and expiration
-async fn verify_access(address: &String, signature: &String) -> bool {
+async fn verify_access(address: &String, signature: &String) -> Result<bool, MdbError> {
     // look up auth for address
-    let f_auth: Authorization = find(address);
-    if f_auth.xmr_address != utils::empty_string() {
+    let f_auth: Authorization = find(address)?;
+    if !f_auth.xmr_address.is_empty() {
         // check expiration, generate new data to sign if necessary
         let now: i64 = chrono::offset::Utc::now().timestamp();
         let expiration = get_auth_expiration();
         if now > f_auth.created + expiration {
             update_expiration(&f_auth, address);
-            return false;
+            return Ok(false);
         }
     }
     // verify signature on the data if not expired
@@ -171,10 +172,10 @@ async fn verify_access(address: &String, signature: &String) -> bool {
     };
     if sig_address == utils::ApplicationErrors::LoginError.value() {
         debug!("signing failed");
-        return false;
+        return Ok(false);
     }
     info!("auth verified");
-    true
+    Ok(true)
 }
 
 /// get the auth expiration command line configuration
@@ -224,7 +225,7 @@ impl<'r> FromRequest<'r> for BearerToken {
         let env = utils::get_release_env();
         let dev = utils::ReleaseEnvironment::Development;
         if env == dev {
-            return Outcome::Success(BearerToken(utils::empty_string()));
+            return Outcome::Success(BearerToken(String::new()));
         }
         let token = request.headers().get_one("token");
         let wallet_name = String::from(crate::APP_NAME);
@@ -281,17 +282,17 @@ impl<'r> FromRequest<'r> for BearerToken {
 mod tests {
     use super::*;
 
-    async fn find_test_auth(k: &String) -> Authorization {
+    async fn find_test_auth(k: &String) -> Result<Authorization, MdbError> {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        let s: db::Interface = db::Interface::async_open().await;
-        let v = db::Interface::async_read(&s.env, &s.handle, k).await;
+        let s: db::Interface = db::DatabaseEnvironment::async_open("test").await;
+        let v = db::DatabaseEnvironment::read(&s.env, &s.handle, k).await;
         Authorization::from_db(String::from(k), v)
     }
 
-    async fn cleanup(k: &String) {
+    async fn cleanup(k: &String) -> Result<(), MdbError>{
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        let s = db::Interface::async_open().await;
-        db::Interface::async_delete(&s.env, &s.handle, k).await;
+        let s = db::DatabaseEnvironment::open("test").await?;
+        db::DatabaseEnvironment::delete(&s.env, &s.handle?, k).await;
     }
 
     #[test]

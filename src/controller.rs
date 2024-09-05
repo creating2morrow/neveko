@@ -121,7 +121,7 @@ pub async fn retrieve_order(
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Order>> {
     let m_order = order::secure_retrieval(&orid, &signature).await;
-    if m_order.cid == utils::empty_string() {
+    if m_order.cid.is_empty() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
     Custom(Status::Created, Json(m_order))
@@ -205,7 +205,7 @@ pub async fn trigger_nasr(
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Order>> {
     let order: models::Order = order::d_trigger_ship_request(&vendor, &orid).await;
-    if order.orid == utils::empty_string() {
+    if order.orid.is_empty() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
     Custom(Status::Ok, Json(order))
@@ -223,7 +223,7 @@ pub async fn cancel_order(
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Order>> {
     let m_order = order::cancel_order(&orid, &signature).await;
-    if m_order.cid == utils::empty_string() {
+    if m_order.cid.is_empty() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
     Custom(Status::Ok, Json(m_order))

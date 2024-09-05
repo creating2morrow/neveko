@@ -39,15 +39,15 @@ impl Default for MultisigManagement {
             completed_prepare: false,
             completed_shipping_request: false,
             completed_make: false,
-            exchange_multisig_keys: utils::empty_string(),
-            export_info: utils::empty_string(),
+            exchange_multisig_keys: String::new(),
+            export_info: String::new(),
             has_adjudicator: false,
-            make_info: utils::empty_string(),
-            adjudicator: utils::empty_string(),
-            prepare_info: utils::empty_string(),
+            make_info: String::new(),
+            adjudicator: String::new(),
+            prepare_info: String::new(),
             query_adjudicator: false,
-            signed_txset: utils::empty_string(),
-            vendor: utils::empty_string(),
+            signed_txset: String::new(),
+            vendor: String::new(),
         }
     }
 }
@@ -140,8 +140,8 @@ impl Default for MarketApp {
         let (_refresh_on_delete_product_tx, _refresh_on_delete_product_rx) =
             std::sync::mpsc::channel();
         let read_product_image = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
-        let s = db::Interface::open();
-        let r = db::Interface::read(&s.env, &s.handle, contact::NEVEKO_VENDOR_ENABLED);
+        let s = db::DatabaseEnvironment::open(&utils::get_release_env().value()).unwrap();
+        let r = db::DatabaseEnvironment::read(&s.env, &s.handle, contact::NEVEKO_VENDOR_ENABLED);
         let is_vendor_enabled = r == contact::NEVEKO_VENDOR_MODE_ON;
         let (contact_info_tx, contact_info_rx) = std::sync::mpsc::channel();
         let (get_vendor_products_tx, get_vendor_products_rx) = std::sync::mpsc::channel();
@@ -164,10 +164,10 @@ impl Default for MarketApp {
             contact_timeout_rx,
             contact_timeout_tx,
             customer_orders: Vec::new(),
-            cipher: utils::empty_string(),
+            cipher: String::new(),
             ciphered_tx,
             ciphered_rx,
-            find_vendor: utils::empty_string(),
+            find_vendor: String::new(),
             get_vendor_products_rx,
             get_vendor_products_tx,
             get_vendor_product_rx,
@@ -195,7 +195,7 @@ impl Default for MarketApp {
             is_window_shopping: false,
             msig: Default::default(),
             m_order: Default::default(),
-            order_xmr_address: utils::empty_string(),
+            order_xmr_address: String::new(),
             order_xmr_address_rx,
             order_xmr_address_tx,
             order_qr: egui_extras::RetainedImage::from_image_bytes("qr.png", &contents).unwrap(),
@@ -206,8 +206,8 @@ impl Default for MarketApp {
             our_prepare_info_tx,
             new_order: Default::default(),
             new_order_price: 0,
-            new_order_shipping_address: utils::empty_string(),
-            new_order_quantity: utils::empty_string(),
+            new_order_shipping_address: String::new(),
+            new_order_quantity: String::new(),
             orders: Vec::new(),
             product_from_vendor: Default::default(),
             product_image: egui_extras::RetainedImage::from_image_bytes(
@@ -216,12 +216,12 @@ impl Default for MarketApp {
             )
             .unwrap(),
             products: Vec::new(),
-            product_update_pid: utils::empty_string(),
-            new_product_image: utils::empty_string(),
-            new_product_name: utils::empty_string(),
-            new_product_desc: utils::empty_string(),
-            new_product_price: utils::empty_string(),
-            new_product_qty: utils::empty_string(),
+            product_update_pid: String::new(),
+            new_product_image: String::new(),
+            new_product_name: String::new(),
+            new_product_desc: String::new(),
+            new_product_price: String::new(),
+            new_product_qty: String::new(),
             _refresh_on_delete_product_tx,
             _refresh_on_delete_product_rx,
             s_contact: Default::default(),
@@ -238,7 +238,7 @@ impl Default for MarketApp {
             submit_txset_tx,
             vendor_status: Default::default(),
             vendors: Vec::new(),
-            upload_dinfo_str: utils::empty_string(),
+            upload_dinfo_str: String::new(),
             upload_dinfo_rx,
             upload_dinfo_tx,
         }
@@ -252,7 +252,7 @@ impl eframe::App for MarketApp {
 
         if let Ok(submit_order) = self.submit_order_rx.try_recv() {
             self.s_order = submit_order;
-            if self.s_order.orid != utils::empty_string() {
+            if !self.s_order.orid.is_empty() {
                 self.is_ordering = false;
                 self.is_loading = false;
             }
@@ -260,7 +260,7 @@ impl eframe::App for MarketApp {
 
         if let Ok(contact_info) = self.contact_info_rx.try_recv() {
             self.s_contact = contact_info;
-            if self.s_contact.xmr_address != utils::empty_string() {
+            if !self.s_contact.xmr_address.is_empty() {
                 self.is_pinging = false;
                 self.vendor_status.is_vendor = self.s_contact.is_vendor;
             }
@@ -325,7 +325,7 @@ impl eframe::App for MarketApp {
 
         if let Ok(a) = self.order_xmr_address_rx.try_recv() {
             self.order_xmr_address = a.result.address;
-            if self.order_xmr_address != utils::empty_string() {
+            if !self.order_xmr_address.is_empty() {
                 self.is_showing_order_qr = true;
             }
         }
@@ -357,7 +357,7 @@ impl eframe::App for MarketApp {
         }
 
         if let Ok(disputed) = self.dispute_request_rx.try_recv() {
-            if disputed.tx_set != utils::empty_string() {
+            if !disputed.tx_set.is_empty() {
                 log::info!("dispute in progress");
             }
             self.is_loading = false;
@@ -391,7 +391,7 @@ impl eframe::App for MarketApp {
                     ui.add(egui::Spinner::new());
                     ui.label("pinging...");
                 }
-                let status = if self.s_contact.xmr_address != utils::empty_string() {
+                let status = if !self.s_contact.xmr_address.is_empty() {
                     "online"
                 } else {
                     "offline"
@@ -452,7 +452,7 @@ impl eframe::App for MarketApp {
                         let adjudicator_db =
                             utils::search_gui_db(String::from(&prefix), self.m_order.orid.clone());
                         log::debug!("adjudicator db: {}", adjudicator_db);
-                        self.msig.has_adjudicator = adjudicator_db != utils::empty_string();
+                        self.msig.has_adjudicator = !adjudicator_db.is_empty();
                         self.msig.adjudicator = adjudicator_db;
                         self.msig.query_adjudicator = true;
                     } else if self.msig.query_adjudicator && !self.msig.has_adjudicator {
@@ -473,7 +473,7 @@ impl eframe::App for MarketApp {
                         if !self.msig.completed_prepare {
                             if ui.button("Clear Mediator").clicked() {
                                 utils::clear_gui_db(prefix, self.m_order.orid.clone());
-                                self.msig.adjudicator = utils::empty_string();
+                                self.msig.adjudicator = String::new();
                                 self.msig.has_adjudicator = false;
                                 self.msig.query_adjudicator = false;
                             }
@@ -695,7 +695,7 @@ impl eframe::App for MarketApp {
                                 String::from(crate::GUI_MSIG_EXPORT_DB_KEY),
                                 String::from(&self.m_order.orid.clone()),
                             );
-                            if info != utils::empty_string() {
+                            if !info.is_empty() {
                                 self.msig.completed_export = true;
                             }
                         }
@@ -779,7 +779,7 @@ impl eframe::App for MarketApp {
             .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
-                if !self.is_order_qr_set && self.order_xmr_address != utils::empty_string() {
+                if !self.is_order_qr_set && !self.order_xmr_address.is_empty() {
                     let code = QrCode::new(&self.order_xmr_address.clone()).unwrap();
                     let image = code.render::<Luma<u8>>().build();
                     let file_path = format!(
@@ -814,7 +814,7 @@ impl eframe::App for MarketApp {
                 ui.label(format!("{}", self.cipher));
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
-                    self.cipher = utils::empty_string();
+                    self.cipher = String::new();
                     self.is_showing_deciphered_delivery_info = false;
                 }
             });
@@ -1026,8 +1026,8 @@ impl eframe::App for MarketApp {
                         );
                         self.new_order = Default::default();
                         self.new_order_price = 0;
-                        self.new_order_quantity = utils::empty_string();
-                        self.new_order_shipping_address = utils::empty_string();
+                        self.new_order_quantity = String::new();
+                        self.new_order_shipping_address = String::new();
                         self.is_showing_products = false;
                     }
                 }
@@ -1057,8 +1057,8 @@ impl eframe::App for MarketApp {
                     ui.text_edit_singleline(&mut self.upload_dinfo_str)
                         .labelled_by(delivery_info.id);
                 });
-                if self.new_order.orid != utils::empty_string()
-                    && self.upload_dinfo_str != utils::empty_string()
+                if !self.new_order.orid.is_empty()
+                    && !self.upload_dinfo_str.is_empty()
                 {
                     if ui.button("Trigger NASR").clicked() {
                         // upload delivery info
@@ -1146,7 +1146,7 @@ impl eframe::App for MarketApp {
                                                 String::from(crate::GUI_NICK_DB_KEY),
                                                 String::from(&v.i2p_address),
                                             );
-                                            let nick = if nick_db == utils::empty_string() {
+                                            let nick = if nick_db.is_empty() {
                                                 String::from("anon")
                                             } else {
                                                 nick_db
@@ -1199,7 +1199,7 @@ impl eframe::App for MarketApp {
                                             Err(_e) => 0,
                                         };
                                         if now < expire
-                                            && self.vendor_status.jwp != utils::empty_string()
+                                            && !self.vendor_status.jwp.is_empty()
                                             && v.i2p_address == self.vendor_status.i2p
                                             && self.vendor_status.is_vendor
                                         {
@@ -1239,7 +1239,7 @@ impl eframe::App for MarketApp {
                     ui.add(egui::Spinner::new());
                     ui.label("pinging...");
                 }
-                let status = if self.s_contact.xmr_address != utils::empty_string() {
+                let status = if !self.s_contact.xmr_address.is_empty() {
                     "online"
                 } else {
                     "offline"
@@ -1495,20 +1495,20 @@ impl eframe::App for MarketApp {
                     };
                     let j_product = utils::product_to_json(&product);
                     product::modify(j_product);
-                    self.new_product_desc = utils::empty_string();
-                    self.new_product_name = utils::empty_string();
-                    self.new_product_price = utils::empty_string();
-                    self.new_product_qty = utils::empty_string();
-                    self.new_product_image = utils::empty_string();
+                    self.new_product_desc = String::new();
+                    self.new_product_name = String::new();
+                    self.new_product_price = String::new();
+                    self.new_product_qty = String::new();
+                    self.new_product_image = String::new();
                     self.is_showing_product_update = false;
                     self.products = product::find_all();
                 }
                 if ui.button("Exit").clicked() {
-                    self.new_product_desc = utils::empty_string();
-                    self.new_product_name = utils::empty_string();
-                    self.new_product_price = utils::empty_string();
-                    self.new_product_qty = utils::empty_string();
-                    self.new_product_image = utils::empty_string();
+                    self.new_product_desc = String::new();
+                    self.new_product_name = String::new();
+                    self.new_product_price = String::new();
+                    self.new_product_qty = String::new();
+                    self.new_product_image = String::new();
                     self.is_showing_product_update = false;
                 }
             });
@@ -1688,7 +1688,7 @@ impl eframe::App for MarketApp {
                         Err(_) => 0,
                     };
                     let product: models::Product = models::Product {
-                        pid: utils::empty_string(),
+                        pid: String::new(),
                         description: self.new_product_desc.clone(),
                         image,
                         in_stock: qty > 0,
@@ -1698,11 +1698,11 @@ impl eframe::App for MarketApp {
                     };
                     let j_product = utils::product_to_json(&product);
                     product::create(j_product);
-                    self.new_product_desc = utils::empty_string();
-                    self.new_product_name = utils::empty_string();
-                    self.new_product_price = utils::empty_string();
-                    self.new_product_qty = utils::empty_string();
-                    self.new_product_image = utils::empty_string();
+                    self.new_product_desc = String::new();
+                    self.new_product_name = String::new();
+                    self.new_product_price = String::new();
+                    self.new_product_qty = String::new();
+                    self.new_product_image = String::new();
                 }
                 ui.label("\n");
                 if ui.button("View Products").clicked() {
@@ -1833,13 +1833,13 @@ fn send_prepare_info_req(
         );
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
-        let wallet_password = utils::empty_string();
+        let wallet_password = String::new();
         monero::create_wallet(&w_orid, &wallet_password).await;
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
             log::error!("failed to open wallet");
             monero::close_wallet(&w_orid, &wallet_password).await;
-            let _ = tx.send(utils::empty_string());
+            let _ = tx.send(String::new());
             return;
         }
         monero::close_wallet(&w_orid, &wallet_password).await;
@@ -1853,7 +1853,7 @@ fn send_prepare_info_req(
         );
         // Request adjudicator and vendor while we're at it
         // Will coordinating send this on make requests next
-        let s = db::Interface::async_open().await;
+        let s = db::DatabaseEnvironment::async_open().await;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::PREPARE_MSIG,
@@ -1866,9 +1866,9 @@ fn send_prepare_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_prepare = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_prepare = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
-        if v_prepare == utils::empty_string() {
+        let m_prepare = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_prepare = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
+        if v_prepare.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
                 message::PREPARE_MSIG
@@ -1883,7 +1883,7 @@ fn send_prepare_info_req(
             };
             let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
         }
-        if m_prepare == utils::empty_string() {
+        if m_prepare.is_empty() {
             log::debug!(
                 "constructing adjudicator {} msig messages",
                 message::PREPARE_MSIG
@@ -1921,12 +1921,12 @@ fn send_make_info_req(
         );
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
-        let wallet_password = utils::empty_string();
+        let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
             monero::close_wallet(&w_orid, &wallet_password).await;
             log::error!("failed to open wallet");
-            let _ = tx.send(utils::empty_string());
+            let _ = tx.send(String::new());
             return;
         }
         let mut prepare_info_prep = Vec::new();
@@ -1938,7 +1938,7 @@ fn send_make_info_req(
             String::from(crate::GUI_MSIG_PREPARE_DB_KEY),
             String::from(&w_orid),
         );
-        let s = db::Interface::async_open().await;
+        let s = db::DatabaseEnvironment::async_open().await;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::PREPARE_MSIG,
@@ -1951,8 +1951,8 @@ fn send_make_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_prepare = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_prepare = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
+        let m_prepare = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_prepare = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
         prepare_info_prep.push(String::from(&m_prepare));
         prepare_info_prep.push(String::from(&v_prepare));
         m_prepare_info_send.push(String::from(&c_prepare));
@@ -1963,11 +1963,11 @@ fn send_make_info_req(
             String::from(crate::GUI_MSIG_MAKE_DB_KEY),
             String::from(&w_orid),
         );
-        if local_make == utils::empty_string() {
+        if local_make.is_empty() {
             let make_info = monero::make_wallet(prepare_info_prep).await;
             monero::close_wallet(&w_orid, &wallet_password).await;
             let ref_make_info: &String = &make_info.result.multisig_info;
-            if String::from(ref_make_info) != utils::empty_string() {
+            if !String::from(ref_make_info).is_empty() {
                 utils::write_gui_db(
                     String::from(crate::GUI_MSIG_MAKE_DB_KEY),
                     String::from(&w_orid),
@@ -1978,7 +1978,7 @@ fn send_make_info_req(
         // Request adjudicator and vendor while we're at it
         // Will coordinating send this on make requests next
 
-        let s = db::Interface::async_open().await;
+        let s = db::DatabaseEnvironment::async_open().await;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::MAKE_MSIG,
@@ -1991,9 +1991,9 @@ fn send_make_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_make = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_make = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
-        if v_make == utils::empty_string() {
+        let m_make = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_make = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
+        if v_make.is_empty() {
             log::debug!("constructing vendor {} msig messages", message::MAKE_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
@@ -2005,7 +2005,7 @@ fn send_make_info_req(
             };
             let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
         }
-        if m_make == utils::empty_string() {
+        if m_make.is_empty() {
             log::debug!(
                 "constructing adjudicator {} msig messages",
                 message::MAKE_MSIG
@@ -2043,12 +2043,12 @@ fn send_kex_initial_req(
         );
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
-        let wallet_password = utils::empty_string();
+        let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
             monero::close_wallet(&w_orid, &wallet_password).await;
             log::error!("failed to open wallet");
-            let _ = tx.send(utils::empty_string());
+            let _ = tx.send(String::new());
             return;
         }
         let mut kex_init_prep = Vec::new();
@@ -2060,7 +2060,7 @@ fn send_kex_initial_req(
             String::from(crate::GUI_MSIG_MAKE_DB_KEY),
             String::from(&w_orid),
         );
-        let s = db::Interface::async_open().await;
+        let s = db::DatabaseEnvironment::async_open().await;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::MAKE_MSIG,
@@ -2073,8 +2073,8 @@ fn send_kex_initial_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_init = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_kex_init = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
+        let m_kex_init = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_kex_init = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
         kex_init_prep.push(String::from(&m_kex_init));
         kex_init_prep.push(String::from(&v_kex_init));
         m_kex_init_send.push(String::from(&c_kex_init));
@@ -2085,12 +2085,12 @@ fn send_kex_initial_req(
             String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
             String::from(&w_orid),
         );
-        if local_kex_init == utils::empty_string() {
+        if local_kex_init.is_empty() {
             let kex_out =
                 monero::exchange_multisig_keys(false, kex_init_prep, &wallet_password).await;
             monero::close_wallet(&w_orid, &wallet_password).await;
             let ref_kex_info: &String = &kex_out.result.multisig_info;
-            if String::from(ref_kex_info) != utils::empty_string() {
+            if !String::from(ref_kex_info).is_empty() {
                 utils::write_gui_db(
                     String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
                     String::from(&w_orid),
@@ -2100,7 +2100,7 @@ fn send_kex_initial_req(
         }
         // Request adjudicator and vendor while we're at it
         // Will coordinating send this on kex round two next
-        let s = db::Interface::async_open().await;
+        let s = db::DatabaseEnvironment::async_open().await;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::KEX_ONE_MSIG,
@@ -2113,9 +2113,9 @@ fn send_kex_initial_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_init = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_kex_init = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
-        if v_kex_init == utils::empty_string() {
+        let m_kex_init = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_kex_init = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
+        if v_kex_init.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
                 message::KEX_ONE_MSIG
@@ -2130,7 +2130,7 @@ fn send_kex_initial_req(
             };
             let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
         }
-        if m_kex_init == utils::empty_string() {
+        if m_kex_init.is_empty() {
             log::debug!(
                 "constructing adjudicator {} msig messages",
                 message::KEX_ONE_MSIG
@@ -2168,12 +2168,12 @@ fn send_kex_final_req(
         );
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
-        let wallet_password = utils::empty_string();
+        let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
             monero::close_wallet(&w_orid, &wallet_password).await;
             log::error!("failed to open wallet");
-            let _ = tx.send(utils::empty_string());
+            let _ = tx.send(String::new());
             return;
         }
         let mut kex_final_prep = Vec::new();
@@ -2183,7 +2183,7 @@ fn send_kex_final_req(
             String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
             String::from(&w_orid),
         );
-        let s = db::Interface::async_open().await;
+        let s = db::DatabaseEnvironment::async_open().await;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::KEX_ONE_MSIG,
@@ -2196,8 +2196,8 @@ fn send_kex_final_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_final = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_kex_final = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
+        let m_kex_final = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_kex_final = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
         kex_final_prep.push(String::from(&m_kex_final));
         kex_final_prep.push(String::from(&v_kex_final));
         m_kex_final_send.push(String::from(&c_kex_final));
@@ -2208,12 +2208,12 @@ fn send_kex_final_req(
             String::from(crate::GUI_MSIG_KEX_TWO_DB_KEY),
             String::from(&w_orid),
         );
-        if local_kex_final == utils::empty_string() {
+        if local_kex_final.is_empty() {
             let kex_out =
                 monero::exchange_multisig_keys(false, kex_final_prep, &wallet_password).await;
             monero::close_wallet(&w_orid, &wallet_password).await;
             let ref_kex_info: &String = &kex_out.result.address;
-            if String::from(ref_kex_info) != utils::empty_string() {
+            if !String::from(ref_kex_info).is_empty() {
                 utils::write_gui_db(
                     String::from(crate::GUI_MSIG_KEX_TWO_DB_KEY),
                     String::from(&w_orid),
@@ -2222,7 +2222,7 @@ fn send_kex_final_req(
             }
         }
         // we can verify all good if the senders all send back the correct wallet address
-        let s = db::Interface::async_open().await;
+        let s = db::DatabaseEnvironment::async_open().await;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::KEX_TWO_MSIG,
@@ -2235,9 +2235,9 @@ fn send_kex_final_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_final = db::Interface::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_kex_final = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
-        if v_kex_final == utils::empty_string() {
+        let m_kex_final = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
+        let v_kex_final = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
+        if v_kex_final.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
                 message::KEX_TWO_MSIG
@@ -2252,7 +2252,7 @@ fn send_kex_final_req(
             };
             let _v_result = message::d_trigger_msig_info(&vendor, &v_jwp, &v_msig_request).await;
         }
-        if m_kex_final == utils::empty_string() {
+        if m_kex_final.is_empty() {
             log::debug!(
                 "constructing adjudicator {} msig messages",
                 message::KEX_TWO_MSIG
@@ -2276,7 +2276,7 @@ fn send_kex_final_req(
 fn set_order_address(orid: &String, tx: Sender<reqres::XmrRpcAddressResponse>, ctx: egui::Context) {
     let order_id = String::from(orid);
     tokio::spawn(async move {
-        let wallet_password = utils::empty_string();
+        let wallet_password = String::new();
         monero::open_wallet(&order_id, &wallet_password).await;
         let address: reqres::XmrRpcAddressResponse = monero::get_address().await;
         monero::close_wallet(&order_id, &wallet_password).await;
@@ -2295,7 +2295,7 @@ fn verify_order_wallet_funded(
     let l_contact = String::from(contact);
     tokio::spawn(async move {
         log::info!("executing verify_order_wallet_funded");
-        let wallet_password = utils::empty_string();
+        let wallet_password = String::new();
         monero::open_wallet(&order_id, &wallet_password).await;
         let _ = monero::refresh().await;
         let pre_bal = monero::get_balance().await;
@@ -2334,12 +2334,12 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
     tokio::spawn(async move {
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
-        let wallet_password = utils::empty_string();
+        let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
             log::error!("failed to open wallet");
             monero::close_wallet(&w_orid, &wallet_password).await;
-            let _ = tx.send(utils::empty_string());
+            let _ = tx.send(String::new());
             return;
         }
         let mut info: Vec<String> = Vec::new();
@@ -2353,15 +2353,15 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
         );
         // Request vendor while we're at it
         // Will coordinating send this on make requests next
-        let s = db::Interface::async_open().await;
+        let s = db::DatabaseEnvironment::async_open().await;
         let v_msig_key = format!(
             "{}-{}-{}",
             message::EXPORT_MSIG,
             String::from(&v_orid),
             vendor
         );
-        let v_export = db::Interface::async_read(&s.env, &s.handle, &v_msig_key).await;
-        if v_export == utils::empty_string() {
+        let v_export = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
+        if v_export.is_empty() {
             log::debug!("constructing vendor {} msig messages", message::EXPORT_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
                 contact: i2p::get_destination(None),
@@ -2422,14 +2422,14 @@ fn validate_msig_step(
     vendor: &String,
     sub_type: &String,
 ) -> bool {
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open(&utils::get_release_env().value()).unwrap();
     let m_msig_key = format!("{}-{}-{}", sub_type, orid, adjudicator);
     let v_msig_key = format!("{}-{}-{}", sub_type, orid, vendor);
-    let m_info = db::Interface::read(&s.env, &s.handle, &m_msig_key);
-    let v_info = db::Interface::read(&s.env, &s.handle, &v_msig_key);
+    let m_info = db::DatabaseEnvironment::read(&s.env, &s.handle, &m_msig_key);
+    let v_info = db::DatabaseEnvironment::read(&s.env, &s.handle, &v_msig_key);
     log::debug!("{} adjudicator info: {}", sub_type, &m_info);
     log::debug!("{} vendor info: {}", sub_type, &v_info);
-    m_info != utils::empty_string() && v_info != utils::empty_string()
+    !m_info.is_empty() && !v_info.is_empty()
 }
 
 fn release_txset(contact: String, orid: String, ctx: egui::Context, tx: Sender<bool>) {
@@ -2454,7 +2454,7 @@ fn upload_dinfo_req(dinfo: String, orid: String, ctx: egui::Context, tx: Sender<
     tokio::spawn(async move {
         log::info!("async upload_dinfo_req");
         let dinfo = order::upload_delivery_info(&orid, &dinfo).await;
-        let _ = tx.send(dinfo.orid != utils::empty_string());
+        let _ = tx.send(!dinfo.orid.is_empty());
         ctx.request_repaint();
     });
 }
@@ -2477,7 +2477,7 @@ fn create_dispute_req(
         let address_res = monero::get_address().await;
         monero::close_wallet(&wallet_name, &wallet_password).await;
         // generate a txset for the adjudicator
-        let wallet_password = utils::empty_string();
+        let wallet_password = String::new();
         monero::open_wallet(&d_orid, &wallet_password).await;
         let transfer = monero::sweep_all(String::from(address_res.result.address)).await;
         monero::close_wallet(&d_orid, &wallet_password).await;

@@ -30,13 +30,13 @@ pub fn create(d: Json<Product>) -> Product {
         qty: d.qty,
     };
     debug!("insert product: {:?}", &new_product);
-    let s = db::Interface::open();
+    let s = db::DatabaseEnvironment::open();
     let k = &new_product.pid;
-    db::Interface::write(&s.env, &s.handle, k, &Product::to_db(&new_product));
+    db::DatabaseEnvironment::write(&s.env, &s.handle, k, &Product::to_db(&new_product));
     // in order to retrieve all products, write keys to with pl
     let list_key = crate::PRODUCT_LIST_DB_KEY;
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
-    if r == utils::empty_string() {
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
+    if r.is_empty() {
         debug!("creating product index");
     }
     let product_list = [r, String::from(&pid)].join(",");
@@ -44,15 +44,15 @@ pub fn create(d: Json<Product>) -> Product {
         "writing product index {} for id: {}",
         product_list, list_key
     );
-    db::Interface::write(&s.env, &s.handle, &String::from(list_key), &product_list);
+    db::DatabaseEnvironment::write(&s.env, &s.handle, &String::from(list_key), &product_list);
     new_product
 }
 
 /// Single Product lookup
 pub fn find(pid: &String) -> Product {
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(pid));
-    if r == utils::empty_string() {
+    let s = db::DatabaseEnvironment::open();
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(pid));
+    if r.is_empty() {
         error!("product not found");
         return Default::default();
     }
@@ -61,10 +61,10 @@ pub fn find(pid: &String) -> Product {
 
 /// Product lookup for all
 pub fn find_all() -> Vec<Product> {
-    let i_s = db::Interface::open();
+    let i_s = db::DatabaseEnvironment::open();
     let i_list_key = crate::PRODUCT_LIST_DB_KEY;
-    let i_r = db::Interface::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
-    if i_r == utils::empty_string() {
+    let i_r = db::DatabaseEnvironment::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
+    if i_r.is_empty() {
         error!("product index not found");
     }
     let i_v_pid = i_r.split(",");
@@ -72,7 +72,7 @@ pub fn find_all() -> Vec<Product> {
     let mut products: Vec<Product> = Vec::new();
     for p in i_v {
         let mut product: Product = find(&p);
-        if product.pid != utils::empty_string() {
+        if !product.pid.is_empty() {
             // don't return images
             product.image = Vec::new();
             products.push(product);
@@ -86,14 +86,14 @@ pub fn modify(p: Json<Product>) -> Product {
     // TODO(c2m): don't allow modification to products with un-delivered orders
     info!("modify product: {}", &p.pid);
     let f_prod: Product = find(&p.pid);
-    if f_prod.pid == utils::empty_string() {
+    if f_prod.pid.is_empty() {
         error!("product not found");
         return Default::default();
     }
     let u_prod = Product::update(f_prod, &p);
-    let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, &u_prod.pid);
-    db::Interface::write(&s.env, &s.handle, &u_prod.pid, &Product::to_db(&u_prod));
+    let s = db::DatabaseEnvironment::open();
+    db::DatabaseEnvironment::delete(&s.env, &s.handle, &u_prod.pid);
+    db::DatabaseEnvironment::write(&s.env, &s.handle, &u_prod.pid, &Product::to_db(&u_prod));
     u_prod
 }
 

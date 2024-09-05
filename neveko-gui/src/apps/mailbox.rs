@@ -23,7 +23,7 @@ impl Default for MailBoxApp {
         let (refresh_on_delete_tx, refresh_on_delete_rx) = std::sync::mpsc::channel();
         let (deciphered_tx, deciphered_rx) = std::sync::mpsc::channel();
         MailBoxApp {
-            deciphered: utils::empty_string(),
+            deciphered: String::new(),
             is_showing_decipher: false,
             messages: Vec::new(),
             message_init: false,
@@ -67,7 +67,7 @@ impl eframe::App for MailBoxApp {
                 ui.label(format!("{}", self.deciphered));
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
-                    self.deciphered = utils::empty_string();
+                    self.deciphered = String::new();
                     self.is_showing_decipher = false;
                 }
             });

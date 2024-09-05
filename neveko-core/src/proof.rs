@@ -31,25 +31,13 @@ use serde::{
 use sha2::Sha512;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct TxProof {
     pub subaddress: String,
     pub confirmations: u64,
     pub hash: String,
     pub message: String,
     pub signature: String,
-}
-
-impl Default for TxProof {
-    fn default() -> Self {
-        TxProof {
-            subaddress: utils::empty_string(),
-            confirmations: 0,
-            hash: utils::empty_string(),
-            message: utils::empty_string(),
-            signature: utils::empty_string(),
-        }
-    }
 }
 
 /// Provide neccessary information for contacts to
@@ -89,9 +77,9 @@ pub async fn create_jwp(proof: &TxProof) -> String {
     info!("creating jwp");
     // validate the proof
     let c_txp: TxProof = validate_proof(proof).await;
-    if c_txp.hash == utils::empty_string() {
+    if c_txp.hash.is_empty() {
         error!("invalid transaction proof");
-        return utils::empty_string();
+        return String::new();
     }
     let jwp_secret_key = utils::get_jwp_secret_key();
     let key: Hmac<Sha512> = Hmac::new_from_slice(jwp_secret_key.as_bytes()).expect("hash");
@@ -134,10 +122,12 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
             match res {
                 Ok(r) => {
                     // cache the jwp for for fts
-                    let s = db::Interface::open();
+                    let env = utils::get_release_env();
+                    let s = db::DatabaseEnvironment::open(&env.value())?;
                     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-                    db::Interface::delete(&s.env, &s.handle, &k);
-                    db::Interface::write(&s.env, &s.handle, &k, &r.jwp);
+                    db::DatabaseEnvironment::delete(&s.env, &s.handle?, k.as_bytes())?;
+                    let s = db::DatabaseEnvironment::open(&env.value())?;
+                    db::write_chunks(&s.env, &s.handle?, &k.as_bytes(), &r.jwp.as_bytes().to_vec());
                     Ok(r)
                 }
                 _ => Ok(Default::default()),

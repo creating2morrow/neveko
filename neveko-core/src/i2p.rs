@@ -65,7 +65,7 @@ async fn find_tunnels() {
         "/home/{}/.i2p-zero/config/tunnels.json",
         env::var("USER").unwrap_or(String::from("user"))
     );
-    let contents = fs::read_to_string(file_path).unwrap_or(utils::empty_string());
+    let contents = fs::read_to_string(file_path).unwrap_or(String::new());
     debug!("i2p tunnels: {}", contents);
     let has_app_tunnel = contents.contains(&format!("{}", app_port));
     let proxy_port = get_i2p_proxy_port();
@@ -209,11 +209,11 @@ pub fn get_destination(port: Option<u16>) -> String {
     );
     let args = args::Args::parse();
     let is_advanced_mode =
-        std::env::var(crate::NEVEKO_I2P_ADVANCED_MODE).unwrap_or(utils::empty_string());
+        std::env::var(crate::NEVEKO_I2P_ADVANCED_MODE).unwrap_or(String::new());
     if args.i2p_advanced || is_advanced_mode == *"1" {
         let advanced_tunnel =
-            std::env::var(crate::NEVEKO_I2P_TUNNELS_JSON).unwrap_or(utils::empty_string());
-        let manual_tunnel = if advanced_tunnel == utils::empty_string() {
+            std::env::var(crate::NEVEKO_I2P_TUNNELS_JSON).unwrap_or(String::new());
+        let manual_tunnel = if advanced_tunnel.is_empty() {
             args.i2p_tunnels_json
         } else {
             advanced_tunnel
@@ -223,21 +223,21 @@ pub fn get_destination(port: Option<u16>) -> String {
     // Don't panic if i2p-zero isn't installed
     let contents = match fs::read_to_string(file_path) {
         Ok(file) => file,
-        _ => utils::empty_string(),
+        _ => String::new(),
     };
-    if contents != utils::empty_string() {
+    if !contents.is_empty() {
         let input = contents.to_string();
         let j: Tunnels = serde_json::from_str(&input).unwrap_or(Default::default());
-        let mut destination: String = utils::empty_string();
+        let mut destination: String = String::new();
         let tunnels: Vec<Tunnel> = j.tunnels;
         for tunnel in tunnels {
             if tunnel.port == format!("{}", port.unwrap_or(utils::get_app_port())) {
-                destination = tunnel.dest.unwrap_or(utils::empty_string());
+                destination = tunnel.dest.unwrap_or(String::new());
             }
         }
         return destination;
     }
-    utils::empty_string()
+    String::new()
 }
 
 /// Ping the i2p-zero http proxy `tunnel-control http.state <port>`

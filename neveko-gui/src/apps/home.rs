@@ -24,10 +24,6 @@ pub struct HomeApp {
     connections: utils::Connections,
     core_timeout_tx: Sender<bool>,
     core_timeout_rx: Receiver<bool>,
-    has_install_failed: bool,
-    installations: utils::Installations,
-    installation_tx: Sender<bool>,
-    installation_rx: Receiver<bool>,
     is_core_running: bool,
     is_editing_connections: bool,
     is_init: bool,
@@ -111,10 +107,6 @@ impl Default for HomeApp {
             connections,
             core_timeout_rx,
             core_timeout_tx,
-            has_install_failed,
-            installations,
-            installation_rx,
-            installation_tx,
             is_core_running,
             is_editing_connections,
             is_init,
@@ -208,7 +200,7 @@ impl eframe::App for HomeApp {
             .vscroll(true)
             .show(ctx, |ui| {
                 let mut i2p_address = i2p::get_destination(None);
-                if !self.is_qr_set && i2p_address != utils::empty_string() {
+                if !self.is_qr_set && !i2p_address.is_empty() {
                     let code = QrCode::new(&i2p_address).unwrap();
                     let image = code.render::<Luma<u8>>().build();
                     let file_path = format!(
@@ -229,22 +221,6 @@ impl eframe::App for HomeApp {
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
                     self.is_showing_qr = false;
-                }
-            });
-
-        // Installation Error window
-        //-----------------------------------------------------------------------------------
-        let mut has_install_failed = self.has_install_failed;
-        egui::Window::new("error")
-            .open(&mut has_install_failed)
-            .title_bar(false)
-            .vscroll(false)
-            .show(&ctx, |ui| {
-                ui.heading("Installation Failure");
-                if ui.button("Exit").clicked() {
-                    self.has_install_failed = false;
-                    self.is_installing = false;
-                    self.is_loading = false;
                 }
             });
 
@@ -339,42 +315,6 @@ impl eframe::App for HomeApp {
                 }
                 if ui.button("Exit").clicked() {
                     self.is_editing_connections = false;
-                    self.is_loading = false;
-                }
-            });
-
-        // Installation Manager window
-        //-----------------------------------------------------------------------------------
-        let mut is_installing = self.is_installing;
-        egui::Window::new("installation")
-            .open(&mut is_installing)
-            .title_bar(false)
-            .vscroll(true)
-            .show(&ctx, |ui| {
-                ui.heading("Installation Manager");
-                let mut wants_i2p_zero = self.installations.i2p_zero;
-                let mut wants_xmr = self.installations.xmr;
-                if ui.checkbox(&mut wants_i2p_zero, "i2p-zero").changed() {
-                    self.installations.i2p_zero = !self.installations.i2p_zero;
-                }
-                if ui.checkbox(&mut wants_xmr, "xmr").changed() {
-                    self.installations.xmr = !self.installations.xmr;
-                }
-                let install = &self.installations;
-                if install.i2p_zero || install.xmr {
-                    if !self.is_loading {
-                        if ui.button("Install").clicked() {
-                            self.is_loading = true;
-                            install_software_req(
-                                self.installation_tx.clone(),
-                                ctx.clone(),
-                                &self.installations,
-                            );
-                        }
-                    }
-                }
-                if ui.button("Exit").clicked() {
-                    self.is_installing = false;
                     self.is_loading = false;
                 }
             });
@@ -558,22 +498,6 @@ fn start_core_timeout(tx: Sender<bool>, ctx: egui::Context) {
         .await;
         log::error!("start neveko-core timeout");
         let _ = tx.send(true);
-        ctx.request_repaint();
-    });
-}
-
-fn install_software_req(
-    tx: Sender<bool>,
-    ctx: egui::Context,
-    installations: &utils::Installations,
-) {
-    let req_install: utils::Installations = utils::Installations {
-        i2p_zero: installations.i2p_zero,
-        xmr: installations.xmr,
-    };
-    tokio::spawn(async move {
-        let did_install = utils::install_software(req_install).await;
-        let _ = tx.send(did_install);
         ctx.request_repaint();
     });
 }
