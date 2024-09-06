@@ -5,10 +5,16 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[error("Neveko error. See logs for more info.")]
 pub enum NevekoError {
-    ///J4I2PRS(J4RsError),
+    Auth,
+    Contact,
     Database(MdbError),
     Dispute,
+    I2P,
+    J4I2PRS,
     MoneroRpc,
     MoneroDaemon,
+    Nasr,
+    Order,
+    Product,
     Unknown,
 }

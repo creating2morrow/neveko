@@ -52,7 +52,7 @@ mod tests {
     use super::*;
 
     fn cleanup(k: &String) -> Result<(), MdbError> {
-        let s = db::DatabaseEnvironment::open("test")?;
+        let s = db::DatabaseEnvironment::open()?;
         db::DatabaseEnvironment::delete(&s.env, &s.handle?, k.as_bytes());
         Ok(())
     }
@@ -64,7 +64,7 @@ mod tests {
             "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
         );
         let test_user = create(&address);
-        let s = db::DatabaseEnvironment::open("test")?;
+        let s = db::DatabaseEnvironment::open()?;
         let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &test_user.uid);
         let id = String::from(&test_user.uid);
         let cleanup_id = String::from(&test_user.uid);
@@ -83,7 +83,7 @@ mod tests {
             xmr_address: address,
             ..Default::default()
         };
-        let s = db::DatabaseEnvironment::open("test")?;
+        let s = db::DatabaseEnvironment::open()?;
         db::DatabaseEnvironment::write_chunks(&s.env, &s.handle?, k, &User::to_db(&expected_user));
         let actual_user: User = find(&String::from(k));
         assert_eq!(expected_user.xmr_address, actual_user.xmr_address);

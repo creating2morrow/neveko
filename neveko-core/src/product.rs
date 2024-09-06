@@ -5,6 +5,7 @@ use crate::{
     models::*,
     utils,
 };
+use kn0sys_lmdb_rs::MdbError;
 use log::{
     debug,
     error,
@@ -14,11 +15,11 @@ use rocket::serde::json::Json;
 use std::error::Error;
 
 /// Create a new product
-pub fn create(d: Json<Product>) -> Product {
+pub fn create(d: Json<Product>) -> Result<Product, MdbError> {
     let pid: String = format!("{}{}", crate::PRODUCT_DB_KEY, utils::generate_rnd());
     if !validate_product(&d) {
         error!("invalid product");
-        return Default::default();
+        return Err(MdbError::NotFound);
     }
     let new_product = Product {
         pid: String::from(&pid),
@@ -30,71 +31,79 @@ pub fn create(d: Json<Product>) -> Product {
         qty: d.qty,
     };
     debug!("insert product: {:?}", &new_product);
-    let s = db::DatabaseEnvironment::open();
+    let s = db::DatabaseEnvironment::open()?;
     let k = &new_product.pid;
-    db::DatabaseEnvironment::write(&s.env, &s.handle, k, &Product::to_db(&new_product));
+    let product = bincode::serialize(&new_product).unwrap_or_default();
+    db::write_chunks(&s.env, &s.handle?, k.as_bytes(), &product);
     // in order to retrieve all products, write keys to with pl
     let list_key = crate::PRODUCT_LIST_DB_KEY;
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
+    let s = db::DatabaseEnvironment::open()?;
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &list_key.as_bytes().to_vec())?;
     if r.is_empty() {
         debug!("creating product index");
     }
-    let product_list = [r, String::from(&pid)].join(",");
+    let old: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    let product_list = [old, String::from(&pid)].join(",");
     debug!(
         "writing product index {} for id: {}",
         product_list, list_key
     );
-    db::DatabaseEnvironment::write(&s.env, &s.handle, &String::from(list_key), &product_list);
-    new_product
+    let s = db::DatabaseEnvironment::open()?;
+    db::write_chunks(&s.env, &s.handle?, list_key.as_bytes(), product_list.as_bytes());
+    Ok(new_product)
 }
 
 /// Single Product lookup
-pub fn find(pid: &String) -> Product {
-    let s = db::DatabaseEnvironment::open();
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(pid));
+pub fn find(pid: &String) -> Result<Product, MdbError> {
+    let s = db::DatabaseEnvironment::open()?;
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &pid.as_bytes().to_vec())?;
     if r.is_empty() {
         error!("product not found");
-        return Default::default();
+        return Err(MdbError::NotFound);
     }
-    Product::from_db(String::from(pid), r)
+    let result: Product = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
 /// Product lookup for all
-pub fn find_all() -> Vec<Product> {
-    let i_s = db::DatabaseEnvironment::open();
+pub fn find_all() -> Result<Vec<Product>, MdbError> {
+    let i_s = db::DatabaseEnvironment::open()?;
     let i_list_key = crate::PRODUCT_LIST_DB_KEY;
-    let i_r = db::DatabaseEnvironment::read(&i_s.env, &i_s.handle, &String::from(i_list_key));
+    let i_r = db::DatabaseEnvironment::read(&i_s.env, &i_s.handle?, &i_list_key.as_bytes().to_vec())?;
     if i_r.is_empty() {
         error!("product index not found");
     }
-    let i_v_pid = i_r.split(",");
+    let str_r: String = bincode::deserialize(&i_r[..]).unwrap_or_default();
+    let i_v_pid = str_r.split(",");
     let i_v: Vec<String> = i_v_pid.map(String::from).collect();
     let mut products: Vec<Product> = Vec::new();
     for p in i_v {
-        let mut product: Product = find(&p);
+        let mut product: Product = find(&p)?;
         if !product.pid.is_empty() {
             // don't return images
             product.image = Vec::new();
             products.push(product);
         }
     }
-    products
+    Ok(products)
 }
 
 /// Modify product
-pub fn modify(p: Json<Product>) -> Product {
+pub fn modify(p: Json<Product>) -> Result<Product, MdbError> {
     // TODO(c2m): don't allow modification to products with un-delivered orders
     info!("modify product: {}", &p.pid);
-    let f_prod: Product = find(&p.pid);
+    let f_prod: Product = find(&p.pid)?;
     if f_prod.pid.is_empty() {
         error!("product not found");
-        return Default::default();
+        return Err(MdbError::NotFound);
     }
     let u_prod = Product::update(f_prod, &p);
-    let s = db::DatabaseEnvironment::open();
-    db::DatabaseEnvironment::delete(&s.env, &s.handle, &u_prod.pid);
-    db::DatabaseEnvironment::write(&s.env, &s.handle, &u_prod.pid, &Product::to_db(&u_prod));
-    u_prod
+    let s = db::DatabaseEnvironment::open()?;
+    db::DatabaseEnvironment::delete(&s.env, &s.handle?, u_prod.pid.as_bytes())?;
+    let product = bincode::serialize(&u_prod).unwrap_or_default();
+    let s = db::DatabaseEnvironment::open()?;
+    db::write_chunks(&s.env, &s.handle?, u_prod.pid.as_bytes(), &product);
+    Ok(u_prod)
 }
 
 /// check product field lengths to prevent db spam
