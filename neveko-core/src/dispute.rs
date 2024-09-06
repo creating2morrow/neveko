@@ -3,11 +3,9 @@
 use std::error::Error;
 
 use crate::{
-    db,
-    models::*,
-    monero,
-    utils,
+    db, error::NevekoError, models::*, monero, utils
 };
+use kn0sys_lmdb_rs::MdbError;
 use log::{
     debug,
     error,
@@ -16,80 +14,91 @@ use log::{
 use rocket::serde::json::Json;
 
 /// Create a new dispute
-pub fn create(d: Json<Dispute>) -> Dispute {
+pub fn create(d: Json<Dispute>) -> Result<Dispute, MdbError> {
     let f_did: String = format!("{}{}", crate::DISPUTE_DB_KEY, utils::generate_rnd());
     info!("create dispute: {}", &f_did);
     let new_dispute = Dispute {
-        did: String::from(&f_did),
+        did: String::from(&f_did),  
         created: chrono::offset::Utc::now().timestamp(),
         orid: String::from(&d.orid),
         tx_set: String::from(&d.tx_set),
     };
     debug!("insert dispute: {:?}", &d);
-    let s = db::DatabaseEnvironment::open();
+    
+    let s = db::DatabaseEnvironment::open()?;
     let k = &d.did;
-    db::DatabaseEnvironment::write(&s.env, &s.handle, k, &Dispute::to_db(&new_dispute));
+    let v = bincode::serialize(&new_dispute).unwrap_or_default();
+    db::write_chunks(&s.env, &s.handle?, k.as_bytes(), &v);
     // in order to retrieve all orders, write keys to with dl
     let list_key = crate::DISPUTE_LIST_DB_KEY;
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
+    let s = db::DatabaseEnvironment::open()?;
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &list_key.as_bytes().to_vec())?;
     if r.is_empty() {
         debug!("creating dispute index");
     }
-    let dispute_list = [String::from(&r), String::from(&f_did)].join(",");
+    let s_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    let dispute_list = [String::from(&s_r), String::from(&f_did)].join(",");
     debug!(
         "writing dispute index {} for id: {}",
         dispute_list, list_key
     );
-    db::DatabaseEnvironment::write(&s.env, &s.handle, &String::from(list_key), &dispute_list);
+    let s = db::DatabaseEnvironment::open()?;
+    db::write_chunks(&s.env, &s.handle?, list_key.as_bytes(), dispute_list.as_bytes());
     // restart the dispute aut-settle thread
-    let cleared = is_dispute_clear(r);
+    let cleared = is_dispute_clear(s_r);
     if !cleared {
         debug!("restarting dispute auto-settle");
         utils::restart_dispute_auto_settle();
     }
-    new_dispute
+    Ok(new_dispute)
 }
 
 /// Dispute lookup
-pub fn find(did: &String) -> Dispute {
-    let s = db::DatabaseEnvironment::open();
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(did));
+pub fn find(did: &String) -> Result<Dispute, MdbError> {
+    
+    let s = db::DatabaseEnvironment::open()?;
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &did.as_bytes().to_vec())?;
     if r.is_empty() {
         error!("dispute not found");
-        return Default::default();
+        return Err(MdbError::NotFound);
     }
-    Dispute::from_db(String::from(did), r)
+    let result: Dispute = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
 /// Lookup all disputes
-pub fn find_all() -> Vec<Dispute> {
-    let d_s = db::DatabaseEnvironment::open();
+pub fn find_all() -> Result<Vec<Dispute>, MdbError> {
+    
+    let d_s = db::DatabaseEnvironment::open()?;
     let d_list_key = crate::DISPUTE_LIST_DB_KEY;
-    let d_r = db::DatabaseEnvironment::read(&d_s.env, &d_s.handle, &String::from(d_list_key));
+    let d_r = db::DatabaseEnvironment::read(&d_s.env, &d_s.handle?, &d_list_key.as_bytes().to_vec())?;
     if d_r.is_empty() {
         error!("dispute index not found");
     }
-    let d_v_did = d_r.split(",");
+    let str_r: String = bincode::deserialize(&d_r[..]).unwrap_or_default();
+    let d_v_did = str_r.split(",");
     let d_v: Vec<String> = d_v_did.map(String::from).collect();
     let mut disputes: Vec<Dispute> = Vec::new();
     for o in d_v {
-        let dispute: Dispute = find(&o);
+        let dispute: Dispute = find(&o)?;
         if !dispute.did.is_empty() {
             disputes.push(dispute);
         }
     }
-    disputes
+    Ok(disputes)
 }
 
 /// Dispute deletion
-pub fn delete(did: &String) {
-    let s = db::DatabaseEnvironment::open();
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(did));
+pub fn delete(did: &String) -> Result<(), MdbError> {
+    
+    let s = db::DatabaseEnvironment::open()?;
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &did.as_bytes().to_vec())?;
     if r.is_empty() {
         error!("dispute not found");
-        return Default::default();
+        return Err(MdbError::NotFound);
     }
-    db::DatabaseEnvironment::delete(&s.env, &s.handle, &String::from(did))
+    let s = db::DatabaseEnvironment::open()?;
+    db::DatabaseEnvironment::delete(&s.env, &s.handle?, did.as_bytes())
 }
 
 /// Triggered on DISPUTE_LAST_CHECK_DB_KEY.
@@ -99,30 +108,33 @@ pub fn delete(did: &String) {
 /// creation date of the dispute plus the one week
 ///
 /// grace period then the dispute is auto-settled.
-pub async fn settle_dispute() {
+pub async fn settle_dispute() -> Result<(), MdbError>{
     let tick: std::sync::mpsc::Receiver<()> =
         schedule_recv::periodic_ms(crate::DISPUTE_CHECK_INTERVAL);
     loop {
         debug!("running dispute auto-settle thread");
         tick.recv().unwrap();
-        let s = db::DatabaseEnvironment::open();
+        
+        let s = db::DatabaseEnvironment::open()?;
         let list_key = crate::DISPUTE_LIST_DB_KEY;
-        let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
+        let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &list_key.as_bytes().to_vec())?;
         if r.is_empty() {
             info!("dispute index not found");
         }
-        let v_mid = r.split(",");
+        let str_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
+        let v_mid = str_r.split(",");
         let d_vec: Vec<String> = v_mid.map(String::from).collect();
         debug!("dispute contents: {:#?}", d_vec);
-        let cleared = is_dispute_clear(r);
+        let cleared = is_dispute_clear(str_r);
         if cleared {
             // index was created but cleared
             info!("terminating dispute auto-settle thread");
-            db::DatabaseEnvironment::delete(&s.env, &s.handle, list_key);
-            return;
+            let s = db::DatabaseEnvironment::open()?;
+            db::DatabaseEnvironment::delete(&s.env, &s.handle?, list_key.as_bytes());
+            return Ok(());
         }
         for d in d_vec {
-            let dispute: Dispute = find(&d);
+            let dispute: Dispute = find(&d)?;
             if !dispute.did.is_empty() {
                 let now = chrono::offset::Utc::now().timestamp();
                 let settle_date = dispute.created + crate::DISPUTE_AUTO_SETTLE as i64;
@@ -135,7 +147,7 @@ pub async fn settle_dispute() {
                     monero::close_wallet(&wallet_name, &wallet_password).await;
                     if submit.result.tx_hash_list.is_empty() {
                         error!("could not broadcast txset for dispute: {}", &dispute.did);
-                        return;
+                        return Ok(());
                     }
                     // remove the dispute from the db
                     remove_from_auto_settle(dispute.did);
@@ -160,15 +172,17 @@ fn is_dispute_clear(r: String) -> bool {
 }
 
 /// clear dispute from index
-fn remove_from_auto_settle(did: String) {
+fn remove_from_auto_settle(did: String) -> Result<(), MdbError> {
     info!("removing id {} from disputes", &did);
-    let s = db::DatabaseEnvironment::open();
+    
+    let s = db::DatabaseEnvironment::open()?;
     let list_key = crate::DISPUTE_LIST_DB_KEY;
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, &String::from(list_key));
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &list_key.as_bytes().to_vec())?;
     if r.is_empty() {
         debug!("dispute list index is empty");
     }
-    let pre_v_fts = r.split(",");
+    let str_r: String = bincode::deserialize(&r[..]).unwrap_or_default(); 
+    let pre_v_fts = str_r.split(",");
     let v: Vec<String> = pre_v_fts
         .map(|s| {
             if s != &did {
@@ -183,7 +197,9 @@ fn remove_from_auto_settle(did: String) {
         "writing dipsute index {} for id: {}",
         dispute_list, list_key
     );
-    db::DatabaseEnvironment::write(&s.env, &s.handle, &String::from(list_key), &dispute_list);
+    let s = db::DatabaseEnvironment::open()?;
+    db::write_chunks(&s.env, &s.handle?, list_key.as_bytes(), dispute_list.as_bytes());
+    Ok(())
 }
 
 /// Executes POST /market/dispute/create
@@ -227,16 +243,21 @@ async fn transmit_dispute_request(
 /// A decomposition trigger for the dispute request so that the logic
 ///
 /// can be executed from the gui.
-pub async fn trigger_dispute_request(contact: &String, dispute: &Dispute) -> Dispute {
+pub async fn trigger_dispute_request(contact: &String, dispute: &Dispute) -> Result<Dispute, NevekoError> {
     info!("executing trigger_dispute_request");
-    let s = db::DatabaseEnvironment::async_open().await;
+    
+    let s = db::DatabaseEnvironment::open()
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-    let jwp = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &k).await;
-    let dispute = transmit_dispute_request(contact, &jwp, dispute).await;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let jwp = db::DatabaseEnvironment::read(&s.env, handle, &k.as_bytes().to_vec())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let str_jwp: String = bincode::deserialize(&jwp[..]).unwrap_or_default(); 
+    let dispute = transmit_dispute_request(contact, &str_jwp, dispute).await;
     // handle a failure to create dispute
     if dispute.is_err() {
         error!("failed to create dispute");
-        return Default::default();
+        return Err(NevekoError::Dispute);
     }
-    dispute.unwrap_or(Default::default())
+    Ok(dispute.map_err(|_| NevekoError::Dispute)?)
 }

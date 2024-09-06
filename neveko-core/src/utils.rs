@@ -11,7 +11,6 @@ use crate::{
     monero,
     neveko25519,
     reqres,
-    utils,
 };
 use clap::Parser;
 use kn0sys_lmdb_rs::MdbError;
@@ -241,8 +240,8 @@ pub fn get_app_port() -> u16 {
 /// i2p http proxy
 pub fn get_i2p_http_proxy() -> String {
     let args = args::Args::parse();
-    let advanced_proxy = std::env::var(crate::NEVEKO_I2P_PROXY_HOST).unwrap_or(empty_string());
-    if advanced_proxy == empty_string() {
+    let advanced_proxy = std::env::var(crate::NEVEKO_I2P_PROXY_HOST).unwrap_or(String::new());
+    if advanced_proxy.is_empty() {
         args.i2p_proxy_host
     } else {
         advanced_proxy
@@ -409,20 +408,19 @@ async fn gen_app_wallet(password: &String) {
 /// Secret keys for signing internal/external auth tokens
 fn gen_signing_keys() -> Result<(), MdbError> {
     info!("generating signing keys");
-    let jwp = get_jwp_secret_key();
-    let jwt = get_jwt_secret_key();
+    let jwp = get_jwp_secret_key()?;
+    let jwt = get_jwt_secret_key()?;
     // send to db
-    let env = utils::get_release_env();
     if jwp.is_empty() {
         let mut data = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut data);
-        let s = db::DatabaseEnvironment::open(&env.value())?;
+        let s = db::DatabaseEnvironment::open()?;
         db::write_chunks(&s.env, &s.handle?, crate::NEVEKO_JWP_SECRET_KEY.as_bytes(), &data);
     }
     if jwt.is_empty() {
         let mut data = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut data);
-        let s = db::DatabaseEnvironment::open(&env.value())?;
+        let s = db::DatabaseEnvironment::open()?;
         db::write_chunks(&s.env, &s.handle?, crate::NEVEKO_JWT_SECRET_KEY.as_bytes(), &data);
     }
     Ok(())
@@ -431,52 +429,61 @@ fn gen_signing_keys() -> Result<(), MdbError> {
 /// TODO(c2m): add a button to gui to call this
 ///
 /// dont' forget to generate new keys as well
-pub fn revoke_signing_keys() {
-    let s = db::DatabaseEnvironment::open();
-    db::DatabaseEnvironment::delete(&s.env, &s.handle, crate::NEVEKO_JWT_SECRET_KEY);
-    db::DatabaseEnvironment::delete(&s.env, &s.handle, crate::NEVEKO_JWP_SECRET_KEY);
+pub fn revoke_signing_keys() -> Result<(), MdbError> {
+    
+    let s = db::DatabaseEnvironment::open()?;
+    db::DatabaseEnvironment::delete(&s.env, &s.handle?, crate::NEVEKO_JWT_SECRET_KEY.as_bytes());
+    let s = db::DatabaseEnvironment::open()?;
+    db::DatabaseEnvironment::delete(&s.env, &s.handle?, crate::NEVEKO_JWP_SECRET_KEY.as_bytes());
+    Ok(())
 }
 
-pub fn get_jwt_secret_key() -> String {
-    let s = db::DatabaseEnvironment::open();
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, crate::NEVEKO_JWT_SECRET_KEY);
+pub fn get_jwt_secret_key() -> Result<String, MdbError> {
+    
+    let s = db::DatabaseEnvironment::open()?;
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &crate::NEVEKO_JWT_SECRET_KEY.as_bytes().to_vec())?;
     if r.is_empty() {
         error!("JWT key not found");
-        return Default::default();
+        return Err(MdbError::NotFound);
     }
-    r
+    let result: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
-pub fn get_jwp_secret_key() -> String {
-    let s = db::DatabaseEnvironment::open();
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, crate::NEVEKO_JWP_SECRET_KEY);
+pub fn get_jwp_secret_key() -> Result<String, MdbError> {
+    
+    let s = db::DatabaseEnvironment::open()?;
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &crate::NEVEKO_JWP_SECRET_KEY.as_bytes().to_vec())?;
     if r.is_empty() {
         error!("JWP key not found");
-        return Default::default();
+        return Err(MdbError::NotFound);
     }
-    r
+    let result: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
 /// Returns the hex encoded neveko message public key from LMDB
-pub fn get_nmpk() -> String {
-    let s = db::DatabaseEnvironment::open();
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, crate::NEVEKO_NMPK);
+pub fn get_nmpk() -> Result<String, MdbError> {
+    let s = db::DatabaseEnvironment::open()?;
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &crate::NEVEKO_NMPK.as_bytes().to_vec())?;
     if r.is_empty() {
         error!("neveko message public key not found");
-        return Default::default();
+        return Err(MdbError::NotFound);
     }
-    r
+    let result: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
-async fn generate_nmpk() {
+async fn generate_nmpk() -> Result<(), MdbError> {
     info!("generating neveko message public key");
-    let nmpk: String = get_nmpk();
+    let nmpk: String = get_nmpk()?;
     // send to db
-    let s = db::DatabaseEnvironment::open();
+    let s = db::DatabaseEnvironment::open()?;
     if nmpk.is_empty() {
         let nmk: neveko25519::NevekoMessageKeys = neveko25519::generate_neveko_message_keys().await;
-        db::DatabaseEnvironment::write(&s.env, &s.handle, crate::NEVEKO_NMPK, &nmk.hex_nmpk);
+        db::write_chunks(&s.env, &s.handle?, crate::NEVEKO_NMPK.as_bytes(), nmk.hex_nmpk.as_bytes());
     }
+    Ok(())
 }
 
 /// Put all app pre-checks here
@@ -502,8 +509,8 @@ pub async fn start_up() {
     tokio::time::sleep(std::time::Duration::new(5, 0)).await;
     monero::check_rpc_connection().await;
     let mut wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(empty_string());
-    if wallet_password == empty_string() {
+        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or_default();
+    if wallet_password.is_empty() {
         print!(
             "MONERO_WALLET_PASSWORD not set, enter neveko wallet password for monero-wallet-rpc: "
         );
@@ -572,17 +579,19 @@ pub fn restart_dispute_auto_settle() {
 }
 
 /// Called on app startup if `--clear-fts` flag is passed.
-fn clear_fts() {
+fn clear_fts() -> Result<(), MdbError> {
     info!("clear fts");
-    let s = db::DatabaseEnvironment::open();
-    db::DatabaseEnvironment::delete(&s.env, &s.handle, crate::FTS_DB_KEY);
+    let s = db::DatabaseEnvironment::open()?;
+    db::DatabaseEnvironment::delete(&s.env, &s.handle?, crate::FTS_DB_KEY.as_bytes());
+    Ok(())
 }
 
 /// Called on app startup if `--clear-dispute` flag is passed.
-fn clear_disputes() {
+fn clear_disputes() -> Result<(), MdbError> {
     info!("clear_disputes");
-    let s = db::DatabaseEnvironment::open();
-    db::DatabaseEnvironment::delete(&s.env, &s.handle, crate::DISPUTE_LIST_DB_KEY);
+    let s = db::DatabaseEnvironment::open()?;
+    db::DatabaseEnvironment::delete(&s.env, &s.handle?, crate::DISPUTE_LIST_DB_KEY.as_bytes());
+    Ok(())
 }
 
 /// ### The highly ineffecient fee estimator.
@@ -688,47 +697,54 @@ pub async fn can_transfer(invoice: u128) -> bool {
 }
 
 /// Gui toggle for vendor mode
-pub fn toggle_vendor_enabled() -> bool {
+pub fn toggle_vendor_enabled() -> Result<bool, MdbError> {
     // TODO(c2m): Dont toggle vendors with orders status != Delivered
-    let s = db::DatabaseEnvironment::open();
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle, contact::NEVEKO_VENDOR_ENABLED);
-    if r != contact::NEVEKO_VENDOR_MODE_ON {
+    let s = db::DatabaseEnvironment::open()?;
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &contact::NEVEKO_VENDOR_ENABLED.as_bytes().to_vec())?;
+    let mode: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    if mode != contact::NEVEKO_VENDOR_MODE_ON {
         info!("neveko vendor mode enabled");
-        db::DatabaseEnvironment::write(
+        let s = db::DatabaseEnvironment::open()?;
+        db::write_chunks(
             &s.env,
-            &s.handle,
-            contact::NEVEKO_VENDOR_ENABLED,
-            contact::NEVEKO_VENDOR_MODE_ON,
+            &s.handle?,
+            contact::NEVEKO_VENDOR_ENABLED.as_bytes(),
+            contact::NEVEKO_VENDOR_MODE_ON.as_bytes(),
         );
-        true
+        Ok(true)
     } else {
         info!("neveko vendor mode disabled");
-        db::DatabaseEnvironment::write(
+        let s = db::DatabaseEnvironment::open()?;
+        db::write_chunks(
             &s.env,
-            &s.handle,
-            contact::NEVEKO_VENDOR_ENABLED,
-            contact::NEVEKO_VENDOR_MODE_OFF,
+            &s.handle?,
+            contact::NEVEKO_VENDOR_ENABLED.as_bytes(),
+            contact::NEVEKO_VENDOR_MODE_OFF.as_bytes(),
         );
-        false
+        Ok(false)
     }
 }
 
-pub fn search_gui_db(f: String, data: String) -> String {
-    let s = db::DatabaseEnvironment::open();
+pub fn search_gui_db(f: String, data: String) -> Result<String, MdbError> {
+    let s = db::DatabaseEnvironment::open()?;
     let k = format!("{}-{}", f, data);
-    db::DatabaseEnvironment::read(&s.env, &s.handle, &k)
+    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &k.as_bytes().to_vec())?;
+    let result: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
-pub fn write_gui_db(f: String, key: String, data: String) {
-    let s = db::DatabaseEnvironment::open();
+pub fn write_gui_db(f: String, key: String, data: String) -> Result<(), MdbError> {
+    let s = db::DatabaseEnvironment::open()?;
     let k = format!("{}-{}", f, key);
-    db::DatabaseEnvironment::write(&s.env, &s.handle, &k, &data);
+    db::write_chunks(&s.env, &s.handle?, k.as_bytes(), data.as_bytes());
+    Ok(())
 }
 
-pub fn clear_gui_db(f: String, key: String) {
-    let s = db::DatabaseEnvironment::open();
+pub fn clear_gui_db(f: String, key: String) -> Result<(), MdbError> {
+    let s = db::DatabaseEnvironment::open()?;
     let k = format!("{}-{}", f, key);
-    db::DatabaseEnvironment::delete(&s.env, &s.handle, &k);
+    db::DatabaseEnvironment::delete(&s.env, &s.handle?, k.as_bytes())?;
+    Ok(())
 }
 
 // Tests

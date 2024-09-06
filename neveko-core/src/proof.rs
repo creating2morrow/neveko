@@ -81,7 +81,7 @@ pub async fn create_jwp(proof: &TxProof) -> String {
         error!("invalid transaction proof");
         return String::new();
     }
-    let jwp_secret_key = utils::get_jwp_secret_key();
+    let jwp_secret_key = utils::get_jwp_secret_key().unwrap_or_default();
     let key: Hmac<Sha512> = Hmac::new_from_slice(jwp_secret_key.as_bytes()).expect("hash");
     let header = Header {
         algorithm: AlgorithmType::Hs512,
@@ -122,11 +122,11 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
             match res {
                 Ok(r) => {
                     // cache the jwp for for fts
-                    let env = utils::get_release_env();
-                    let s = db::DatabaseEnvironment::open(&env.value())?;
+                    
+                    let s = db::DatabaseEnvironment::open()?;
                     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
                     db::DatabaseEnvironment::delete(&s.env, &s.handle?, k.as_bytes())?;
-                    let s = db::DatabaseEnvironment::open(&env.value())?;
+                    let s = db::DatabaseEnvironment::open()?;
                     db::write_chunks(&s.env, &s.handle?, &k.as_bytes(), &r.jwp.as_bytes().to_vec());
                     Ok(r)
                 }
@@ -182,7 +182,7 @@ impl<'r> FromRequest<'r> for PaymentProof {
         match proof {
             Some(proof) => {
                 // check validity of address, payment amount and tx confirmations
-                let jwp_secret_key = utils::get_jwp_secret_key();
+                let jwp_secret_key = utils::get_jwp_secret_key().unwrap_or_default();
                 let key: Hmac<Sha512> = Hmac::new_from_slice(jwp_secret_key.as_bytes()).expect("");
                 let jwp: Result<
                     Token<jwt::Header, BTreeMap<std::string::String, std::string::String>, _>,

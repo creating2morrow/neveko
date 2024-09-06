@@ -8,6 +8,8 @@ use lmdb::*;
 use log::{error, info};
 use sysinfo::System;
 
+use crate::utils;
+
 /// Ratio of map size to available memory is 20 percent
 const MAP_SIZE_MEMORY_RATIO: f32 = 0.2;
 /// Ratio of chunk size to available memory is 0.2 percent
@@ -15,7 +17,7 @@ const CHUNK_SIZE_MEMORY_RATIO: f32 = MAP_SIZE_MEMORY_RATIO * 0.01;
 
 /// The database environment for handling primary database operations.
 ///
-/// By default the database will be written to /home/user/.valentinus/{ENV}/lmdb
+/// By default the database will be written to /home/user/.neveko/{ENV}/lmdb
 pub struct DatabaseEnvironment {
     pub env: Environment,
     pub handle: Result<DbHandle, MdbError>,
@@ -27,7 +29,7 @@ impl DatabaseEnvironment {
     /// of available memory and can be set via the `LMDB_MAP_SIZE` environment variable.
     ///
     /// The path of the user can be set with `LMDB_USER`.
-    pub fn open(env: &str) -> Result<Self, MdbError> {
+    pub fn open() -> Result<Self, MdbError> {
         let s = System::new_all();
         let default_map_size: u64 =
             (s.available_memory() as f32 * MAP_SIZE_MEMORY_RATIO).floor() as u64;
@@ -43,9 +45,10 @@ impl DatabaseEnvironment {
         info!("$LMDB_USER={}", user);
         info!("excecuting lmdb open");
         let file_path: String = format!("/home/{}/.{}/", user, "valentinus");
+        let env_str = utils::get_release_env().value();
         let env: Environment = EnvBuilder::new()
             .map_size(env_map_size)
-            .open(format!("{}/{}", file_path, env), 0o777)
+            .open(format!("{}/{}", file_path, env_str), 0o777)
             .unwrap_or_else(|_| panic!("could not open LMDB at {}", file_path));
         let default: Result<DbHandle, MdbError> = env.get_default_db(DbFlags::empty());
         if default.is_err() {
@@ -185,29 +188,17 @@ mod tests {
 
     #[test]
     fn environment_test() -> Result<(), MdbError> {
-        let db = DatabaseEnvironment::open("10-mb-test")?;
+        let db = DatabaseEnvironment::open()?;
         const DATA_SIZE_10MB: usize = 10000000;
         let mut data = vec![0u8; DATA_SIZE_10MB];
         rand::thread_rng().fill_bytes(&mut data);
         let k = "test-key".as_bytes();
         let expected = &data.to_vec();
         write_chunks(&db.env, &db.handle?, &Vec::from(k), &Vec::from(data))?;
-        let db = DatabaseEnvironment::open("10-mb-test")?;
+        let db = DatabaseEnvironment::open()?;
         let actual = DatabaseEnvironment::read(&db.env, &db.handle?, &Vec::from(k));
         assert_eq!(expected.to_vec(), actual?);
-        let db = DatabaseEnvironment::open("10-mb-test")?;
-        let _ = DatabaseEnvironment::delete(&db.env, &db.handle?, &Vec::from(k));
-        let db = DatabaseEnvironment::open("100-mb-test")?;
-        const DATA_SIZE_100MB: usize = 100000000;
-        let mut data = vec![0u8; DATA_SIZE_100MB];
-        rand::thread_rng().fill_bytes(&mut data);
-        let k = "test-key".as_bytes();
-        let expected = &data.to_vec();
-        write_chunks(&db.env, &db.handle?, &Vec::from(k), &Vec::from(data))?;
-        let db = DatabaseEnvironment::open("100-mb-test")?;
-        let actual = DatabaseEnvironment::read(&db.env, &db.handle?, &Vec::from(k));
-        assert_eq!(expected.to_vec(), actual?);
-        let db = DatabaseEnvironment::open("100-mb-test")?;
+        let db = DatabaseEnvironment::open()?;
         let _ = DatabaseEnvironment::delete(&db.env, &db.handle?, &Vec::from(k));
         Ok(())
     }

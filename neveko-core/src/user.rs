@@ -21,8 +21,8 @@ pub fn create(address: &String) -> Result<User, MdbError> {
         name: String::new(),
     };
     debug!("insert user: {:?}", &new_user);
-    let env = utils::get_release_env();
-    let s = db::DatabaseEnvironment::open(&env.value())?;
+    
+    let s = db::DatabaseEnvironment::open()?;
     let k = &new_user.uid;
     let v = bincode::serialize(&new_user).unwrap_or_default();
     db::write_chunks(&s.env, &s.handle?, k.as_bytes(), &v)?;
@@ -31,8 +31,8 @@ pub fn create(address: &String) -> Result<User, MdbError> {
 
 /// User lookup
 pub fn find(uid: &String) -> Result<User, MdbError> {
-    let env = utils::get_release_env();
-    let s = db::DatabaseEnvironment::open(&env.value())?;
+    
+    let s = db::DatabaseEnvironment::open()?;
     let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &uid.as_bytes().to_vec())?;
     if r.is_empty() {
         error!("user not found");
