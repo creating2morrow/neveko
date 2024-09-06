@@ -23,7 +23,7 @@ jobs:
     - uses: actions/checkout@v3
     - name: Install dependencies
       run: sudo apt install -y libssl-dev build-essential
-    - name: Build
-      run: cargo build --verbose
+    - name: Build and Clippy
+      run: RUSTFLAGS="-Z threads=4" cargo +nightly build --future-incompat-report && cargo clippy
     - name: Run tests
-      run: cd neveko-core && RUST_TEST_THREADS=1 RUSTFLAGS="-Z threads=4" cargo +nightly build --future-incompat-report && cargo clippy && cargo test
+      run: cd neveko-core && RUST_TEST_THREADS=1  cargo test
