@@ -236,8 +236,12 @@ impl WrapApp {
         ctx.set_pixels_per_point(1.5);
         // initial cred check, is there a better way to do this?
         if !self.state.is_cred_set {
-            let s = db::DatabaseEnvironment::open(&utils::get_release_env().value()).unwrap();
-            let r = db::DatabaseEnvironment::read(&s.env, &s.handle, crate::CREDENTIAL_KEY);
+            let s = db::DatabaseEnvironment::open().unwrap();
+            let r = db::DatabaseEnvironment::read(
+                &s.env,
+                &s.handle.unwrap(),
+                &crate::CREDENTIAL_KEY.as_bytes().to_vec(),
+            ).unwrap();
             if !r.is_empty() {
                 self.state.is_cred_set = true;
                 self.state.is_checking_cred = false;
@@ -308,8 +312,12 @@ impl WrapApp {
             loop {
                 log::debug!("check for cred");
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                let s = db::DatabaseEnvironment::open(&utils::get_release_env().value()).unwrap();
-                let r = db::DatabaseEnvironment::read(&s.env, &s.handle, crate::CREDENTIAL_KEY);
+                let s = db::DatabaseEnvironment::open().unwrap();
+                let r = db::DatabaseEnvironment::read(
+                    &s.env,
+                    &s.handle.unwrap(),
+                    &crate::CREDENTIAL_KEY.as_bytes().to_vec()
+                ).unwrap();
                 if r.is_empty() {
                     log::debug!("credential not found");
                     let _ = tx.send(false);

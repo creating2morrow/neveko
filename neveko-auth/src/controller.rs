@@ -17,6 +17,6 @@ use neveko_core::{
 /// Creates user on initial login
 #[get("/login/<signature>/<aid>/<uid>")]
 pub async fn login(aid: String, uid: String, signature: String) -> Custom<Json<Authorization>> {
-    let m_auth: Authorization = auth::verify_login(aid, uid, signature).await;
-    Custom(Status::Created, Json(m_auth))
+    let m_auth = auth::verify_login(aid, uid, signature).await;
+    Custom(Status::Created, Json(m_auth.unwrap_or_default()))
 }

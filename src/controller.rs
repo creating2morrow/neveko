@@ -44,8 +44,8 @@ pub async fn get_i2p_status() -> Custom<Json<i2p::HttpProxyStatus>> {
 /// Protected: false
 #[get("/")]
 pub async fn share_contact_info() -> Custom<Json<models::Contact>> {
-    let info: models::Contact = contact::share().await;
-    Custom(Status::Ok, Json(info))
+    let info = contact::share().await;
+    Custom(Status::Ok, Json(info.unwrap_or_default()))
 }
 
 /// Recieve messages here
@@ -56,7 +56,7 @@ pub async fn rx_message(
     _jwp: proof::PaymentProof,
     message: Json<models::Message>,
 ) -> Custom<Json<models::Message>> {
-    message::rx(message).await;
+    let _ = message::rx(message).await;
     Custom(Status::Ok, Json(Default::default()))
 }
 
@@ -84,8 +84,8 @@ pub async fn gen_jwp(proof: Json<proof::TxProof>) -> Custom<Json<reqres::Jwp>> {
 /// Get a product by passing id
 #[get("/<pid>")]
 pub async fn get_product(pid: String, _jwp: proof::PaymentProof) -> Custom<Json<models::Product>> {
-    let m_product: models::Product = product::find(&pid);
-    Custom(Status::Ok, Json(m_product))
+    let m_product = product::find(&pid);
+    Custom(Status::Ok, Json(m_product.unwrap_or_default()))
 }
 
 /// Get all products
@@ -93,7 +93,7 @@ pub async fn get_product(pid: String, _jwp: proof::PaymentProof) -> Custom<Json<
 /// Protected: true
 #[get("/products")]
 pub async fn get_products(_jwp: proof::PaymentProof) -> Custom<Json<Vec<models::Product>>> {
-    let m_products: Vec<models::Product> = product::find_all();
+    let m_products: Vec<models::Product> = product::find_all().unwrap_or_default();
     Custom(Status::Ok, Json(m_products))
 }
 
@@ -105,8 +105,8 @@ pub async fn create_order(
     r_order: Json<reqres::OrderRequest>,
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Order>> {
-    let m_order: models::Order = order::create(r_order).await;
-    Custom(Status::Created, Json(m_order))
+    let m_order = order::create(r_order).await;
+    Custom(Status::Created, Json(m_order.unwrap_or_default()))
 }
 
 /// Customer order retreival. Must send `signature`
@@ -120,7 +120,8 @@ pub async fn retrieve_order(
     signature: String,
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Order>> {
-    let m_order = order::secure_retrieval(&orid, &signature).await;
+    let r_m_order = order::secure_retrieval(&orid, &signature).await;
+    let m_order = r_m_order.unwrap_or_default();
     if m_order.cid.is_empty() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
@@ -141,15 +142,15 @@ pub async fn get_multisig_info(
         if r_info.init_adjudicator {
             order::init_adjudicator_wallet(&r_info.orid).await;
         }
-        message::send_prepare_info(&r_info.orid, &r_info.contact).await;
+        let _ = message::send_prepare_info(&r_info.orid, &r_info.contact).await;
     } else if r_info.msig_type == *message::MAKE_MSIG {
-        message::send_make_info(&r_info.orid, &r_info.contact, info).await;
+        let _ = message::send_make_info(&r_info.orid, &r_info.contact, info).await;
     } else if r_info.msig_type == *message::EXPORT_MSIG {
-        message::send_export_info(&r_info.orid, &r_info.contact).await;
+        let _ = message::send_export_info(&r_info.orid, &r_info.contact).await;
     } else if r_info.msig_type == *message::IMPORT_MSIG {
-        message::send_import_info(&r_info.orid, &r_info.info).await;
+        let _ = message::send_import_info(&r_info.orid, &r_info.info).await;
     } else {
-        message::send_exchange_info(&r_info.orid, &r_info.contact, info, r_info.kex_init).await;
+       let _ = message::send_exchange_info(&r_info.orid, &r_info.contact, info, r_info.kex_init).await;
     }
     Custom(Status::Ok, Json(Default::default()))
 }
@@ -162,7 +163,7 @@ pub async fn rx_multisig_message(
     _jwp: proof::PaymentProof,
     message: Json<models::Message>,
 ) -> Custom<Json<models::Message>> {
-    message::rx_multisig(message).await;
+    let _ = message::rx_multisig(message).await;
     Custom(Status::Ok, Json(Default::default()))
 }
 
@@ -182,7 +183,8 @@ pub async fn request_shipment(
     orid: String,
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<reqres::FinalizeOrderResponse>> {
-    let finalize: reqres::FinalizeOrderResponse = order::validate_order_for_ship(&orid).await;
+    let r_finalize = order::validate_order_for_ship(&orid).await;
+    let finalize = r_finalize.unwrap_or_default();
     if finalize.delivery_info.is_empty() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
@@ -204,7 +206,8 @@ pub async fn trigger_nasr(
     vendor: String,
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Order>> {
-    let order: models::Order = order::d_trigger_ship_request(&vendor, &orid).await;
+    let r_order = order::d_trigger_ship_request(&vendor, &orid).await;
+    let order = r_order.unwrap_or_default();
     if order.orid.is_empty() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
@@ -222,7 +225,8 @@ pub async fn cancel_order(
     signature: String,
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Order>> {
-    let m_order = order::cancel_order(&orid, &signature).await;
+    let r_m_order = order::cancel_order(&orid, &signature).await;
+    let m_order = r_m_order.unwrap_or_default();
     if m_order.cid.is_empty() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
@@ -239,7 +243,8 @@ pub async fn finalize_order(
     orid: String,
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<reqres::FinalizeOrderResponse>> {
-    let finalize = order::finalize_order(&orid).await;
+    let r_finalize = order::finalize_order(&orid).await;
+    let finalize = r_finalize.unwrap_or_default();
     if !finalize.vendor_update_success {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
@@ -252,7 +257,8 @@ pub async fn create_dispute(
     dispute: Json<models::Dispute>,
     _jwp: proof::PaymentProof,
 ) -> Custom<Json<models::Dispute>> {
-    let m_dispute: models::Dispute = dispute::create(dispute);
+    let r_m_dispute = dispute::create(dispute);
+    let m_dispute = r_m_dispute.unwrap_or_default();
     Custom(Status::Ok, Json(m_dispute))
 }
 

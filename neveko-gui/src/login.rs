@@ -54,8 +54,8 @@ impl eframe::App for LoginApp {
                 let mut hasher = Sha512::new();
                 hasher.update(self.credential.clone());
                 let result = hasher.finalize();
-                let s = db::DatabaseEnvironment::open();
-                db::DatabaseEnvironment::write(&s.env, &s.handle, k, &hex::encode(&result[..]));
+                let s = db::DatabaseEnvironment::open().unwrap();
+                db::write_chunks(&s.env, &s.handle.unwrap(), k.as_bytes(), hex::encode(&result[..]).as_bytes()).unwrap();
                 self.credential = String::new();
             }
         });

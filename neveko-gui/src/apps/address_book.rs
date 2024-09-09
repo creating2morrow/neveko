@@ -197,7 +197,7 @@ impl eframe::App for AddressBookApp {
 
         // initial contact load
         if !self.contacts_init {
-            self.contacts = contact::find_all();
+            self.contacts = contact::find_all().unwrap_or_default();
             self.contacts_init = true;
         }
 
@@ -347,9 +347,9 @@ impl eframe::App for AddressBookApp {
                     && self.status.jwp.is_empty();
                 if !self.status.jwp.is_empty() || failed_to_prove {
                     if ui.button("Clear stale JWP").clicked() {
-                        utils::clear_gui_db(String::from("gui-txp"), self.status.i2p.clone());
-                        utils::clear_gui_db(String::from("gui-jwp"), self.status.i2p.clone());
-                        utils::clear_gui_db(String::from("gui-exp"), self.status.i2p.clone());
+                        utils::clear_gui_db(String::from("gui-txp"), self.status.i2p.clone()).unwrap();
+                        utils::clear_gui_db(String::from("gui-jwp"), self.status.i2p.clone()).unwrap();
+                        utils::clear_gui_db(String::from("gui-exp"), self.status.i2p.clone()).unwrap();
                         self.showing_status = false;
                     }
                 }
@@ -422,7 +422,7 @@ impl eframe::App for AddressBookApp {
                         self.contact = String::new();
                         self.is_adding = false;
                         self.approve_contact = false;
-                        self.contacts = contact::find_all();
+                        self.contacts = contact::find_all().unwrap_or_default();
                         for c in &self.contacts {
                             ui.label(format!("{}", c.i2p_address));
                         }
@@ -541,10 +541,11 @@ impl eframe::App for AddressBookApp {
                                             String::from(crate::GUI_NICK_DB_KEY),
                                             String::from(&c.i2p_address),
                                         );
-                                        let nick = if nick_db.is_empty() {
+                                        let u_nick = nick_db.unwrap_or_default();
+                                        let nick = if u_nick.is_empty() {
                                             String::from("anon")
                                         } else {
-                                            nick_db
+                                            u_nick
                                         };
                                         self.status.nick = nick;
                                         self.status.i2p = String::from(&c.i2p_address);
@@ -552,16 +553,16 @@ impl eframe::App for AddressBookApp {
                                         self.status.txp = utils::search_gui_db(
                                             String::from(crate::GUI_TX_PROOF_DB_KEY),
                                             String::from(&c.i2p_address),
-                                        );
+                                        ).unwrap_or_default();
                                         // get the jwp
                                         self.status.jwp = utils::search_gui_db(
                                             String::from(crate::GUI_JWP_DB_KEY),
                                             String::from(&c.i2p_address),
-                                        );
+                                        ).unwrap_or_default();
                                         let r_exp = utils::search_gui_db(
                                             String::from(crate::GUI_EXP_DB_KEY),
                                             String::from(&c.i2p_address),
-                                        );
+                                        ).unwrap_or_default();
                                         self.status.exp = r_exp;
                                         let expire = match self.status.exp.parse::<i64>() {
                                             Ok(n) => n,
@@ -622,8 +623,8 @@ fn send_create_contact_req(tx: Sender<models::Contact>, ctx: egui::Context, c: m
     log::debug!("async send_create_contact_req");
     tokio::spawn(async move {
         let j_contact = utils::contact_to_json(&c);
-        let a_contact: models::Contact = contact::create(&j_contact).await;
-        let _ = tx.send(a_contact);
+        let a_contact = contact::create(&j_contact).await;
+        let _ = tx.send(a_contact.unwrap_or_default());
         ctx.request_repaint();
     });
 }
@@ -662,9 +663,9 @@ fn send_payment_req(
     log::debug!("cleaning stale jwp values");
     tokio::spawn(async move {
         if !retry {
-            utils::clear_gui_db(String::from("gui-txp"), String::from(&contact));
-            utils::clear_gui_db(String::from("gui-jwp"), String::from(&contact));
-            utils::clear_gui_db(String::from("gui-exp"), String::from(&contact));
+            utils::clear_gui_db(String::from("gui-txp"), String::from(&contact)).unwrap();
+            utils::clear_gui_db(String::from("gui-jwp"), String::from(&contact)).unwrap();
+            utils::clear_gui_db(String::from("gui-exp"), String::from(&contact)).unwrap();
             let ptxp_address = String::from(&d.address);
             let ftxp_address = String::from(&d.address);
             log::debug!("sending {} piconero(s) to: {}", &d.amount, &d.address);
@@ -712,22 +713,22 @@ fn send_payment_req(
                 String::from(crate::GUI_TX_PROOF_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.signature),
-            );
+            ).unwrap();
             utils::write_gui_db(
                 String::from(crate::GUI_TX_HASH_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.hash),
-            );
+            ).unwrap();
             utils::write_gui_db(
                 String::from(crate::GUI_TX_SIGNATURE_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.signature),
-            );
+            ).unwrap();
             utils::write_gui_db(
                 String::from(crate::GUI_TX_SUBADDRESS_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.subaddress),
-            );
+            ).unwrap();
             log::debug!(
                 "proving payment to {} for: {}",
                 String::from(&contact),
@@ -739,7 +740,7 @@ fn send_payment_req(
                         String::from(crate::GUI_JWP_DB_KEY),
                         String::from(&contact),
                         String::from(&result.jwp),
-                    );
+                    ).unwrap();
                     // this is just an estimate expiration but should suffice
                     let seconds: i64 = expire as i64 * 2 * 60;
                     let unix: i64 = chrono::offset::Utc::now().timestamp() + seconds;
@@ -747,7 +748,7 @@ fn send_payment_req(
                         String::from(crate::GUI_EXP_DB_KEY),
                         String::from(&contact),
                         format!("{}", unix),
-                    );
+                    ).unwrap();
                     ctx.request_repaint();
                 }
                 _ => log::error!("failed to obtain jwp"),
@@ -758,9 +759,12 @@ fn send_payment_req(
             let k_hash = String::from(crate::GUI_TX_HASH_DB_KEY);
             let k_sig = String::from(crate::GUI_TX_SIGNATURE_DB_KEY);
             let k_subaddress = String::from(crate::GUI_TX_SUBADDRESS_DB_KEY);
-            let hash = utils::search_gui_db(k_hash, String::from(&contact));
-            let signature = utils::search_gui_db(k_sig, String::from(&contact));
-            let subaddress = utils::search_gui_db(k_subaddress, String::from(&contact));
+            let hash = utils::search_gui_db(k_hash, String::from(&contact))
+                .unwrap_or_default();
+            let signature = utils::search_gui_db(k_sig, String::from(&contact))
+                .unwrap_or_default();
+            let subaddress = utils::search_gui_db(k_subaddress, String::from(&contact))
+                .unwrap_or_default();
             let ftxp: proof::TxProof = proof::TxProof {
                 subaddress,
                 confirmations: 0,
@@ -779,7 +783,7 @@ fn send_payment_req(
                         String::from(crate::GUI_JWP_DB_KEY),
                         String::from(&contact),
                         String::from(&result.jwp),
-                    );
+                    ).unwrap();
                     ctx.request_repaint();
                 }
                 _ => log::error!("failed to obtain jwp"),
@@ -804,8 +808,9 @@ fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: Stri
     tokio::spawn(async move {
         let m_type = message::MessageType::Normal;
         let result = message::create(j_message, jwp, m_type).await;
-        if !result.mid.is_empty() {
-            log::info!("sent message: {}", result.mid);
+        let u_res = result.unwrap_or_default();
+        if !u_res.mid.is_empty() {
+            log::info!("sent message: {}", u_res.mid);
             let _ = tx.send(true);
             ctx.request_repaint();
         }
@@ -814,12 +819,12 @@ fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: Stri
 
 fn change_nick_req(contact: String, nick: String) {
     log::debug!("change nick");
-    utils::clear_gui_db(String::from(crate::GUI_NICK_DB_KEY), String::from(&contact));
+    utils::clear_gui_db(String::from(crate::GUI_NICK_DB_KEY), String::from(&contact)).unwrap();
     utils::write_gui_db(
         String::from(crate::GUI_NICK_DB_KEY),
         String::from(&contact),
         nick,
-    );
+    ).unwrap();
 }
 
 fn send_can_transfer_req(tx: Sender<bool>, ctx: egui::Context, invoice: u128) {

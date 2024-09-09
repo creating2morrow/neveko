@@ -62,13 +62,18 @@ impl eframe::App for LockScreenApp {
                     self.lock_screen.credential.clone(),
                 );
                 // Get the credential hash from lmdb
-                let s = db::DatabaseEnvironment::open(&utils::get_release_env().value()).unwrap();
-                let r = db::DatabaseEnvironment::read(&s.env, &s.handle, CREDENTIAL_KEY);
+                let s = db::DatabaseEnvironment::open().unwrap();
+                let r = db::DatabaseEnvironment::read(
+                    &s.env,
+                    &s.handle.unwrap(),
+                    &CREDENTIAL_KEY.as_bytes().to_vec(),
+                ).unwrap();
                 // hash the text entered and compare
                 let mut hasher = Sha512::new();
                 hasher.update(self.lock_screen.credential.clone());
                 let result = hasher.finalize();
                 let hex = hex::encode(&result[..]);
+                let r: String = bincode::deserialize(&r[..]).unwrap_or_default();
                 if hex == r {
                     self.is_locked = false;
                 }

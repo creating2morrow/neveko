@@ -140,9 +140,14 @@ impl Default for MarketApp {
         let (_refresh_on_delete_product_tx, _refresh_on_delete_product_rx) =
             std::sync::mpsc::channel();
         let read_product_image = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
-        let s = db::DatabaseEnvironment::open(&utils::get_release_env().value()).unwrap();
-        let r = db::DatabaseEnvironment::read(&s.env, &s.handle, contact::NEVEKO_VENDOR_ENABLED);
-        let is_vendor_enabled = r == contact::NEVEKO_VENDOR_MODE_ON;
+        let s = db::DatabaseEnvironment::open().unwrap();
+        let r = db::DatabaseEnvironment::read(
+            &s.env,
+            &s.handle.unwrap(),
+            &contact::NEVEKO_VENDOR_ENABLED.as_bytes().to_vec(),
+        ).unwrap();
+        let sr: String = bincode::deserialize(&r[..]).unwrap_or_default();
+        let is_vendor_enabled = sr == contact::NEVEKO_VENDOR_MODE_ON;
         let (contact_info_tx, contact_info_rx) = std::sync::mpsc::channel();
         let (get_vendor_products_tx, get_vendor_products_rx) = std::sync::mpsc::channel();
         let (get_vendor_product_tx, get_vendor_product_rx) = std::sync::mpsc::channel();
@@ -450,7 +455,8 @@ impl eframe::App for MarketApp {
                     let prefix = String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                     if !self.msig.query_adjudicator {
                         let adjudicator_db =
-                            utils::search_gui_db(String::from(&prefix), self.m_order.orid.clone());
+                            utils::search_gui_db(String::from(&prefix), self.m_order.orid.clone())
+                            .unwrap_or_default();
                         log::debug!("adjudicator db: {}", adjudicator_db);
                         self.msig.has_adjudicator = !adjudicator_db.is_empty();
                         self.msig.adjudicator = adjudicator_db;
@@ -464,7 +470,7 @@ impl eframe::App for MarketApp {
                                 prefix,
                                 self.m_order.orid.clone(),
                                 self.msig.adjudicator.clone(),
-                            );
+                            ).unwrap();
                             self.msig.has_adjudicator = true;
                         }
                     } else {
@@ -472,7 +478,7 @@ impl eframe::App for MarketApp {
                         ui.label("\t");
                         if !self.msig.completed_prepare {
                             if ui.button("Clear Mediator").clicked() {
-                                utils::clear_gui_db(prefix, self.m_order.orid.clone());
+                                utils::clear_gui_db(prefix, self.m_order.orid.clone()).unwrap();
                                 self.msig.adjudicator = String::new();
                                 self.msig.has_adjudicator = false;
                                 self.msig.query_adjudicator = false;
@@ -490,9 +496,11 @@ impl eframe::App for MarketApp {
                                 String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
-                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let vendor =
-                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             // get prepare multisig info from vendor and adjudicator
                             // call prepare multisig and save to db
                             send_prepare_info_req(
@@ -508,9 +516,11 @@ impl eframe::App for MarketApp {
                                 String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
-                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let vendor =
-                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let sub_type = String::from(message::PREPARE_MSIG);
                             let is_prepared = validate_msig_step(
                                 &adjudicator,
@@ -531,9 +541,11 @@ impl eframe::App for MarketApp {
                                 String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
-                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let vendor =
-                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             // get make multisig info from vendor and adjudicator
                             // call make multisig and save to db
                             send_make_info_req(
@@ -549,9 +561,11 @@ impl eframe::App for MarketApp {
                                 String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
-                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let vendor =
-                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let sub_type = String::from(message::MAKE_MSIG);
                             let is_made = validate_msig_step(
                                 &adjudicator,
@@ -572,9 +586,11 @@ impl eframe::App for MarketApp {
                                 String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
-                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let vendor =
-                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             // get kex round one info from vendor and adjudicator
                             // call make multisig and save to db
                             send_kex_initial_req(
@@ -590,9 +606,11 @@ impl eframe::App for MarketApp {
                                 String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
-                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let vendor =
-                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let sub_type = String::from(message::KEX_ONE_MSIG);
                             let is_made = validate_msig_step(
                                 &adjudicator,
@@ -613,9 +631,11 @@ impl eframe::App for MarketApp {
                                 String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
-                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let vendor =
-                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             // get kex round two info from vendor and adjudicator
                             // call make multisig and save to db
                             send_kex_final_req(
@@ -631,9 +651,11 @@ impl eframe::App for MarketApp {
                                 String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
-                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let vendor =
-                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             let sub_type = String::from(message::KEX_TWO_MSIG);
                             let is_made = validate_msig_step(
                                 &adjudicator,
@@ -662,7 +684,8 @@ impl eframe::App for MarketApp {
                             self.is_loading = true;
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let contact =
-                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             verify_order_wallet_funded(
                                 &contact,
                                 &self.m_order.orid,
@@ -679,7 +702,8 @@ impl eframe::App for MarketApp {
                             self.is_loading = true;
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let vendor =
-                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             // not much orchestration here afaik, just send the output to the vendor
                             // TODO(c2m): 'idk remember why this tx.clone() is being reused' but not
                             // nothing breaks for now...
@@ -694,7 +718,7 @@ impl eframe::App for MarketApp {
                             let info = utils::search_gui_db(
                                 String::from(crate::GUI_MSIG_EXPORT_DB_KEY),
                                 String::from(&self.m_order.orid.clone()),
-                            );
+                            ).unwrap_or_default();
                             if !info.is_empty() {
                                 self.msig.completed_export = true;
                             }
@@ -711,7 +735,8 @@ impl eframe::App for MarketApp {
                         )
                         .on_hover_text("Please wait for the vendor to upload delivery info.");
                         if ui.button("Check").clicked() {
-                            let order = order::find(&self.m_order.orid.clone());
+                            let order = order::find(&self.m_order.orid.clone())
+                            .unwrap_or_default();
                             if order.status == order::StatusType::Shipped.value() {
                                 self.msig.completed_shipping_request = true;
                             }
@@ -753,7 +778,8 @@ impl eframe::App for MarketApp {
                             self.is_loading = true;
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let vendor =
-                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone());
+                                utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
+                                .unwrap_or_default();
                             // async trigger for signing and submitted the txset
                             release_txset(
                                 vendor,
@@ -898,7 +924,7 @@ impl eframe::App for MarketApp {
                                         let e_info: String = utils::search_gui_db(
                                             String::from(neveko_core::DELIVERY_INFO_DB_KEY),
                                             String::from(&o.orid),
-                                        );
+                                        ).unwrap_or_default();
                                         cipher_req(
                                             String::from(&o.cid),
                                             e_info,
@@ -917,7 +943,7 @@ impl eframe::App for MarketApp {
                                             let vendor = utils::search_gui_db(
                                                 vendor_prefix,
                                                 self.m_order.orid.clone(),
-                                            );
+                                            ).unwrap_or_default();
                                             self.is_loading = true;
                                             cancel_order_req(
                                                 self.cancel_request_tx.clone(),
@@ -936,7 +962,7 @@ impl eframe::App for MarketApp {
                                             let vendor = utils::search_gui_db(
                                                 vendor_prefix,
                                                 self.m_order.orid.clone(),
-                                            );
+                                            ).unwrap_or_default();
                                             self.is_loading = true;
                                             create_dispute_req(
                                                 &self.m_order.orid.clone(),
@@ -971,7 +997,8 @@ impl eframe::App for MarketApp {
                 }
                 let adjudicator_prefix = String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                 let adjudicator =
-                    utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone());
+                    utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
+                    .unwrap_or_default();
                 ui.label(format!("customer id: {}", self.new_order.cid));
                 ui.label(format!("adjudicator id: {}", adjudicator));
                 ui.label(format!("product id: {}", self.new_order.pid));
@@ -1145,7 +1172,7 @@ impl eframe::App for MarketApp {
                                             let nick_db = utils::search_gui_db(
                                                 String::from(crate::GUI_NICK_DB_KEY),
                                                 String::from(&v.i2p_address),
-                                            );
+                                            ).unwrap_or_default();
                                             let nick = if nick_db.is_empty() {
                                                 String::from("anon")
                                             } else {
@@ -1157,16 +1184,16 @@ impl eframe::App for MarketApp {
                                             self.vendor_status.txp = utils::search_gui_db(
                                                 String::from(crate::GUI_TX_PROOF_DB_KEY),
                                                 String::from(&v.i2p_address),
-                                            );
+                                            ).unwrap_or_default();
                                             // get the jwp
                                             self.vendor_status.jwp = utils::search_gui_db(
                                                 String::from(crate::GUI_JWP_DB_KEY),
                                                 String::from(&v.i2p_address),
-                                            );
+                                            ).unwrap_or_default();
                                             let r_exp = utils::search_gui_db(
                                                 String::from(crate::GUI_EXP_DB_KEY),
                                                 String::from(&v.i2p_address),
-                                            );
+                                            ).unwrap_or_default();
                                             self.vendor_status.exp = r_exp;
                                             let expire = match self.vendor_status.exp.parse::<i64>()
                                             {
@@ -1366,7 +1393,8 @@ impl eframe::App for MarketApp {
                                                     String::from(&p.pid),
                                                 );
                                             } else {
-                                                let i_product = product::find(&p.pid);
+                                                let i_product = product::find(&p.pid)
+                                                    .unwrap_or_default();
                                                 match std::fs::write(&file_path, &i_product.image) {
                                                     Ok(w) => w,
                                                     Err(_) => {
@@ -1494,14 +1522,14 @@ impl eframe::App for MarketApp {
                         qty,
                     };
                     let j_product = utils::product_to_json(&product);
-                    product::modify(j_product);
+                    product::modify(j_product).unwrap();
                     self.new_product_desc = String::new();
                     self.new_product_name = String::new();
                     self.new_product_price = String::new();
                     self.new_product_qty = String::new();
                     self.new_product_image = String::new();
                     self.is_showing_product_update = false;
-                    self.products = product::find_all();
+                    self.products = product::find_all().unwrap_or_default();
                 }
                 if ui.button("Exit").clicked() {
                     self.new_product_desc = String::new();
@@ -1619,8 +1647,8 @@ impl eframe::App for MarketApp {
                 .on_hover_text("monero multisig is experimental and usage of neveko may lead to loss of funds.");
             });
             if ui.button("Refresh").clicked() {
-                self.products = product::find_all();
-                self.orders = order::find_all();
+                self.products = product::find_all().unwrap_or_default();
+                self.orders = order::find_all().unwrap_or_default();
             }
             ui.horizontal(|ui| {
                 let vendor_mode: &str = if self.is_vendor_enabled {
@@ -1630,17 +1658,17 @@ impl eframe::App for MarketApp {
                 };
                 ui.label(format!("vendor mode: {} \t", vendor_mode));
                 if ui.button("toggle").clicked() {
-                    self.is_vendor_enabled = utils::toggle_vendor_enabled();
+                    self.is_vendor_enabled = utils::toggle_vendor_enabled().unwrap_or_default();
                 }
             });
             if ui.button("View Vendors").clicked() {
                 // assume all contacts are vendors until updated status check
-                self.vendors = contact::find_all();
+                self.vendors = contact::find_all().unwrap_or_default();
                 self.is_showing_vendors = true;
             }
             ui.label("\n");
             if ui.button("View Orders").clicked() {
-                self.customer_orders = order::find_all_backup();
+                self.customer_orders = order::find_all_backup().unwrap_or_default();
                 self.is_customer_viewing_orders = true;
             }
             if self.is_vendor_enabled {
@@ -1697,7 +1725,7 @@ impl eframe::App for MarketApp {
                         qty,
                     };
                     let j_product = utils::product_to_json(&product);
-                    product::create(j_product);
+                    product::create(j_product).unwrap();
                     self.new_product_desc = String::new();
                     self.new_product_name = String::new();
                     self.new_product_price = String::new();
@@ -1706,14 +1734,14 @@ impl eframe::App for MarketApp {
                 }
                 ui.label("\n");
                 if ui.button("View Products").clicked() {
-                    self.products = product::find_all();
+                    self.products = product::find_all().unwrap_or_default();
                     self.is_showing_products = true;
                     self.is_showing_vendors = false;
                 }
                 ui.label("\n");
                 if ui.button("Manage Orders").clicked() {
                     self.is_showing_orders = true;
-                    self.orders = order::find_all_vendor_orders();
+                    self.orders = order::find_all_vendor_orders().unwrap_or_default();
                 }
             }
         });
@@ -1806,11 +1834,11 @@ fn submit_order_req(
         let order = order::transmit_order_request(r_contact, jwp, request).await;
         let u_order = order.unwrap_or_else(|_| Default::default());
         // cache order request to db
-        order::backup(&u_order);
+        order::backup(&u_order).unwrap();
         let prefix = String::from(crate::GUI_OVL_DB_KEY);
         let orid = String::from(&u_order.orid);
         let i2p = String::from(&contact);
-        utils::write_gui_db(prefix, orid, i2p);
+        utils::write_gui_db(prefix, orid, i2p).unwrap();
         let _ = tx.send(u_order);
         ctx.request_repaint();
     });
@@ -1830,9 +1858,10 @@ fn send_prepare_info_req(
         let m_jwp: String = utils::search_gui_db(
             String::from(crate::GUI_JWP_DB_KEY),
             String::from(&adjudicator),
-        );
+        ).unwrap_or_default();
         let v_jwp: String =
-            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
+            .unwrap_or_default();
         let wallet_password = String::new();
         monero::create_wallet(&w_orid, &wallet_password).await;
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
@@ -1850,10 +1879,10 @@ fn send_prepare_info_req(
             String::from(crate::GUI_MSIG_PREPARE_DB_KEY),
             String::from(&w_orid),
             String::from(ref_prepare_info),
-        );
+        ).unwrap();
         // Request adjudicator and vendor while we're at it
         // Will coordinating send this on make requests next
-        let s = db::DatabaseEnvironment::async_open().await;
+        let s = db::DatabaseEnvironment::open().unwrap();
         let m_msig_key = format!(
             "{}-{}-{}",
             message::PREPARE_MSIG,
@@ -1866,8 +1895,9 @@ fn send_prepare_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_prepare = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_prepare = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
+        let m_prepare = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
+        let s = db::DatabaseEnvironment::open().unwrap();
+        let v_prepare = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
         if v_prepare.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
@@ -1918,9 +1948,10 @@ fn send_make_info_req(
         let m_jwp: String = utils::search_gui_db(
             String::from(crate::GUI_JWP_DB_KEY),
             String::from(&adjudicator),
-        );
+        ).unwrap_or_default();
         let v_jwp: String =
-            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
+            .unwrap_or_default();
         let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
@@ -1938,7 +1969,7 @@ fn send_make_info_req(
             String::from(crate::GUI_MSIG_PREPARE_DB_KEY),
             String::from(&w_orid),
         );
-        let s = db::DatabaseEnvironment::async_open().await;
+        let s = db::DatabaseEnvironment::open().unwrap();
         let m_msig_key = format!(
             "{}-{}-{}",
             message::PREPARE_MSIG,
@@ -1951,18 +1982,22 @@ fn send_make_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_prepare = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_prepare = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
-        prepare_info_prep.push(String::from(&m_prepare));
-        prepare_info_prep.push(String::from(&v_prepare));
-        m_prepare_info_send.push(String::from(&c_prepare));
-        m_prepare_info_send.push(String::from(&v_prepare));
-        v_prepare_info_send.push(String::from(&m_prepare));
-        v_prepare_info_send.push(String::from(&c_prepare));
+        let m_prepare = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
+        let sm_prepare: String = bincode::deserialize(&m_prepare[..]).unwrap_or_default();
+        let s = db::DatabaseEnvironment::open().unwrap();
+        let v_prepare = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+        let sv_prepare: String = bincode::deserialize(&&v_prepare[..]).unwrap_or_default();
+        prepare_info_prep.push(String::from(&sm_prepare));
+        prepare_info_prep.push(String::from(&sv_prepare));
+        let uc_prepare = c_prepare.unwrap_or_default();
+        m_prepare_info_send.push(String::from(&uc_prepare));
+        m_prepare_info_send.push(String::from(&sv_prepare));
+        v_prepare_info_send.push(String::from(&sv_prepare));
+        v_prepare_info_send.push(String::from(&uc_prepare));
         let local_make = utils::search_gui_db(
             String::from(crate::GUI_MSIG_MAKE_DB_KEY),
             String::from(&w_orid),
-        );
+        ).unwrap_or_default();
         if local_make.is_empty() {
             let make_info = monero::make_wallet(prepare_info_prep).await;
             monero::close_wallet(&w_orid, &wallet_password).await;
@@ -1972,13 +2007,12 @@ fn send_make_info_req(
                     String::from(crate::GUI_MSIG_MAKE_DB_KEY),
                     String::from(&w_orid),
                     String::from(ref_make_info),
-                );
+                ).unwrap();
             }
         }
         // Request adjudicator and vendor while we're at it
         // Will coordinating send this on make requests next
-
-        let s = db::DatabaseEnvironment::async_open().await;
+        let s = db::DatabaseEnvironment::open().unwrap();
         let m_msig_key = format!(
             "{}-{}-{}",
             message::MAKE_MSIG,
@@ -1991,8 +2025,9 @@ fn send_make_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_make = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_make = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
+        let m_make = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
+        let s = db::DatabaseEnvironment::open().unwrap();
+        let v_make = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
         if v_make.is_empty() {
             log::debug!("constructing vendor {} msig messages", message::MAKE_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
@@ -2040,9 +2075,10 @@ fn send_kex_initial_req(
         let m_jwp: String = utils::search_gui_db(
             String::from(crate::GUI_JWP_DB_KEY),
             String::from(&adjudicator),
-        );
+        ).unwrap_or_default();
         let v_jwp: String =
-            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
+            .unwrap_or_default();
         let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
@@ -2059,8 +2095,8 @@ fn send_kex_initial_req(
         let c_kex_init = utils::search_gui_db(
             String::from(crate::GUI_MSIG_MAKE_DB_KEY),
             String::from(&w_orid),
-        );
-        let s = db::DatabaseEnvironment::async_open().await;
+        ).unwrap_or_default();
+        let s = db::DatabaseEnvironment::open().unwrap();
         let m_msig_key = format!(
             "{}-{}-{}",
             message::MAKE_MSIG,
@@ -2073,18 +2109,21 @@ fn send_kex_initial_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_init = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_kex_init = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
-        kex_init_prep.push(String::from(&m_kex_init));
-        kex_init_prep.push(String::from(&v_kex_init));
+        let m_kex_init = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
+        let sm_kex_init: String = bincode::deserialize(&m_kex_init[..]).unwrap_or_default();
+        let s = db::DatabaseEnvironment::open().unwrap();
+        let v_kex_init = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+        let sv_kex_init: String = bincode::deserialize(&v_kex_init[..]).unwrap_or_default();
+        kex_init_prep.push(String::from(&sm_kex_init));
+        kex_init_prep.push(String::from(&sv_kex_init));
         m_kex_init_send.push(String::from(&c_kex_init));
-        m_kex_init_send.push(String::from(&v_kex_init));
-        v_kex_init_send.push(String::from(&m_kex_init));
+        m_kex_init_send.push(String::from(&sv_kex_init));
+        v_kex_init_send.push(String::from(&sm_kex_init));
         v_kex_init_send.push(String::from(&c_kex_init));
         let local_kex_init = utils::search_gui_db(
             String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
             String::from(&w_orid),
-        );
+        ).unwrap_or_default();
         if local_kex_init.is_empty() {
             let kex_out =
                 monero::exchange_multisig_keys(false, kex_init_prep, &wallet_password).await;
@@ -2095,12 +2134,12 @@ fn send_kex_initial_req(
                     String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
                     String::from(&w_orid),
                     String::from(ref_kex_info),
-                );
+                ).unwrap();
             }
         }
         // Request adjudicator and vendor while we're at it
         // Will coordinating send this on kex round two next
-        let s = db::DatabaseEnvironment::async_open().await;
+        let s = db::DatabaseEnvironment::open().unwrap();
         let m_msig_key = format!(
             "{}-{}-{}",
             message::KEX_ONE_MSIG,
@@ -2113,8 +2152,9 @@ fn send_kex_initial_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_init = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_kex_init = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
+        let m_kex_init = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
+        let s = db::DatabaseEnvironment::open().unwrap();
+        let v_kex_init = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
         if v_kex_init.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
@@ -2165,9 +2205,10 @@ fn send_kex_final_req(
         let m_jwp: String = utils::search_gui_db(
             String::from(crate::GUI_JWP_DB_KEY),
             String::from(&adjudicator),
-        );
+        ).unwrap_or_default();
         let v_jwp: String =
-            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
+            .unwrap_or_default();
         let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
@@ -2182,8 +2223,8 @@ fn send_kex_final_req(
         let c_kex_final = utils::search_gui_db(
             String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
             String::from(&w_orid),
-        );
-        let s = db::DatabaseEnvironment::async_open().await;
+        ).unwrap_or_default();
+        let s = db::DatabaseEnvironment::open().unwrap();
         let m_msig_key = format!(
             "{}-{}-{}",
             message::KEX_ONE_MSIG,
@@ -2196,8 +2237,11 @@ fn send_kex_final_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_final = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_kex_final = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
+        let r_m_kex_final = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
+        let s = db::DatabaseEnvironment::open().unwrap();
+        let r_v_kex_final = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+        let m_kex_final: String = bincode::deserialize(&r_m_kex_final[..]).unwrap_or_default();
+        let v_kex_final: String = bincode::deserialize(&r_v_kex_final[..]).unwrap_or_default();
         kex_final_prep.push(String::from(&m_kex_final));
         kex_final_prep.push(String::from(&v_kex_final));
         m_kex_final_send.push(String::from(&c_kex_final));
@@ -2207,7 +2251,7 @@ fn send_kex_final_req(
         let local_kex_final = utils::search_gui_db(
             String::from(crate::GUI_MSIG_KEX_TWO_DB_KEY),
             String::from(&w_orid),
-        );
+        ).unwrap_or_default();
         if local_kex_final.is_empty() {
             let kex_out =
                 monero::exchange_multisig_keys(false, kex_final_prep, &wallet_password).await;
@@ -2218,11 +2262,11 @@ fn send_kex_final_req(
                     String::from(crate::GUI_MSIG_KEX_TWO_DB_KEY),
                     String::from(&w_orid),
                     String::from(ref_kex_info),
-                );
+                ).unwrap_or_default();
             }
         }
         // we can verify all good if the senders all send back the correct wallet address
-        let s = db::DatabaseEnvironment::async_open().await;
+        let s = db::DatabaseEnvironment::open().unwrap();
         let m_msig_key = format!(
             "{}-{}-{}",
             message::KEX_TWO_MSIG,
@@ -2235,8 +2279,9 @@ fn send_kex_final_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_final = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &m_msig_key).await;
-        let v_kex_final = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
+        let m_kex_final = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
+        let s = db::DatabaseEnvironment::open().unwrap();
+        let v_kex_final = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
         if v_kex_final.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
@@ -2305,10 +2350,11 @@ fn verify_order_wallet_funded(
             return;
         }
         monero::close_wallet(&order_id, &wallet_password).await;
-        let order = order::find(&order_id);
+        let order = order::find(&order_id).unwrap_or_default();
         let vendor = String::from(&l_contact);
         let v_jwp: String =
-            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
+            .unwrap_or_default();
         let opid = String::from(&order.pid);
         let result = product::get_vendor_product(vendor, v_jwp, opid).await;
         if !result.is_ok() {
@@ -2333,7 +2379,8 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
     let w_orid: String = String::from(orid);
     tokio::spawn(async move {
         let v_jwp: String =
-            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor));
+            utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
+            .unwrap_or_default();
         let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
@@ -2350,17 +2397,17 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
             String::from(crate::GUI_MSIG_EXPORT_DB_KEY),
             String::from(&w_orid),
             String::from(ref_export_info),
-        );
+        ).unwrap_or_default();
         // Request vendor while we're at it
         // Will coordinating send this on make requests next
-        let s = db::DatabaseEnvironment::async_open().await;
+        let s = db::DatabaseEnvironment::open().unwrap();
         let v_msig_key = format!(
             "{}-{}-{}",
             message::EXPORT_MSIG,
             String::from(&v_orid),
             vendor
         );
-        let v_export = db::DatabaseEnvironment::async_read(&s.env, &s.handle, &v_msig_key).await;
+        let v_export = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
         if v_export.is_empty() {
             log::debug!("constructing vendor {} msig messages", message::EXPORT_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
@@ -2410,7 +2457,7 @@ fn cancel_order_req(
     tokio::spawn(async move {
         log::info!("cancel order req: {}", ship_orid);
         let order = order::d_trigger_cancel_request(&vendor_i2p, &ship_orid).await;
-        let _ = tx.send(order);
+        let _ = tx.send(order.unwrap_or_default());
         ctx.request_repaint();
     });
 }
@@ -2422,11 +2469,14 @@ fn validate_msig_step(
     vendor: &String,
     sub_type: &String,
 ) -> bool {
-    let s = db::DatabaseEnvironment::open(&utils::get_release_env().value()).unwrap();
+    let s = db::DatabaseEnvironment::open().unwrap();
     let m_msig_key = format!("{}-{}-{}", sub_type, orid, adjudicator);
     let v_msig_key = format!("{}-{}-{}", sub_type, orid, vendor);
-    let m_info = db::DatabaseEnvironment::read(&s.env, &s.handle, &m_msig_key);
-    let v_info = db::DatabaseEnvironment::read(&s.env, &s.handle, &v_msig_key);
+    let r_m_info = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
+    let s = db::DatabaseEnvironment::open().unwrap();
+    let r_v_info = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+    let m_info: String = bincode::deserialize(&&r_m_info[..]).unwrap_or_default();
+    let v_info: String = bincode::deserialize(&&r_v_info[..]).unwrap_or_default();
     log::debug!("{} adjudicator info: {}", sub_type, &m_info);
     log::debug!("{} vendor info: {}", sub_type, &v_info);
     !m_info.is_empty() && !v_info.is_empty()
@@ -2435,14 +2485,15 @@ fn validate_msig_step(
 fn release_txset(contact: String, orid: String, ctx: egui::Context, tx: Sender<bool>) {
     tokio::spawn(async move {
         log::info!("async release txset");
-        let lookup = order::find(&orid);
+        let lookup = order::find(&orid).unwrap_or_default();
         let submit = order::sign_and_submit_multisig(&orid, &lookup.vend_msig_txset).await;
         if submit.result.tx_hash_list.is_empty() {
             log::error!("could not submit txset");
             let _ = tx.send(false);
             return;
         }
-        let finalize = order::d_trigger_finalize_request(&contact, &orid).await;
+        let t_finalize = order::d_trigger_finalize_request(&contact, &orid).await;
+        let finalize = t_finalize.unwrap_or_default();
         // update order to delivered if success
         let _ = tx.send(finalize.vendor_update_success);
         ctx.request_repaint();
@@ -2453,7 +2504,8 @@ fn release_txset(contact: String, orid: String, ctx: egui::Context, tx: Sender<b
 fn upload_dinfo_req(dinfo: String, orid: String, ctx: egui::Context, tx: Sender<bool>) {
     tokio::spawn(async move {
         log::info!("async upload_dinfo_req");
-        let dinfo = order::upload_delivery_info(&orid, &dinfo).await;
+        let r_dinfo = order::upload_delivery_info(&orid, &dinfo).await;
+        let dinfo = r_dinfo.unwrap_or_default();
         let _ = tx.send(!dinfo.orid.is_empty());
         ctx.request_repaint();
     });
@@ -2492,7 +2544,8 @@ fn create_dispute_req(
             tx_set: transfer.result.multisig_txset,
             ..Default::default()
         };
-        let res = dispute::trigger_dispute_request(&a_contact, &dispute).await;
+        let t_res = dispute::trigger_dispute_request(&a_contact, &dispute).await;
+        let res = t_res.unwrap_or_default();
         if res.created != 0 {
             // cancel the order and write the dispute to the db
             let wallet_password = std::env::var(neveko_core::MONERO_WALLET_PASSWORD)
@@ -2500,9 +2553,9 @@ fn create_dispute_req(
             monero::open_wallet(&String::from(neveko_core::APP_NAME), &wallet_password).await;
             let pre_sign = monero::sign(String::from(&d_orid)).await;
             monero::close_wallet(&String::from(neveko_core::APP_NAME), &wallet_password).await;
-            order::cancel_order(&d_orid, &pre_sign.result.signature).await;
+            let _ = order::cancel_order(&d_orid, &pre_sign.result.signature).await;
             let j_dispute = utils::dispute_to_json(&res);
-            dispute::create(j_dispute);
+            let _ = dispute::create(j_dispute);
             let _ = tx.send(res);
             ctx.request_repaint();
         }
@@ -2512,7 +2565,7 @@ fn create_dispute_req(
 fn cipher_req(cid: String, m: String, e: Option<String>, tx: Sender<String>, ctx: egui::Context) {
     tokio::spawn(async move {
         log::info!("async decipher_req");
-        let contact = contact::find(&cid);
+        let contact = contact::find(&cid).unwrap_or_default();
         let ciphered = neveko25519::cipher(&contact.nmpk, m, e).await;
         let _ = tx.send(ciphered);
         ctx.request_repaint();

@@ -15,7 +15,6 @@ use neveko_core::{
     models::*,
     proof,
     reqres,
-    utils,
 };
 
 /// Add contact
@@ -25,17 +24,18 @@ pub async fn add_contact(
     _token: auth::BearerToken,
 ) -> Custom<Json<Contact>> {
     let res_contact = contact::create(&req_contact).await;
-    if res_contact.cid.is_empty() {
+    let u_contact = res_contact.unwrap_or_default();
+    if u_contact.cid.is_empty() {
         return Custom(Status::BadRequest, Json(Default::default()));
     }
-    Custom(Status::Ok, Json(res_contact))
+    Custom(Status::Ok, Json(u_contact))
 }
 
 /// Return all contacts
 #[get("/")]
 pub async fn get_contacts(_token: auth::BearerToken) -> Custom<Json<Vec<Contact>>> {
     let contacts = contact::find_all();
-    Custom(Status::Ok, Json(contacts))
+    Custom(Status::Ok, Json(contacts.unwrap_or_default()))
 }
 
 /// Delete a contact by CID
@@ -44,9 +44,9 @@ pub async fn remove_contact(
     contact: String,
     _token: auth::BearerToken,
 ) -> Custom<Json<Vec<Contact>>> {
-    contact::delete(&contact);
+    let _ = contact::delete(&contact);
     let contacts = contact::find_all();
-    Custom(Status::Ok, Json(contacts))
+    Custom(Status::Ok, Json(contacts.unwrap_or_default()))
 }
 
 /// prove payment

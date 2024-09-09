@@ -1,12 +1,7 @@
 //! contact operations module
 
 use crate::{
-    db,
-    i2p,
-    models::*,
-    monero,
-    reqres,
-    utils,
+    db, error::NevekoError, i2p, models::*, monero, reqres, utils
 };
 use kn0sys_lmdb_rs::MdbError;
 use log::{
@@ -43,7 +38,7 @@ pub async fn create(c: &Json<Contact>) -> Result<Contact, MdbError> {
     let s = db::DatabaseEnvironment::open()?;
     let k = &new_contact.cid;
     let v = bincode::serialize(&new_contact).unwrap_or_default();
-    db::write_chunks(&s.env, &s.handle?, k.as_bytes(), &v);
+    db::write_chunks(&s.env, &s.handle?, k.as_bytes(), &v)?;
     // in order to retrieve all contact, write keys to with cl
     let list_key = crate::CONTACT_LIST_DB_KEY;
     let str_lk = String::from(list_key);
@@ -60,7 +55,7 @@ pub async fn create(c: &Json<Contact>) -> Result<Contact, MdbError> {
         contact_list, list_key
     );
     let s = db::DatabaseEnvironment::open()?;
-    db::write_chunks(&s.env, &s.handle?, list_key.as_bytes(), &contact_list.as_bytes());
+    db::write_chunks(&s.env, &s.handle?, list_key.as_bytes(), &contact_list.as_bytes())?;
     Ok(new_contact)
 }
 
@@ -78,14 +73,14 @@ pub fn find(cid: &String) -> Result<Contact, MdbError> {
 }
 
 /// Contact lookup
-pub fn find_by_i2p_address(i2p_address: &String) -> Result<Contact , MdbError> {
-    let contacts = find_all()?;
+pub fn find_by_i2p_address(i2p_address: &String) -> Result<Contact , NevekoError> {
+    let contacts = find_all().map_err(|_| NevekoError::Database(MdbError::NotFound))?;
     for c in contacts {
         if c.i2p_address == *i2p_address {
             return Ok(c);
         }
     }
-    Err(MdbError::NotFound)
+    Err(NevekoError::Database(MdbError::NotFound))
 }
 
 /// Contact deletion
@@ -98,7 +93,7 @@ pub fn delete(cid: &String) -> Result<(), MdbError> {
         return Err(MdbError::NotFound);
     }
     let s = db::DatabaseEnvironment::open()?;
-    db::DatabaseEnvironment::delete(&s.env, &s.handle?, cid.as_bytes());
+    let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle?, cid.as_bytes())?;
     Ok(())
 }
 
@@ -142,10 +137,11 @@ async fn validate_contact(j: &Json<Contact>) -> bool {
 }
 
 /// Send our information
-pub async fn share() -> Result<Contact, MdbError> {
-    
-    let s = db::DatabaseEnvironment::open()?;
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &NEVEKO_VENDOR_ENABLED.as_bytes().to_vec())?;
+pub async fn share() -> Result<Contact, NevekoError> {
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r = db::DatabaseEnvironment::read(&s.env, handle, &NEVEKO_VENDOR_ENABLED.as_bytes().to_vec())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let str_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let is_vendor = str_r == NEVEKO_VENDOR_MODE_ON;
     let wallet_name = String::from(crate::APP_NAME);
@@ -235,7 +231,7 @@ mod tests {
     fn cleanup(k: &String) {
         
         let s = db::DatabaseEnvironment::open();
-        db::DatabaseEnvironment::delete(&s.env, &s.handle, k);
+        let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle, k)?;
     }
 
     #[test]

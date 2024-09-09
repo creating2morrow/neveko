@@ -19,7 +19,11 @@ const CHUNK_SIZE_MEMORY_RATIO: f32 = MAP_SIZE_MEMORY_RATIO * 0.01;
 ///
 /// By default the database will be written to /home/user/.neveko/{ENV}/lmdb
 pub struct DatabaseEnvironment {
+    /// Represents LMDB Environment.
+    //TODO(n12n): cache the DB handle to avoid multiple open ops
     pub env: Environment,
+    /// DB handle.
+    // TODO(n12n): cache the DB handle to avoid multiple open ops
     pub handle: Result<DbHandle, MdbError>,
 }
 
@@ -199,7 +203,7 @@ mod tests {
         let actual = DatabaseEnvironment::read(&db.env, &db.handle?, &Vec::from(k));
         assert_eq!(expected.to_vec(), actual?);
         let db = DatabaseEnvironment::open()?;
-        let _ = DatabaseEnvironment::delete(&db.env, &db.handle?, &Vec::from(k));
+        let _ = DatabaseEnvironment::delete(&db.env, &db.handle?, &Vec::from(k))?;
         Ok(())
     }
 }

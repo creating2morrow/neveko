@@ -1945,6 +1945,7 @@ dependencies = [
 name = "neveko_gui"
 version = "0.1.2-beta"
 dependencies = [
+ "bincode",
  "chrono",
  "console_error_panic_hook",
  "eframe",

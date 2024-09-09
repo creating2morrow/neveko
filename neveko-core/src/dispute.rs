@@ -28,7 +28,7 @@ pub fn create(d: Json<Dispute>) -> Result<Dispute, MdbError> {
     let s = db::DatabaseEnvironment::open()?;
     let k = &d.did;
     let v = bincode::serialize(&new_dispute).unwrap_or_default();
-    db::write_chunks(&s.env, &s.handle?, k.as_bytes(), &v);
+    db::write_chunks(&s.env, &s.handle?, k.as_bytes(), &v)?;
     // in order to retrieve all orders, write keys to with dl
     let list_key = crate::DISPUTE_LIST_DB_KEY;
     let s = db::DatabaseEnvironment::open()?;
@@ -43,7 +43,7 @@ pub fn create(d: Json<Dispute>) -> Result<Dispute, MdbError> {
         dispute_list, list_key
     );
     let s = db::DatabaseEnvironment::open()?;
-    db::write_chunks(&s.env, &s.handle?, list_key.as_bytes(), dispute_list.as_bytes());
+    db::write_chunks(&s.env, &s.handle?, list_key.as_bytes(), dispute_list.as_bytes())?;
     // restart the dispute aut-settle thread
     let cleared = is_dispute_clear(s_r);
     if !cleared {
@@ -130,7 +130,7 @@ pub async fn settle_dispute() -> Result<(), MdbError>{
             // index was created but cleared
             info!("terminating dispute auto-settle thread");
             let s = db::DatabaseEnvironment::open()?;
-            db::DatabaseEnvironment::delete(&s.env, &s.handle?, list_key.as_bytes());
+            let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle?, list_key.as_bytes())?;
             return Ok(());
         }
         for d in d_vec {
@@ -150,7 +150,7 @@ pub async fn settle_dispute() -> Result<(), MdbError>{
                         return Ok(());
                     }
                     // remove the dispute from the db
-                    remove_from_auto_settle(dispute.did);
+                    remove_from_auto_settle(dispute.did)?;
                 }
             }
         }
@@ -198,7 +198,7 @@ fn remove_from_auto_settle(did: String) -> Result<(), MdbError> {
         dispute_list, list_key
     );
     let s = db::DatabaseEnvironment::open()?;
-    db::write_chunks(&s.env, &s.handle?, list_key.as_bytes(), dispute_list.as_bytes());
+    db::write_chunks(&s.env, &s.handle?, list_key.as_bytes(), dispute_list.as_bytes())?;
     Ok(())
 }
 

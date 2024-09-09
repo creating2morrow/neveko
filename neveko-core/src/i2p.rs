@@ -21,6 +21,8 @@ use std::{
     time::Duration,
 };
 
+const TODO: &str = "test";
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HttpProxyStatus {
     pub open: bool,
@@ -99,8 +101,7 @@ async fn find_tunnels() {
 /// proxy tunnel, etc. Logs proxy status every 10 minutes.
 pub async fn start() {
     info!("starting i2p-zero");
-    let args = args::Args::parse();
-    let path = args.i2p_zero_dir;
+    let path = TODO;
     let output = Command::new(format!("{}/router/bin/i2p-zero", path)).spawn();
     match output {
         Ok(child) => debug!("{:?}", child.stdout),
@@ -125,8 +126,7 @@ pub async fn start() {
 /// Create an i2p tunnel for the NEVEKO application
 fn create_tunnel() {
     info!("creating tunnel");
-    let args = args::Args::parse();
-    let path = args.i2p_zero_dir;
+    let path = TODO;
     let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
         .args([
             "server.create",
@@ -141,8 +141,7 @@ fn create_tunnel() {
 /// Create an i2p tunnel for the monero wallet socks proxy
 fn create_socks_proxy_tunnel() {
     info!("creating monerod socks proxy tunnel");
-    let args = args::Args::parse();
-    let path = args.i2p_zero_dir;
+    let path = TODO;
     let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
         .args(["socks.create", &get_i2p_socks_proxy_port().to_string()])
         .spawn()
@@ -154,7 +153,7 @@ fn create_socks_proxy_tunnel() {
 fn create_anon_inbound_tunnel() {
     info!("creating monerod anon inbound proxy tunnel");
     let args = args::Args::parse();
-    let path = args.i2p_zero_dir;
+    let path = TODO;
     let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
         .args([
             "server.create",
@@ -186,8 +185,7 @@ fn get_i2p_socks_proxy_port() -> String {
 
 /// Create the http proxy if it doesn't exist
 fn create_http_proxy() {
-    let args = args::Args::parse();
-    let path = args.i2p_zero_dir;
+    let path = TODO;
     info!("creating http proxy");
     let port = get_i2p_proxy_port();
     let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
@@ -242,8 +240,7 @@ pub fn get_destination(port: Option<u16>) -> String {
 
 /// Ping the i2p-zero http proxy `tunnel-control http.state <port>`
 pub async fn check_connection() -> ProxyStatus {
-    let args = args::Args::parse();
-    let path = args.i2p_zero_dir;
+    let path = TODO;
     let port = get_i2p_proxy_port();
     let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
         .args(["http.state", &port])

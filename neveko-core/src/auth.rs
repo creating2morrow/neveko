@@ -52,7 +52,7 @@ pub fn create(address: &String) -> Result<Authorization, MdbError> {
     debug!("insert auth: {:?}", &new_auth);
     let k = &new_auth.aid.as_bytes();
     let v = bincode::serialize(&new_auth).unwrap_or_default();
-    db::write_chunks(&s.env, &s.handle?, k, &v);
+    db::write_chunks(&s.env, &s.handle?, k, &v)?;
     Ok(new_auth)
 }
 
@@ -83,11 +83,11 @@ fn update_expiration(f_auth: &Authorization, address: &String) -> Result<Authori
     );
     
     let s = db::DatabaseEnvironment::open()?;
-    db::DatabaseEnvironment::delete(&s.env, &s.handle?, &u_auth.aid.as_bytes().to_vec());
+    let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle?, &u_auth.aid.as_bytes().to_vec())?;
     let k = u_auth.aid.as_bytes();
     let v = bincode::serialize(&u_auth).unwrap_or_default();
     let s = db::DatabaseEnvironment::open()?;
-    db::write_chunks(&s.env, &s.handle?, k, &v);
+    db::write_chunks(&s.env, &s.handle?, k, &v)?;
     Ok(u_auth)
 }
 
@@ -126,10 +126,10 @@ pub async fn verify_login(aid: String, uid: String, signature: String) -> Result
         let u_auth = Authorization::update_uid(f_auth, String::from(&u.uid));
         
         let s = db::DatabaseEnvironment::open()?;
-        db::DatabaseEnvironment::delete(&s.env, &s.handle?, &u_auth.aid.as_bytes());
+        let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle?, &u_auth.aid.as_bytes())?;
         let v = bincode::serialize(&u_auth).unwrap_or_default();
         let s = db::DatabaseEnvironment::open()?;
-        db::write_chunks(&s.env, &s.handle?, u_auth.aid.as_bytes(), &v);
+        db::write_chunks(&s.env, &s.handle?, u_auth.aid.as_bytes(), &v)?;
         monero::close_wallet(&wallet_name, &wallet_password).await;
         Ok(u_auth)
     } else if !f_user.xmr_address.is_empty() {
@@ -157,7 +157,7 @@ async fn verify_access(address: &String, signature: &String) -> Result<bool, Mdb
         let now: i64 = chrono::offset::Utc::now().timestamp();
         let expiration = get_auth_expiration();
         if now > f_auth.created + expiration {
-            update_expiration(&f_auth, address);
+            update_expiration(&f_auth, address)?;
             return Ok(false);
         }
     }
@@ -291,7 +291,7 @@ mod tests {
 
     fn cleanup(k: &String) -> Result<(), MdbError>{
         let s = db::DatabaseEnvironment::open()?;
-        db::DatabaseEnvironment::delete(&s.env, &s.handle?, k.as_bytes())?;
+        let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle?, k.as_bytes())?;
         Ok(())
     }
 

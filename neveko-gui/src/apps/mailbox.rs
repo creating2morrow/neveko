@@ -51,7 +51,7 @@ impl eframe::App for MailBoxApp {
 
         // initial message load
         if !self.message_init {
-            self.messages = message::find_all();
+            self.messages = message::find_all().unwrap_or_default();
             self.message_init = true;
         }
 
@@ -74,7 +74,7 @@ impl eframe::App for MailBoxApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             if ui.button("Refresh").clicked() {
-                self.messages = message::find_all();
+                self.messages = message::find_all().unwrap_or_default();
             }
             ui.label("\n");
             use egui_extras::{
@@ -144,7 +144,7 @@ impl eframe::App for MailBoxApp {
                                         }
                                     }
                                     if ui.button("Delete").clicked() {
-                                        message::delete(&m.mid);
+                                        message::delete(&m.mid).unwrap();
                                         refresh_on_delete_req(
                                             self.refresh_on_delete_tx.clone(),
                                             ctx.clone(),
@@ -173,7 +173,7 @@ fn decipher_req(m: &Message, tx: Sender<String>, ctx: egui::Context) {
     let body: String = String::from(&m.body);
     tokio::spawn(async move {
         log::info!("async decipher_req");
-        let contact = contact::find_by_i2p_address(&from);
+        let contact = contact::find_by_i2p_address(&from).unwrap_or_default();
         let deciphered = neveko25519::cipher(&contact.nmpk, body, None).await;
         let _ = tx.send(deciphered);
         ctx.request_repaint();

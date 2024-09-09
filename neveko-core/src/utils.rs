@@ -1,16 +1,7 @@
 //! Generic functions for startup and convenience
 
 use crate::{
-    args,
-    contact,
-    db,
-    dispute,
-    i2p,
-    message,
-    models,
-    monero,
-    neveko25519,
-    reqres,
+    args, contact, db, dispute, error::NevekoError, i2p, message, models, monero, neveko25519, reqres
 };
 use clap::Parser;
 use kn0sys_lmdb_rs::MdbError;
@@ -59,21 +50,6 @@ impl Default for ContactStatus {
         }
     }
 }
-
-/// Enum for selecting hash validation
-#[derive(PartialEq)]
-enum ExternalSoftware {
-    I2PZero,
-    XMR,
-}
-
-/// Handles the state for the installation manager popup
-#[derive(Default)]
-pub struct Installations {
-    pub xmr: bool,
-    pub i2p_zero: bool,
-}
-
 
 /// Handles the state for the connection manager popup
 pub struct Connections {
@@ -406,7 +382,7 @@ async fn gen_app_wallet(password: &String) {
 }
 
 /// Secret keys for signing internal/external auth tokens
-fn gen_signing_keys() -> Result<(), MdbError> {
+fn gen_signing_keys() -> Result<(), NevekoError> {
     info!("generating signing keys");
     let jwp = get_jwp_secret_key()?;
     let jwt = get_jwt_secret_key()?;
@@ -414,14 +390,18 @@ fn gen_signing_keys() -> Result<(), MdbError> {
     if jwp.is_empty() {
         let mut data = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut data);
-        let s = db::DatabaseEnvironment::open()?;
-        db::write_chunks(&s.env, &s.handle?, crate::NEVEKO_JWP_SECRET_KEY.as_bytes(), &data);
+        let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        db::write_chunks(&s.env, handle, crate::NEVEKO_JWP_SECRET_KEY.as_bytes(), &data)
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
     if jwt.is_empty() {
         let mut data = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut data);
-        let s = db::DatabaseEnvironment::open()?;
-        db::write_chunks(&s.env, &s.handle?, crate::NEVEKO_JWT_SECRET_KEY.as_bytes(), &data);
+        let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        db::write_chunks(&s.env, handle, crate::NEVEKO_JWT_SECRET_KEY.as_bytes(), &data)
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
     Ok(())
 }
@@ -429,75 +409,84 @@ fn gen_signing_keys() -> Result<(), MdbError> {
 /// TODO(c2m): add a button to gui to call this
 ///
 /// dont' forget to generate new keys as well
-pub fn revoke_signing_keys() -> Result<(), MdbError> {
-    
-    let s = db::DatabaseEnvironment::open()?;
-    db::DatabaseEnvironment::delete(&s.env, &s.handle?, crate::NEVEKO_JWT_SECRET_KEY.as_bytes());
-    let s = db::DatabaseEnvironment::open()?;
-    db::DatabaseEnvironment::delete(&s.env, &s.handle?, crate::NEVEKO_JWP_SECRET_KEY.as_bytes());
+pub fn revoke_signing_keys() -> Result<(), NevekoError> {
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::DatabaseEnvironment::delete(&s.env, handle, crate::NEVEKO_JWT_SECRET_KEY.as_bytes())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::DatabaseEnvironment::delete(&s.env, handle, crate::NEVEKO_JWP_SECRET_KEY.as_bytes())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
 
-pub fn get_jwt_secret_key() -> Result<String, MdbError> {
-    
-    let s = db::DatabaseEnvironment::open()?;
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &crate::NEVEKO_JWT_SECRET_KEY.as_bytes().to_vec())?;
+pub fn get_jwt_secret_key() -> Result<String, NevekoError> {
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r = db::DatabaseEnvironment::read(&s.env, handle, &crate::NEVEKO_JWT_SECRET_KEY.as_bytes().to_vec())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         error!("JWT key not found");
-        return Err(MdbError::NotFound);
+        return Err(NevekoError::Database(MdbError::Panic));
     }
     let result: String = bincode::deserialize(&r[..]).unwrap_or_default();
     Ok(result)
 }
 
-pub fn get_jwp_secret_key() -> Result<String, MdbError> {
+pub fn get_jwp_secret_key() -> Result<String, NevekoError> {
     
-    let s = db::DatabaseEnvironment::open()?;
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &crate::NEVEKO_JWP_SECRET_KEY.as_bytes().to_vec())?;
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r = db::DatabaseEnvironment::read(&s.env, handle, &crate::NEVEKO_JWP_SECRET_KEY.as_bytes().to_vec())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         error!("JWP key not found");
-        return Err(MdbError::NotFound);
+        return Err(NevekoError::Database(MdbError::NotFound));
     }
     let result: String = bincode::deserialize(&r[..]).unwrap_or_default();
     Ok(result)
 }
 
 /// Returns the hex encoded neveko message public key from LMDB
-pub fn get_nmpk() -> Result<String, MdbError> {
-    let s = db::DatabaseEnvironment::open()?;
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &crate::NEVEKO_NMPK.as_bytes().to_vec())?;
+pub fn get_nmpk() -> Result<String, NevekoError> {
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r = db::DatabaseEnvironment::read(&s.env, handle, &crate::NEVEKO_NMPK.as_bytes().to_vec())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         error!("neveko message public key not found");
-        return Err(MdbError::NotFound);
+        return Err(NevekoError::Database(MdbError::Panic));
     }
     let result: String = bincode::deserialize(&r[..]).unwrap_or_default();
     Ok(result)
 }
 
-async fn generate_nmpk() -> Result<(), MdbError> {
+async fn generate_nmpk() -> Result<(), NevekoError> {
     info!("generating neveko message public key");
     let nmpk: String = get_nmpk()?;
     // send to db
-    let s = db::DatabaseEnvironment::open()?;
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if nmpk.is_empty() {
         let nmk: neveko25519::NevekoMessageKeys = neveko25519::generate_neveko_message_keys().await;
-        db::write_chunks(&s.env, &s.handle?, crate::NEVEKO_NMPK.as_bytes(), nmk.hex_nmpk.as_bytes());
+        db::write_chunks(&s.env, handle, crate::NEVEKO_NMPK.as_bytes(), nmk.hex_nmpk.as_bytes())
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
     Ok(())
 }
 
 /// Put all app pre-checks here
-pub async fn start_up() {
+pub async fn start_up() -> Result<(), NevekoError> {
     info!("neveko is starting up");
     warn!("monero multisig is experimental and usage of neveko may lead to loss of funds");
     let args = args::Args::parse();
     if args.clear_fts {
-        clear_fts();
+        clear_fts()?;
     }
     if args.clear_disputes {
-        clear_disputes();
+        clear_disputes()?;
     }
-    gen_signing_keys();
+    gen_signing_keys()?;
     if !is_using_remote_node() {
         monero::start_daemon();
     }
@@ -518,7 +507,7 @@ pub async fn start_up() {
         wallet_password = read_password().unwrap();
         std::env::set_var(crate::MONERO_WALLET_PASSWORD, &wallet_password);
     }
-    generate_nmpk().await;
+    generate_nmpk().await?;
     let env: String = get_release_env().value();
     if !args.i2p_advanced {
         i2p::start().await;
@@ -527,11 +516,12 @@ pub async fn start_up() {
     // start async background tasks here
     {
         tokio::spawn(async {
-            message::retry_fts().await;
-            dispute::settle_dispute().await;
+            let _ = message::retry_fts().await;
+            let _ = dispute::settle_dispute().await;
         });
     }
     info!("{} - neveko is online", env);
+    Ok(())
 }
 
 /// TODO(?): get rid of this after implementing monero bindings
@@ -567,30 +557,36 @@ pub fn kill_child_processes(cm: bool) {
 /// We can restart fts from since it gets terminated when empty
 pub fn restart_retry_fts() {
     tokio::spawn(async move {
-        message::retry_fts().await;
+        let _ = message::retry_fts().await;
     });
 }
 
 /// We can restart dispute auto-settle from since it gets terminated when empty
 pub fn restart_dispute_auto_settle() {
     tokio::spawn(async move {
-        dispute::settle_dispute().await;
+        let _ = dispute::settle_dispute().await;
     });
 }
 
 /// Called on app startup if `--clear-fts` flag is passed.
-fn clear_fts() -> Result<(), MdbError> {
+fn clear_fts() -> Result<(), NevekoError> {
     info!("clear fts");
-    let s = db::DatabaseEnvironment::open()?;
-    db::DatabaseEnvironment::delete(&s.env, &s.handle?, crate::FTS_DB_KEY.as_bytes());
+    let s = db::DatabaseEnvironment::open()
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::DatabaseEnvironment::delete(&s.env, handle, crate::FTS_DB_KEY.as_bytes())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
 
 /// Called on app startup if `--clear-dispute` flag is passed.
-fn clear_disputes() -> Result<(), MdbError> {
+fn clear_disputes() -> Result<(), NevekoError> {
     info!("clear_disputes");
-    let s = db::DatabaseEnvironment::open()?;
-    db::DatabaseEnvironment::delete(&s.env, &s.handle?, crate::DISPUTE_LIST_DB_KEY.as_bytes());
+    let s = db::DatabaseEnvironment::open()
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::DatabaseEnvironment::delete(&s.env, handle, crate::DISPUTE_LIST_DB_KEY.as_bytes())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
 
@@ -710,7 +706,7 @@ pub fn toggle_vendor_enabled() -> Result<bool, MdbError> {
             &s.handle?,
             contact::NEVEKO_VENDOR_ENABLED.as_bytes(),
             contact::NEVEKO_VENDOR_MODE_ON.as_bytes(),
-        );
+        )?;
         Ok(true)
     } else {
         info!("neveko vendor mode disabled");
@@ -720,7 +716,7 @@ pub fn toggle_vendor_enabled() -> Result<bool, MdbError> {
             &s.handle?,
             contact::NEVEKO_VENDOR_ENABLED.as_bytes(),
             contact::NEVEKO_VENDOR_MODE_OFF.as_bytes(),
-        );
+        )?;
         Ok(false)
     }
 }
@@ -736,7 +732,7 @@ pub fn search_gui_db(f: String, data: String) -> Result<String, MdbError> {
 pub fn write_gui_db(f: String, key: String, data: String) -> Result<(), MdbError> {
     let s = db::DatabaseEnvironment::open()?;
     let k = format!("{}-{}", f, key);
-    db::write_chunks(&s.env, &s.handle?, k.as_bytes(), data.as_bytes());
+    db::write_chunks(&s.env, &s.handle?, k.as_bytes(), data.as_bytes())?;
     Ok(())
 }
 

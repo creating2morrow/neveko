@@ -66,13 +66,14 @@ impl eframe::App for SettingsApp {
 
                     // TODO: don't open the database in the GUI
                     
-                    let s = db::DatabaseEnvironment::open(&utils::get_release_env().value()).unwrap();
+                    let s = db::DatabaseEnvironment::open().unwrap();
                     let k = CREDENTIAL_KEY;
-                    db::DatabaseEnvironment::delete(&s.env, &s.handle, &k);
+                    let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle.unwrap(), k.as_bytes()).unwrap();
                     let mut hasher = Sha512::new();
                     hasher.update(self.credential.clone());
                     let result = hasher.finalize();
-                    db::write_chunks(&s.env, &s.handle, &k, &hex::encode(&result[..]));
+                    let s = db::DatabaseEnvironment::open().unwrap();
+                    db::write_chunks(&s.env, &s.handle.unwrap(), k.as_bytes(), hex::encode(&result[..]).as_bytes()).unwrap();
                     // update wallet rpc
                     change_wallet_password(
                         self.change_wallet_password_tx.clone(),

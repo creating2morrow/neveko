@@ -1,9 +1,7 @@
 //! Marketplace products upload, modification, etc module
 
 use crate::{
-    db,
-    models::*,
-    utils,
+    db, error::NevekoError, models::*, utils
 };
 use kn0sys_lmdb_rs::MdbError;
 use log::{
@@ -15,11 +13,11 @@ use rocket::serde::json::Json;
 use std::error::Error;
 
 /// Create a new product
-pub fn create(d: Json<Product>) -> Result<Product, MdbError> {
+pub fn create(d: Json<Product>) -> Result<Product, NevekoError> {
     let pid: String = format!("{}{}", crate::PRODUCT_DB_KEY, utils::generate_rnd());
     if !validate_product(&d) {
         error!("invalid product");
-        return Err(MdbError::NotFound);
+        return Err(NevekoError::Database(MdbError::NotFound));
     }
     let new_product = Product {
         pid: String::from(&pid),
@@ -31,14 +29,18 @@ pub fn create(d: Json<Product>) -> Result<Product, MdbError> {
         qty: d.qty,
     };
     debug!("insert product: {:?}", &new_product);
-    let s = db::DatabaseEnvironment::open()?;
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let k = &new_product.pid;
     let product = bincode::serialize(&new_product).unwrap_or_default();
-    db::write_chunks(&s.env, &s.handle?, k.as_bytes(), &product);
+    db::write_chunks(&s.env, handle, k.as_bytes(), &product)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     // in order to retrieve all products, write keys to with pl
     let list_key = crate::PRODUCT_LIST_DB_KEY;
-    let s = db::DatabaseEnvironment::open()?;
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &list_key.as_bytes().to_vec())?;
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r = db::DatabaseEnvironment::read(&s.env, handle, &list_key.as_bytes().to_vec())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         debug!("creating product index");
     }
@@ -48,28 +50,34 @@ pub fn create(d: Json<Product>) -> Result<Product, MdbError> {
         "writing product index {} for id: {}",
         product_list, list_key
     );
-    let s = db::DatabaseEnvironment::open()?;
-    db::write_chunks(&s.env, &s.handle?, list_key.as_bytes(), product_list.as_bytes());
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&s.env, handle, list_key.as_bytes(), product_list.as_bytes())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(new_product)
 }
 
 /// Single Product lookup
-pub fn find(pid: &String) -> Result<Product, MdbError> {
-    let s = db::DatabaseEnvironment::open()?;
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &pid.as_bytes().to_vec())?;
+pub fn find(pid: &String) -> Result<Product, NevekoError> {
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r = db::DatabaseEnvironment::read(&s.env, handle, &pid.as_bytes().to_vec())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         error!("product not found");
-        return Err(MdbError::NotFound);
+        return Err(NevekoError::Database(MdbError::NotFound));
     }
     let result: Product = bincode::deserialize(&r[..]).unwrap_or_default();
     Ok(result)
 }
 
 /// Product lookup for all
-pub fn find_all() -> Result<Vec<Product>, MdbError> {
-    let i_s = db::DatabaseEnvironment::open()?;
+pub fn find_all() -> Result<Vec<Product>, NevekoError> {
+    let i_s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let i_list_key = crate::PRODUCT_LIST_DB_KEY;
-    let i_r = db::DatabaseEnvironment::read(&i_s.env, &i_s.handle?, &i_list_key.as_bytes().to_vec())?;
+    let handle = &i_s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let i_r = db::DatabaseEnvironment::read(&i_s.env, handle, &i_list_key.as_bytes().to_vec())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if i_r.is_empty() {
         error!("product index not found");
     }
@@ -89,20 +97,23 @@ pub fn find_all() -> Result<Vec<Product>, MdbError> {
 }
 
 /// Modify product
-pub fn modify(p: Json<Product>) -> Result<Product, MdbError> {
+pub fn modify(p: Json<Product>) -> Result<Product, NevekoError> {
     // TODO(c2m): don't allow modification to products with un-delivered orders
     info!("modify product: {}", &p.pid);
     let f_prod: Product = find(&p.pid)?;
     if f_prod.pid.is_empty() {
         error!("product not found");
-        return Err(MdbError::NotFound);
+        return Err(NevekoError::Database(MdbError::NotFound));
     }
     let u_prod = Product::update(f_prod, &p);
-    let s = db::DatabaseEnvironment::open()?;
-    db::DatabaseEnvironment::delete(&s.env, &s.handle?, u_prod.pid.as_bytes())?;
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let _ = db::DatabaseEnvironment::delete(&s.env, handle, u_prod.pid.as_bytes())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let product = bincode::serialize(&u_prod).unwrap_or_default();
-    let s = db::DatabaseEnvironment::open()?;
-    db::write_chunks(&s.env, &s.handle?, u_prod.pid.as_bytes(), &product);
+    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&s.env, handle, u_prod.pid.as_bytes(), &product)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(u_prod)
 }
 

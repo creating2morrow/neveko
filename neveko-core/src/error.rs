@@ -11,6 +11,7 @@ pub enum NevekoError {
     Dispute,
     I2P,
     J4I2PRS,
+    Message,
     MoneroRpc,
     MoneroDaemon,
     Nasr,

@@ -812,7 +812,7 @@ pub struct XmrRpcQueryKeyResponse {
 // END XMR Structs
 
 /// Container for the message decipher
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct DecipheredMessageBody {
     pub mid: String,

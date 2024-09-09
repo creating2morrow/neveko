@@ -67,8 +67,6 @@ impl Default for HomeApp {
     fn default() -> Self {
         let blocks_fetched = 0;
         let connections = Default::default();
-        let has_install_failed = false;
-        let installations = Default::default();
         let is_core_running = false;
         let is_editing_connections = false;
         let is_init = true;
@@ -87,7 +85,6 @@ impl Default for HomeApp {
         let (wallet_height_tx, wallet_height_rx) = std::sync::mpsc::channel();
         let (can_refresh_tx, can_refresh_rx) = std::sync::mpsc::channel();
         let (i2p_status_tx, i2p_status_rx) = std::sync::mpsc::channel();
-        let (installation_tx, installation_rx) = std::sync::mpsc::channel();
         let contents = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
         let s_xmr_rpc_ver = Default::default();
         let s_xmr_address = Default::default();
@@ -174,13 +171,6 @@ impl eframe::App for HomeApp {
         }
         if let Ok(info) = self.xmrd_get_info_rx.try_recv() {
             self.s_xmrd_get_info = info;
-        }
-        if let Ok(install) = self.installation_rx.try_recv() {
-            self.is_installing = !install;
-            if !install && self.is_loading {
-                self.has_install_failed = true
-            }
-            self.is_loading = false;
         }
         if let Ok(timeout) = self.core_timeout_rx.try_recv() {
             self.is_timeout = true;
@@ -424,7 +414,7 @@ impl eframe::App for HomeApp {
 fn send_xmrd_get_info_req(tx: Sender<reqres::XmrDaemonGetInfoResponse>, ctx: egui::Context) {
     tokio::spawn(async move {
         let remote_var =
-            std::env::var(neveko_core::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
+            std::env::var(neveko_core::GUI_REMOTE_NODE).unwrap_or(String::new());
         if remote_var == String::from(neveko_core::GUI_SET_REMOTE_NODE) {
             let p_info = monero::p_get_info().await;
             let info = p_info.unwrap_or(Default::default());
