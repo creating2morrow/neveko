@@ -1,3 +1,4 @@
+use db::DATABASE_LOCK;
 use egui::RichText;
 use image::Luma;
 use neveko_core::*;
@@ -140,12 +141,12 @@ impl Default for MarketApp {
         let (_refresh_on_delete_product_tx, _refresh_on_delete_product_rx) =
             std::sync::mpsc::channel();
         let read_product_image = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
-        let s = db::DatabaseEnvironment::open().unwrap();
+        let db = &DATABASE_LOCK;
         let r = db::DatabaseEnvironment::read(
-            &s.env,
-            &s.handle.unwrap(),
+            &db.env,
+            &db.handle,
             &contact::NEVEKO_VENDOR_ENABLED.as_bytes().to_vec(),
-        ).unwrap();
+        ).unwrap_or_default();
         let sr: String = bincode::deserialize(&r[..]).unwrap_or_default();
         let is_vendor_enabled = sr == contact::NEVEKO_VENDOR_MODE_ON;
         let (contact_info_tx, contact_info_rx) = std::sync::mpsc::channel();
@@ -1882,7 +1883,7 @@ fn send_prepare_info_req(
         ).unwrap();
         // Request adjudicator and vendor while we're at it
         // Will coordinating send this on make requests next
-        let s = db::DatabaseEnvironment::open().unwrap();
+        let db = &DATABASE_LOCK;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::PREPARE_MSIG,
@@ -1895,9 +1896,10 @@ fn send_prepare_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_prepare = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
-        let s = db::DatabaseEnvironment::open().unwrap();
-        let v_prepare = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+        let m_prepare = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
+        let v_prepare = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
         if v_prepare.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
@@ -1969,7 +1971,7 @@ fn send_make_info_req(
             String::from(crate::GUI_MSIG_PREPARE_DB_KEY),
             String::from(&w_orid),
         );
-        let s = db::DatabaseEnvironment::open().unwrap();
+        let db = &DATABASE_LOCK;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::PREPARE_MSIG,
@@ -1982,10 +1984,11 @@ fn send_make_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_prepare = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
+        let m_prepare = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
         let sm_prepare: String = bincode::deserialize(&m_prepare[..]).unwrap_or_default();
-        let s = db::DatabaseEnvironment::open().unwrap();
-        let v_prepare = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+        let v_prepare = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
         let sv_prepare: String = bincode::deserialize(&&v_prepare[..]).unwrap_or_default();
         prepare_info_prep.push(String::from(&sm_prepare));
         prepare_info_prep.push(String::from(&sv_prepare));
@@ -2012,7 +2015,6 @@ fn send_make_info_req(
         }
         // Request adjudicator and vendor while we're at it
         // Will coordinating send this on make requests next
-        let s = db::DatabaseEnvironment::open().unwrap();
         let m_msig_key = format!(
             "{}-{}-{}",
             message::MAKE_MSIG,
@@ -2025,9 +2027,10 @@ fn send_make_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_make = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
-        let s = db::DatabaseEnvironment::open().unwrap();
-        let v_make = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+        let m_make = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
+        let v_make = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
         if v_make.is_empty() {
             log::debug!("constructing vendor {} msig messages", message::MAKE_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
@@ -2096,7 +2099,7 @@ fn send_kex_initial_req(
             String::from(crate::GUI_MSIG_MAKE_DB_KEY),
             String::from(&w_orid),
         ).unwrap_or_default();
-        let s = db::DatabaseEnvironment::open().unwrap();
+        let db = &DATABASE_LOCK;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::MAKE_MSIG,
@@ -2109,10 +2112,11 @@ fn send_kex_initial_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_init = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
+        let m_kex_init = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
         let sm_kex_init: String = bincode::deserialize(&m_kex_init[..]).unwrap_or_default();
-        let s = db::DatabaseEnvironment::open().unwrap();
-        let v_kex_init = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+        let v_kex_init = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
         let sv_kex_init: String = bincode::deserialize(&v_kex_init[..]).unwrap_or_default();
         kex_init_prep.push(String::from(&sm_kex_init));
         kex_init_prep.push(String::from(&sv_kex_init));
@@ -2139,7 +2143,6 @@ fn send_kex_initial_req(
         }
         // Request adjudicator and vendor while we're at it
         // Will coordinating send this on kex round two next
-        let s = db::DatabaseEnvironment::open().unwrap();
         let m_msig_key = format!(
             "{}-{}-{}",
             message::KEX_ONE_MSIG,
@@ -2152,9 +2155,10 @@ fn send_kex_initial_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_init = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
-        let s = db::DatabaseEnvironment::open().unwrap();
-        let v_kex_init = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+        let m_kex_init = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
+        let v_kex_init = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
         if v_kex_init.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
@@ -2224,7 +2228,7 @@ fn send_kex_final_req(
             String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
             String::from(&w_orid),
         ).unwrap_or_default();
-        let s = db::DatabaseEnvironment::open().unwrap();
+        let db = &DATABASE_LOCK;
         let m_msig_key = format!(
             "{}-{}-{}",
             message::KEX_ONE_MSIG,
@@ -2237,9 +2241,10 @@ fn send_kex_final_req(
             String::from(&v_orid),
             vendor
         );
-        let r_m_kex_final = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
-        let s = db::DatabaseEnvironment::open().unwrap();
-        let r_v_kex_final = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+        let r_m_kex_final = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
+        let r_v_kex_final = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
         let m_kex_final: String = bincode::deserialize(&r_m_kex_final[..]).unwrap_or_default();
         let v_kex_final: String = bincode::deserialize(&r_v_kex_final[..]).unwrap_or_default();
         kex_final_prep.push(String::from(&m_kex_final));
@@ -2266,7 +2271,6 @@ fn send_kex_final_req(
             }
         }
         // we can verify all good if the senders all send back the correct wallet address
-        let s = db::DatabaseEnvironment::open().unwrap();
         let m_msig_key = format!(
             "{}-{}-{}",
             message::KEX_TWO_MSIG,
@@ -2279,9 +2283,10 @@ fn send_kex_final_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_final = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
-        let s = db::DatabaseEnvironment::open().unwrap();
-        let v_kex_final = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+        let m_kex_final = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
+        let v_kex_final = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
         if v_kex_final.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
@@ -2400,14 +2405,15 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
         ).unwrap_or_default();
         // Request vendor while we're at it
         // Will coordinating send this on make requests next
-        let s = db::DatabaseEnvironment::open().unwrap();
+        let db = &DATABASE_LOCK;
         let v_msig_key = format!(
             "{}-{}-{}",
             message::EXPORT_MSIG,
             String::from(&v_orid),
             vendor
         );
-        let v_export = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+        let v_export = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
         if v_export.is_empty() {
             log::debug!("constructing vendor {} msig messages", message::EXPORT_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
@@ -2469,12 +2475,13 @@ fn validate_msig_step(
     vendor: &String,
     sub_type: &String,
 ) -> bool {
-    let s = db::DatabaseEnvironment::open().unwrap();
+    let db = &DATABASE_LOCK;
     let m_msig_key = format!("{}-{}-{}", sub_type, orid, adjudicator);
     let v_msig_key = format!("{}-{}-{}", sub_type, orid, vendor);
-    let r_m_info = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &m_msig_key.as_bytes().to_vec()).unwrap();
-    let s = db::DatabaseEnvironment::open().unwrap();
-    let r_v_info = db::DatabaseEnvironment::read(&s.env, &s.handle.unwrap(), &v_msig_key.as_bytes().to_vec()).unwrap();
+    let r_m_info = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+        .unwrap_or_default();
+    let r_v_info = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+        .unwrap_or_default();
     let m_info: String = bincode::deserialize(&&r_m_info[..]).unwrap_or_default();
     let v_info: String = bincode::deserialize(&&r_v_info[..]).unwrap_or_default();
     log::debug!("{} adjudicator info: {}", sub_type, &m_info);

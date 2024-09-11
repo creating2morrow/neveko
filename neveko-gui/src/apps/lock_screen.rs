@@ -1,4 +1,5 @@
 use crate::CREDENTIAL_KEY;
+use db::DATABASE_LOCK;
 use neveko_core::*;
 use sha2::{
     Digest,
@@ -62,10 +63,10 @@ impl eframe::App for LockScreenApp {
                     self.lock_screen.credential.clone(),
                 );
                 // Get the credential hash from lmdb
-                let s = db::DatabaseEnvironment::open().unwrap();
+                let db = &DATABASE_LOCK;
                 let r = db::DatabaseEnvironment::read(
-                    &s.env,
-                    &s.handle.unwrap(),
+                    &db.env,
+                    &db.handle,
                     &CREDENTIAL_KEY.as_bytes().to_vec(),
                 ).unwrap();
                 // hash the text entered and compare

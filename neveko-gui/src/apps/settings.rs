@@ -1,3 +1,4 @@
+use db::DATABASE_LOCK;
 use neveko_core::*;
 use sha2::{
     Digest,
@@ -63,17 +64,15 @@ impl eframe::App for SettingsApp {
                 }
                 if ui.button("Change").clicked() {
                     self.is_loading = true;
-
-                    // TODO: don't open the database in the GUI
-                    
-                    let s = db::DatabaseEnvironment::open().unwrap();
+                    let db = &DATABASE_LOCK;
                     let k = CREDENTIAL_KEY;
-                    let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle.unwrap(), k.as_bytes()).unwrap();
+                    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())
+                        .unwrap_or_else(|_| log::error!("failed to delete credential"));
                     let mut hasher = Sha512::new();
                     hasher.update(self.credential.clone());
                     let result = hasher.finalize();
-                    let s = db::DatabaseEnvironment::open().unwrap();
-                    db::write_chunks(&s.env, &s.handle.unwrap(), k.as_bytes(), hex::encode(&result[..]).as_bytes()).unwrap();
+                    db::write_chunks(&db.env, &db.handle, k.as_bytes(), hex::encode(&result[..]).as_bytes())
+                        .unwrap_or_else(|_| log::error!("failed to write credential"));
                     // update wallet rpc
                     change_wallet_password(
                         self.change_wallet_password_tx.clone(),

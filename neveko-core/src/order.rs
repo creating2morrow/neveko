@@ -3,7 +3,7 @@
 use std::error::Error;
 
 use crate::{
-    contact, db, error::NevekoError, i2p, models::*, monero, neveko25519, order, product, reqres, utils
+    contact, db::{self, DATABASE_LOCK}, error::NevekoError, i2p, models::*, monero, neveko25519, order, product, reqres, utils
 };
 use kn0sys_lmdb_rs::MdbError::{self};
 use log::{
@@ -66,26 +66,18 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Result<Order, Neveko
     }
     monero::close_wallet(&orid, &order_wallet_password).await;
     debug!("insert order: {:?}", &new_order);
-    let s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     // inject adjudicator separately, modifying the order model is mendokusai
     let adjudicator_k = format!("{}-{}", crate::ADJUDICATOR_DB_KEY, &orid);
-    db::write_chunks(&s.env, handle, adjudicator_k.as_bytes(), j_order.adjudicator.as_bytes())
+    db::write_chunks(&db.env, &db.handle, adjudicator_k.as_bytes(), j_order.adjudicator.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let k = &new_order.orid;
-    let s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let order = bincode::serialize(&new_order).unwrap_or_default();
-    db::write_chunks(&s.env, handle, k.as_bytes(), &order)
+    db::write_chunks(&db.env, &db.handle, k.as_bytes(), &order)
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     // in order to retrieve all orders, write keys to with ol
     let list_key = crate::ORDER_LIST_DB_KEY;
-    let s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let r = db::DatabaseEnvironment::read(&s.env, handle, &list_key.as_bytes().to_vec())
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         debug!("creating order index");
@@ -93,9 +85,7 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Result<Order, Neveko
     let old: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let order_list = [old, String::from(&orid)].join(",");
     debug!("writing order index {} for id: {}", order_list, list_key);
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s.env, handle, list_key.as_bytes(), &order_list.as_bytes())
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &order_list.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(new_order)
 }
@@ -103,20 +93,18 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Result<Order, Neveko
 /// Backup order for customer
 pub fn backup(order: &Order) -> Result<(), NevekoError> {
     info!("creating backup of order: {}", order.orid);
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let k = &order.orid;
-    db::DatabaseEnvironment::delete(&s.env, handle, k.as_bytes())
+    db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let order_to_db = bincode::serialize(&order).unwrap_or_default();
-    db::write_chunks(&s.env, handle, k.as_bytes(), &order_to_db)
+    db::write_chunks(&db.env, &db.handle, k.as_bytes(), &order_to_db)
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     // in order to retrieve all orders, write keys to with col
     let list_key = crate::CUSTOMER_ORDER_LIST_DB_KEY;
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let r = db::DatabaseEnvironment::read(&s.env, handle, &list_key.as_bytes().to_vec())
+    let db = &DATABASE_LOCK;
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         debug!("creating customer order index");
@@ -128,9 +116,8 @@ pub fn backup(order: &Order) -> Result<(), NevekoError> {
         order_list = d_r;
     }
     debug!("writing order index {} for id: {}", order_list, list_key);
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s.env, handle, list_key.as_bytes(), order_list.as_bytes())
+    let db = &DATABASE_LOCK;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), order_list.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
@@ -138,10 +125,8 @@ pub fn backup(order: &Order) -> Result<(), NevekoError> {
 /// Lookup order
 pub fn find(oid: &String) -> Result<Order, NevekoError> {
     info!("find order: {}", &oid);
-    let s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let r = db::DatabaseEnvironment::read(&s.env, handle, &oid.as_bytes().to_vec())
+    let db = &DATABASE_LOCK;
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &oid.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         error!("order not found");
@@ -153,11 +138,9 @@ pub fn find(oid: &String) -> Result<Order, NevekoError> {
 
 /// Lookup all orders from admin server
 pub fn find_all() -> Result<Vec<Order>, NevekoError> {
-    let s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let i_list_key = crate::ORDER_LIST_DB_KEY;
-    let i_r = db::DatabaseEnvironment::read(&s.env, handle, &i_list_key.as_bytes().to_vec())
+    let i_r = db::DatabaseEnvironment::read(&db.env, &db.handle, &i_list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if i_r.is_empty() {
         error!("order index not found");
@@ -177,11 +160,9 @@ pub fn find_all() -> Result<Vec<Order>, NevekoError> {
 
 /// Lookup all orders that customer has saved from gui
 pub fn find_all_backup() -> Result<Vec<Order>, NevekoError> {
-    let i_s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &i_s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let i_list_key = crate::CUSTOMER_ORDER_LIST_DB_KEY;
-    let i_r = db::DatabaseEnvironment::read(&i_s.env, handle, &i_list_key.as_bytes().to_vec())
+    let i_r = db::DatabaseEnvironment::read(&db.env, &db.handle, &i_list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if i_r.is_empty() {
         error!("customer order index not found");
@@ -205,11 +186,9 @@ pub fn find_all_backup() -> Result<Vec<Order>, NevekoError> {
 /// Lookup all orders for customer
 pub async fn find_all_customer_orders(cid: String) -> Result<Vec<Order>, NevekoError> {
     info!("lookup orders for customer: {}", &cid);
-    let i_s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &i_s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let i_list_key = crate::ORDER_LIST_DB_KEY;
-    let i_r = db::DatabaseEnvironment::read(&i_s.env, handle, &i_list_key.as_bytes().to_vec())
+    let i_r = db::DatabaseEnvironment::read(&db.env, &db.handle, &i_list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if i_r.is_empty() {
         error!("order index not found");
@@ -230,11 +209,9 @@ pub async fn find_all_customer_orders(cid: String) -> Result<Vec<Order>, NevekoE
 /// Lookup all orders for vendor
 pub fn find_all_vendor_orders() -> Result<Vec<Order>, NevekoError> {
     info!("lookup orders for vendor");
-    let i_s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &i_s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let i_list_key = crate::ORDER_LIST_DB_KEY;
-    let i_r = db::DatabaseEnvironment::read(&i_s.env, handle, &i_list_key.as_bytes().to_vec())
+    let i_r = db::DatabaseEnvironment::read(&db.env, &db.handle, &i_list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if i_r.is_empty() {
         error!("order index not found");
@@ -266,17 +243,12 @@ pub fn modify(o: Json<Order>) -> Result<Order, NevekoError> {
         error!("order not found");
         return Err(NevekoError::Database(MdbError::NotFound));
     }
+    let db = &DATABASE_LOCK;
     let u_order = Order::update(String::from(&f_order.orid), &o);
-    let s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let _ = db::DatabaseEnvironment::delete(&s.env, handle, &u_order.orid.as_bytes())
+    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, &u_order.orid.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let v = bincode::serialize(&u_order).unwrap_or_default();
-    let s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let _ = db::write_chunks(&s.env, handle, &u_order.orid.as_bytes(), &v)
+    let _ = db::write_chunks(&db.env, &db.handle, &u_order.orid.as_bytes(), &v)
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(u_order)
 }
@@ -376,10 +348,9 @@ pub async fn validate_order_for_ship(orid: &String) -> Result<reqres::FinalizeOr
     let m_order: Order = find(orid).map_err(|_| NevekoError::Order)?;
     let contact: Contact = contact::find(&m_order.cid).map_err(|_| NevekoError::Contact)?;
     let hex_nmpk: String = contact.nmpk;
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let k = String::from(crate::DELIVERY_INFO_DB_KEY);
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let delivery_info = db::DatabaseEnvironment::read(&s.env, handle, &k.as_bytes().to_vec())
+    let delivery_info = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let mut j_order: Order = find(orid).map_err(|_| NevekoError::Order)?;
     let m_product: Product = product::find(&m_order.pid).map_err(|_| NevekoError::Product)?;
@@ -489,20 +460,19 @@ pub async fn upload_delivery_info(
     m_order.vend_msig_txset = sweep.result.multisig_txset;
     // delivery info will be stored enciphered and separate from the rest of the
     // order
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let k = String::from(crate::DELIVERY_INFO_DB_KEY);
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s.env, handle, k.as_bytes(), delivery_info.as_bytes())
+    db::write_chunks(&db.env, &db.handle, k.as_bytes(), delivery_info.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     modify(Json(m_order))?;
     // trigger nasr, this will cause the customer's neveko instance to request the
     // txset
     let i2p_address = i2p::get_destination(None);
     // get jwp from db
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
+    
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &lookup.cid);
-    let jwp = db::DatabaseEnvironment::read(&s.env, handle, &k.as_bytes().to_vec())
+    let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let str_jwp: String = bincode::deserialize(&jwp[..]).unwrap_or_default();
     let nasr_order = trigger_nasr(&lookup.cid, &i2p_address, &str_jwp, orid).await;
@@ -635,10 +605,10 @@ pub async fn d_trigger_finalize_request(
 ) -> Result<reqres::FinalizeOrderResponse, NevekoError> {
     // ugh, sorry seems we need to get jwp for vendor from fts cache
     // get jwp from db
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let jwp = db::DatabaseEnvironment::read(&s.env, handle, &k.as_bytes().to_vec())
+    
+    let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     info!("executing d_trigger_finalize_request");
     // request finalize if the order status is shipped
@@ -811,11 +781,9 @@ pub async fn trigger_cancel_request(
 pub async fn d_trigger_ship_request(contact: &String, orid: &String) -> Result<Order, NevekoError> {
     // ugh, sorry seems we need to get jwp for vendor from fts cache
     // get jwp from db
-    let s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let jwp = db::DatabaseEnvironment::read(&s.env, handle, &k.as_bytes().to_vec())
+    let db = &DATABASE_LOCK;
+    let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     info!("executing d_trigger_ship_request");
     // request shipment if the order status is MultisigComplete
@@ -830,10 +798,7 @@ pub async fn d_trigger_ship_request(contact: &String, orid: &String) -> Result<O
         let u_ship_res = ship_res.unwrap_or(Default::default());
         let hex_delivery_info: String = hex::encode(u_ship_res.delivery_info);
         let key = format!("{}-{}", crate::DELIVERY_INFO_DB_KEY, orid);
-        let s = db::DatabaseEnvironment::open()
-            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-        let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-        db::write_chunks(&s.env, handle, key.as_bytes(), hex_delivery_info.as_bytes())
+        db::write_chunks(&db.env, &db.handle, key.as_bytes(), hex_delivery_info.as_bytes())
             .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
     Ok(trigger)
@@ -884,11 +849,9 @@ pub async fn transmit_cancel_request(
 pub async fn d_trigger_cancel_request(contact: &String, orid: &String) -> Result<Order, NevekoError> {
     // ugh, sorry seems we need to get jwp for vendor from fts cache
     // get jwp from db
-    let s = db::DatabaseEnvironment::open()
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let jwp = db::DatabaseEnvironment::read(&s.env, handle, &k.as_bytes().to_vec())
+    let db = &DATABASE_LOCK;
+    let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     info!("executing d_trigger_cancel_request");
     // request cancel if the order status is not MultisigComplete

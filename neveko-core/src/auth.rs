@@ -2,7 +2,7 @@
 
 use crate::{
     args,
-    db,
+    db::{self, DATABASE_LOCK},
     models::*,
     monero,
     reqres,
@@ -47,21 +47,19 @@ pub fn create(address: &String) -> Result<Authorization, MdbError> {
         token,
         xmr_address: String::from(address),
     };
-    
-    let s = db::DatabaseEnvironment::open()?;
     debug!("insert auth: {:?}", &new_auth);
     let k = &new_auth.aid.as_bytes();
     let v = bincode::serialize(&new_auth).unwrap_or_default();
-    db::write_chunks(&s.env, &s.handle?, k, &v)?;
+    let db = &DATABASE_LOCK;
+    db::write_chunks(&db.env, &db.handle, k, &v)?;
     Ok(new_auth)
 }
 
 /// Authorization lookup for recurring requests
 pub fn find(aid: &String) -> Result<Authorization, MdbError> {
     info!("searching for auth: {}", aid);
-    
-    let s = db::DatabaseEnvironment::open()?;
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &aid.as_bytes().to_vec())?;
+    let db = &DATABASE_LOCK;
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &aid.as_bytes().to_vec())?;
     if r.is_empty() {
         return Err(MdbError::NotFound);
     }
@@ -81,13 +79,11 @@ fn update_expiration(f_auth: &Authorization, address: &String) -> Result<Authori
         data,
         create_token(String::from(address), time),
     );
-    
-    let s = db::DatabaseEnvironment::open()?;
-    let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle?, &u_auth.aid.as_bytes().to_vec())?;
+    let db = &DATABASE_LOCK;
+    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, &u_auth.aid.as_bytes().to_vec())?;
     let k = u_auth.aid.as_bytes();
     let v = bincode::serialize(&u_auth).unwrap_or_default();
-    let s = db::DatabaseEnvironment::open()?;
-    db::write_chunks(&s.env, &s.handle?, k, &v)?;
+    db::write_chunks(&db.env, &db.handle, k, &v)?;
     Ok(u_auth)
 }
 
@@ -124,12 +120,10 @@ pub async fn verify_login(aid: String, uid: String, signature: String) -> Result
         let u: User = user::create(&address)?;
         // update auth with uid
         let u_auth = Authorization::update_uid(f_auth, String::from(&u.uid));
-        
-        let s = db::DatabaseEnvironment::open()?;
-        let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle?, &u_auth.aid.as_bytes())?;
+        let db = &DATABASE_LOCK;
+        let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, &u_auth.aid.as_bytes())?;
         let v = bincode::serialize(&u_auth).unwrap_or_default();
-        let s = db::DatabaseEnvironment::open()?;
-        db::write_chunks(&s.env, &s.handle?, u_auth.aid.as_bytes(), &v)?;
+        db::write_chunks(&db.env, &db.handle, u_auth.aid.as_bytes(), &v)?;
         monero::close_wallet(&wallet_name, &wallet_password).await;
         Ok(u_auth)
     } else if !f_user.xmr_address.is_empty() {
@@ -284,14 +278,14 @@ mod tests {
 
     fn find_test_auth(k: &String) -> Result<Authorization, MdbError> {
         let s: db::Interface = db::DatabaseEnvironment::open()?;
-        let v = db::DatabaseEnvironment::read(&s.env, &s.handle, &k.as_bytes().to_vec())?;
+        let v = db::DatabaseEnvironment::read(&db.env, &s.handle, &k.as_bytes().to_vec())?;
         let result: Authorization = bincode::deserialize(&v[..]).unwrap_or_default();
         Ok(result)
     }
 
     fn cleanup(k: &String) -> Result<(), MdbError>{
-        let s = db::DatabaseEnvironment::open()?;
-        let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle?, k.as_bytes())?;
+        let db = &DATABASE_LOCK;
+        let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())?;
         Ok(())
     }
 

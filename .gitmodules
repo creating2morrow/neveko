@@ -1,0 +1,3 @@
+[submodule "j4-i2p-rs"]
+	path = j4-i2p-rs
+	url = https://github.com/kn0sys/j4-i2p-rs.git

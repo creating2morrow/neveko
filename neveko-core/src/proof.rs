@@ -1,7 +1,7 @@
 //! External authorization module via JWPs
 
 use crate::{
-    db, error::NevekoError, monero, reqres, utils
+    db::{self, DATABASE_LOCK}, error::NevekoError, monero, reqres, utils
 };
 use kn0sys_lmdb_rs::MdbError;
 use log::{
@@ -120,12 +120,10 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
             match res {
                 Ok(r) => {
                     // cache the jwp for for fts
-                    
-                    let s = db::DatabaseEnvironment::open()?;
+                    let db = &DATABASE_LOCK;
                     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-                    let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle?, k.as_bytes())?;
-                    let s = db::DatabaseEnvironment::open()?;
-                    db::write_chunks(&s.env, &s.handle?, &k.as_bytes(), &r.jwp.as_bytes().to_vec())
+                    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())?;
+                    db::write_chunks(&db.env, &db.handle, &k.as_bytes(), &r.jwp.as_bytes().to_vec())
                         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
                     Ok(r)
                 }

@@ -1,4 +1,5 @@
 use crate::CREDENTIAL_KEY;
+use db::DATABASE_LOCK;
 use neveko_core::*;
 use sha2::{
     Digest,
@@ -54,8 +55,9 @@ impl eframe::App for LoginApp {
                 let mut hasher = Sha512::new();
                 hasher.update(self.credential.clone());
                 let result = hasher.finalize();
-                let s = db::DatabaseEnvironment::open().unwrap();
-                db::write_chunks(&s.env, &s.handle.unwrap(), k.as_bytes(), hex::encode(&result[..]).as_bytes()).unwrap();
+                let db = &DATABASE_LOCK;
+                db::write_chunks(&db.env, &db.handle, k.as_bytes(), hex::encode(&result[..]).as_bytes())
+                    .unwrap_or_else(|_| log::error!("failed to set credential"));
                 self.credential = String::new();
             }
         });

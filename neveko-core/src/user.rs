@@ -2,7 +2,7 @@
 //! authenticated user
 
 use crate::{
-    db,
+    db::{self, DATABASE_LOCK},
     models::*,
     utils,
 };
@@ -21,19 +21,17 @@ pub fn create(address: &String) -> Result<User, MdbError> {
         name: String::new(),
     };
     debug!("insert user: {:?}", &new_user);
-    
-    let s = db::DatabaseEnvironment::open()?;
+    let db = &DATABASE_LOCK;
     let k = &new_user.uid;
     let v = bincode::serialize(&new_user).unwrap_or_default();
-    db::write_chunks(&s.env, &s.handle?, k.as_bytes(), &v)?;
+    db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v)?;
     Ok(new_user)
 }
 
 /// User lookup
 pub fn find(uid: &String) -> Result<User, MdbError> {
-    
-    let s = db::DatabaseEnvironment::open()?;
-    let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &uid.as_bytes().to_vec())?;
+    let db = &DATABASE_LOCK;
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &uid.as_bytes().to_vec())?;
     if r.is_empty() {
         error!("user not found");
         return Err(MdbError::NotFound);
@@ -52,8 +50,8 @@ mod tests {
     use super::*;
 
     fn cleanup(k: &String) -> Result<(), MdbError> {
-        let s = db::DatabaseEnvironment::open()?;
-        db::DatabaseEnvironment::delete(&s.env, &s.handle?, k.as_bytes());
+        let db = &DATABASE_LOCK;
+        db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes());
         Ok(())
     }
 
@@ -64,8 +62,8 @@ mod tests {
             "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
         );
         let test_user = create(&address);
-        let s = db::DatabaseEnvironment::open()?;
-        let r = db::DatabaseEnvironment::read(&s.env, &s.handle?, &test_user.uid);
+        let db = &DATABASE_LOCK;
+        let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &test_user.uid);
         let id = String::from(&test_user.uid);
         let cleanup_id = String::from(&test_user.uid);
         let expected_user = User::from_db(id, r);
@@ -83,8 +81,8 @@ mod tests {
             xmr_address: address,
             ..Default::default()
         };
-        let s = db::DatabaseEnvironment::open()?;
-        db::DatabaseEnvironment::write_chunks(&s.env, &s.handle?, k, &User::to_db(&expected_user));
+        let db = &DATABASE_LOCK;
+        db::DatabaseEnvironment::write_chunks(&db.env, &db.handle, k, &User::to_db(&expected_user));
         let actual_user: User = find(&String::from(k));
         assert_eq!(expected_user.xmr_address, actual_user.xmr_address);
         cleanup(&String::from(k));

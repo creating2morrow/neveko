@@ -2,7 +2,7 @@
 
 use crate::{
     contact,
-    db,
+    db::{self, DATABASE_LOCK},
     error::NevekoError,
     i2p,
     models::*,
@@ -69,15 +69,14 @@ pub async fn create(m: Json<Message>, jwp: String, m_type: MessageType) -> Resul
         to: String::from(&m.to),
     };
     debug!("insert message: {:?}", &new_message);
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let k = &new_message.mid;
     let message = bincode::serialize(&new_message).unwrap_or_default();
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s.env, handle, k.as_bytes(), &message)
+    db::write_chunks(&db.env, &db.handle, k.as_bytes(), &message)
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     // in order to retrieve all message, write keys to with ml
     let list_key = crate::MESSAGE_LIST_DB_KEY;
-    let r = db::DatabaseEnvironment::read(&s.env, handle, &list_key.as_bytes().to_vec())
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         debug!("creating message index");
@@ -85,9 +84,8 @@ pub async fn create(m: Json<Message>, jwp: String, m_type: MessageType) -> Resul
     let d_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let msg_list = [d_r, String::from(&f_mid)].join(",");
     debug!("writing message index {} for id: {}", msg_list, list_key);
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s.env, handle, list_key.as_bytes(), msg_list.as_bytes())
+    let db = &DATABASE_LOCK;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), msg_list.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     info!("attempting to send message");
     let send = send_message(&new_message, &jwp, m_type).await;
@@ -121,17 +119,14 @@ pub async fn rx(m: Json<Message>) -> Result<(), NevekoError>{
         to: String::from(&m.to),
     };
     debug!("insert message: {:?}", &new_message);
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let k = &new_message.mid;
     let message = bincode::serialize(&new_message).unwrap_or_default();
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s.env, handle, k.as_bytes(), &message)
+    db::write_chunks(&db.env, &db.handle, k.as_bytes(), &message)
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     // in order to retrieve all message, write keys to with rx
     let list_key = crate::RX_MESSAGE_DB_KEY;
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let r = db::DatabaseEnvironment::read(&s.env, handle, &list_key.as_bytes().to_vec())
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         debug!("creating message index");
@@ -139,9 +134,7 @@ pub async fn rx(m: Json<Message>) -> Result<(), NevekoError>{
     let old: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let msg_list = [old, String::from(&f_mid)].join(",");
     debug!("writing message index {} for {}", msg_list, list_key);
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s.env, handle, list_key.as_bytes(), msg_list.as_bytes())
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), msg_list.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
@@ -196,7 +189,7 @@ async fn parse_multisig_message(mid: String) -> Result<MultisigMessageData, Neve
 /// use neveko_core::db;
 /// let s = db::DatabaseEnvironment::open();
 /// let key = "prepare-o123-test.b32.i2p";
-/// let info_str = db::DatabaseEnvironment::read(&s.env, &s.handle, &key);
+/// let info_str = db::DatabaseEnvironment::read(&db.env, &s.handle, &key);
 /// ```
 pub async fn rx_multisig(m: Json<Message>) -> Result<(), NevekoError> {
     info!("rx multisig from: {}", &m.from);
@@ -222,17 +215,17 @@ pub async fn rx_multisig(m: Json<Message>) -> Result<(), NevekoError> {
         created: chrono::offset::Utc::now().timestamp(),
         to: String::from(&m.to),
     };
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let k = &new_message.mid;
     let message = bincode::serialize(&new_message).unwrap_or_default();
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s.env, handle, k.as_bytes(), &message)
+    
+    db::write_chunks(&db.env, &db.handle, k.as_bytes(), &message)
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     // in order to retrieve all msig messages, write keys to with msigl
     let list_key = crate::MSIG_MESSAGE_LIST_DB_KEY;
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let r = db::DatabaseEnvironment::read(&s.env, handle, &list_key.as_bytes().to_vec())
+    let db = &DATABASE_LOCK;
+    
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         debug!("creating msig message index");
@@ -243,9 +236,9 @@ pub async fn rx_multisig(m: Json<Message>) -> Result<(), NevekoError> {
         "writing msig message index {} for id: {}",
         msg_list, list_key
     );
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s.env, handle, list_key.as_bytes(), msg_list.as_bytes())
+    let db = &DATABASE_LOCK;
+    
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), msg_list.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let data: MultisigMessageData = parse_multisig_message(new_message.mid).await?;
     debug!(
@@ -256,18 +249,18 @@ pub async fn rx_multisig(m: Json<Message>) -> Result<(), NevekoError> {
     // store info as {a_info}:{a_info (optional)}
     let s_msig = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let msig_key = format!("{}-{}-{}", &data.sub_type, &data.orid, &m.from);
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s_msig.env, handle, msig_key.as_bytes(), data.info.as_bytes())
+    let db = &DATABASE_LOCK;
+    
+    db::write_chunks(&s_msig.env, &db.handle, msig_key.as_bytes(), data.info.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
 
 /// Message lookup()
 pub fn find(mid: &String) -> Result<Message, NevekoError> {
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let r = db::DatabaseEnvironment::read(&s.env, handle, &mid.as_bytes().to_vec())
+    let db = &DATABASE_LOCK;
+    
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &mid.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         error!("message not found");
@@ -279,10 +272,9 @@ pub fn find(mid: &String) -> Result<Message, NevekoError> {
 
 /// Message lookup
 pub fn find_all() -> Result<Vec<Message>, NevekoError> {
-    let i_s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let i_list_key = crate::MESSAGE_LIST_DB_KEY;
-    let handle = &i_s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let i_r = db::DatabaseEnvironment::read(&i_s.env, handle, &i_list_key.as_bytes().to_vec())
+    let i_r = db::DatabaseEnvironment::read(&db.env, &db.handle, &i_list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if i_r.is_empty() {
         error!("message index not found");
@@ -298,9 +290,7 @@ pub fn find_all() -> Result<Vec<Message>, NevekoError> {
         }
     }
     let o_list_key = crate::RX_MESSAGE_DB_KEY;
-    let o_s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &o_s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let o_r = db::DatabaseEnvironment::read(&o_s.env, handle, &o_list_key.as_bytes().to_vec())
+    let o_r = db::DatabaseEnvironment::read(&db.env, &db.handle, &o_list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if o_r.is_empty() {
         error!("message index not found");
@@ -371,9 +361,8 @@ pub async fn decipher_body(mid: String) -> Result<reqres::DecipheredMessageBody,
 
 /// Message deletion
 pub fn delete(mid: &String) -> Result<(), NevekoError> {
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let _ = db::DatabaseEnvironment::delete(&s.env, handle, mid.as_bytes())
+    let db = &DATABASE_LOCK;
+    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, mid.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
@@ -413,11 +402,10 @@ async fn is_contact_online(contact: &String, jwp: String) -> Result<bool, Box<dy
 /// stage message for async retry
 async fn send_to_retry(mid: String) -> Result<(), NevekoError>{
     info!("sending {} to fts", &mid);
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     // in order to retrieve FTS (failed-to-send), write keys to db with fts
     let list_key = crate::FTS_DB_KEY;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let r = db::DatabaseEnvironment::read(&s.env, handle, &list_key.as_bytes().to_vec())
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         debug!("creating fts message index");
@@ -432,12 +420,10 @@ async fn send_to_retry(mid: String) -> Result<(), NevekoError>{
         "writing fts message index {} for id: {}",
         msg_list, list_key
     );
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s.env, handle, list_key.as_bytes(), msg_list.as_bytes())
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), msg_list.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     // restart fts if not empty
-    let r = db::DatabaseEnvironment::read(&s.env, handle, &list_key.as_bytes().to_vec())
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let str_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let v_mid = str_r.split(",");
@@ -454,11 +440,10 @@ async fn send_to_retry(mid: String) -> Result<(), NevekoError>{
 /// clear fts message from index
 fn remove_from_fts(mid: String) -> Result<(), NevekoError> {
     info!("removing id {} from fts", &mid);
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     // in order to retrieve FTS (failed-to-send), write keys to with fts
     let list_key = crate::FTS_DB_KEY;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let r = db::DatabaseEnvironment::read(&s.env, handle, &list_key.as_bytes().to_vec())
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         debug!("fts is empty");
@@ -479,9 +464,7 @@ fn remove_from_fts(mid: String) -> Result<(), NevekoError> {
         "writing fts message index {} for id: {}",
         msg_list, list_key
     );
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(&s.env, handle, list_key.as_bytes(), msg_list.as_bytes())
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), msg_list.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
@@ -496,10 +479,9 @@ pub async fn retry_fts() -> Result<(), NevekoError> {
     loop {
         debug!("running retry failed-to-send thread");
         tick.recv().unwrap();
-        let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        let db = &DATABASE_LOCK;
         let list_key = crate::FTS_DB_KEY;
-        let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-        let r = db::DatabaseEnvironment::read(&s.env, handle, &list_key.as_bytes().to_vec())
+        let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
             .map_err(|_| NevekoError::Database(MdbError::Panic))?;
         if r.is_empty() {
             info!("fts message index not found");
@@ -513,9 +495,7 @@ pub async fn retry_fts() -> Result<(), NevekoError> {
         if cleared {
             // index was created but cleared
             info!("terminating retry fts thread");
-            let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-            let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-            let _ = db::DatabaseEnvironment::delete(&s.env, handle, &list_key.as_bytes().to_vec())
+            let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, &list_key.as_bytes().to_vec())
                 .map_err(|_| NevekoError::Database(MdbError::Panic))?;
             break Err(NevekoError::Database(MdbError::NotFound));
         }
@@ -524,9 +504,7 @@ pub async fn retry_fts() -> Result<(), NevekoError> {
             if !message.mid.is_empty() {
                 // get jwp from db
                 let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &message.to);
-                let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-                let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-                let jwp = db::DatabaseEnvironment::read(&s.env, handle, &k.as_bytes().to_vec())
+                let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
                     .map_err(|_| NevekoError::Database(MdbError::Panic))?;
                 if !jwp.is_empty() {
                     let m_type = if message.mid.contains("msig") {
@@ -571,14 +549,13 @@ fn is_fts_clear(r: String) -> bool {
 ///
 /// `prepare_multisig_info` method.
 pub async fn send_prepare_info(orid: &String, contact: &String) -> Result<(), NevekoError> {
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let wallet_name = String::from(orid);
     let wallet_password = String::new();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let prepare_info = monero::prepare_wallet().await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let jwp = db::DatabaseEnvironment::read(&s.env, handle, &k.as_bytes().to_vec())
+    let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let body_str = format!(
         "{}:{}:{}",
@@ -601,14 +578,13 @@ pub async fn send_prepare_info(orid: &String, contact: &String) -> Result<(), Ne
 ///
 /// `make_multisig_info` method.
 pub async fn send_make_info(orid: &String, contact: &String, info: Vec<String>) -> Result<(), NevekoError> {
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let wallet_name = String::from(orid);
     let wallet_password = String::new();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let make_info = monero::make_wallet(info).await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let jwp = db::DatabaseEnvironment::read(&s.env, handle, &k.as_bytes().to_vec())
+    let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let body_str = format!("{}:{}:{}", MAKE_MSIG, orid, &make_info.result.multisig_info);
     let message: Message = Message {
@@ -633,14 +609,13 @@ pub async fn send_exchange_info(
     info: Vec<String>,
     kex_init: bool,
 ) -> Result<(), NevekoError> {
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let wallet_name = String::from(orid);
     let wallet_password = String::new();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let exchange_info = monero::exchange_multisig_keys(false, info, &wallet_password).await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
-    let jwp = db::DatabaseEnvironment::read(&s.env, handle, &k.as_bytes().to_vec())
+    let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let mut body_str = format!(
         "{}:{}:{}",
@@ -669,14 +644,13 @@ pub async fn send_exchange_info(
 ///
 /// `export_multisig_info` method.
 pub async fn send_export_info(orid: &String, contact: &String) -> Result<(), NevekoError> {
-    let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
     let wallet_name = String::from(orid);
     let wallet_password = String::new();
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let exchange_info = monero::export_multisig_info().await;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, contact);
-    let handle = &s.handle.map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let jwp = db::DatabaseEnvironment::read(&s.env, handle, &k.as_bytes().to_vec())
+    let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let body_str = format!("{}:{}:{}", EXPORT_MSIG, orid, &exchange_info.result.info);
     let message: Message = Message {
@@ -792,7 +766,7 @@ mod tests {
     fn cleanup(k: &String) -> Result<(), NevekoError> {
         let s = db::DatabaseEnvironment::open()
             .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-        let _ = db::DatabaseEnvironment::delete(&s.env, &s.handle, k.as_bytes())
+        let _ = db::DatabaseEnvironment::delete(&db.env, &s.handle, k.as_bytes())
             .map_err(|_| NevekoError::Database(MdbError::Panic))?;
         Ok(())
     }
@@ -828,9 +802,9 @@ mod tests {
             ..Default::default()
         };
         let k = "test-key";
-        let s = db::DatabaseEnvironment::open().map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        let db = &DATABASE_LOCK;
         let message = bincode::serialize(&new_message).unwrap_or_default();
-        db::write_chunks(&s.env, &s.handle, k, &message);
+        db::write_chunks(&db.env, &s.handle, k, &message);
         let actual_message: Message = find(&String::from(k));
         assert_eq!(expected_message.body, actual_message.body);
         cleanup(&String::from(k));
