@@ -274,11 +274,13 @@ impl<'r> FromRequest<'r> for BearerToken {
 
 #[cfg(test)]
 mod tests {
+    use crate::error::NevekoError;
+
     use super::*;
 
     fn find_test_auth(k: &String) -> Result<Authorization, MdbError> {
-        let s: db::Interface = db::DatabaseEnvironment::open()?;
-        let v = db::DatabaseEnvironment::read(&db.env, &s.handle, &k.as_bytes().to_vec())?;
+        let db = &DATABASE_LOCK;
+        let v = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())?;
         let result: Authorization = bincode::deserialize(&v[..]).unwrap_or_default();
         Ok(result)
     }
@@ -290,16 +292,17 @@ mod tests {
     }
 
     #[test]
-    fn create_test() {
+    fn create_test() -> Result<(), MdbError> {
         use tokio::runtime::Runtime;
         let rt = Runtime::new().expect("Unable to create Runtime for test");
         let _enter = rt.enter();
         let address: String = String::from(
             "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
         );
-        let test_auth = create(&address);
+        let test_auth = create(&address)?;
         assert_eq!(test_auth.xmr_address, address);
-        cleanup(&test_auth.aid);
+        let _ = cleanup(&test_auth.aid);
+        Ok(())
     }
 
     #[test]
@@ -307,32 +310,34 @@ mod tests {
         let address: String = String::from(
             "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
         );
-        let test_auth = create(&address);
+        let test_auth = create(&address)?;
         let aid = String::from(&test_auth.aid);
-        let f_auth: Authorization = find_test_auth(&aid);
-        assert_ne!(f_auth.xmr_address, address);
-        cleanup(&test_auth.aid);
+        let f_auth: Authorization = find_test_auth(&aid)?;
+        assert_eq!(f_auth.xmr_address, address);
+        cleanup(&test_auth.aid)?;
         Ok(())
     }
 
     #[test]
-    fn update_expiration_test() {
+    fn update_expiration_test() -> Result<(), MdbError> {
         let address: String = String::from(
             "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
         );
-        let test_auth = create(&address);
+        let test_auth = create(&address)?;
         let aid = String::from(&test_auth.aid);
-        let f_auth = find_test_auth(&aid);
-        let u_auth = update_expiration(&f_auth, &address);
+        let f_auth = find_test_auth(&aid)?;
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        let u_auth = update_expiration(&f_auth, &address)?;
         assert!(f_auth.created < u_auth.created);
-        cleanup(&test_auth.aid);
+        let _ = cleanup(&test_auth.aid)?;
+        Ok(())
     }
 
     #[test]
-    fn create_token_test() {
+    fn create_token_test() -> Result<(), NevekoError> {
         let test_value = "test";
         let test_jwt = create_token(String::from(test_value), 0);
-        let jwt_secret_key = utils::get_jwt_secret_key();
+        let jwt_secret_key = utils::get_jwt_secret_key().unwrap_or_default();
         let key: Hmac<Sha384> = Hmac::new_from_slice(&jwt_secret_key.as_bytes()).expect("");
         let jwt: Result<
             Token<jwt::Header, BTreeMap<std::string::String, std::string::String>, _>,
@@ -346,6 +351,7 @@ mod tests {
                 assert_eq!(expected, actual);
             }
             Err(_) => error!("create_token_test error"),
-        }
+        };
+        Ok(())
     }
 }

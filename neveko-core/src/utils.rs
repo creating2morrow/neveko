@@ -57,9 +57,6 @@ pub struct Connections {
     pub daemon_host: String,
     pub i2p_proxy_host: String,
     pub i2p_socks_host: String,
-    /// path to manually created tunnels json
-    pub i2p_tunnels_json: String,
-    pub i2p_zero_dir: String,
     pub is_remote_node: bool,
     pub is_i2p_advanced: bool,
     pub mainnet: bool,
@@ -76,8 +73,6 @@ impl Default for Connections {
             daemon_host: String::from("http://127.0.0.1:38081"),
             i2p_proxy_host: String::from("http://127.0.0.1:4444"),
             i2p_socks_host: String::from("http://127.0.0.1:9051"),
-            i2p_tunnels_json: String::from("/home/user/neveko/i2p-manual"),
-            i2p_zero_dir: String::from("/home/user/i2p-zero-linux.v1.21"),
             is_remote_node: false,
             is_i2p_advanced: false,
             mainnet: false,
@@ -145,14 +140,10 @@ pub fn start_core(conn: &Connections) {
         &conn.rpc_username,
         "--monero-rpc-cred",
         &conn.rpc_credential,
-        "--i2p-zero-dir",
-        &conn.i2p_zero_dir,
         "-r",
         env,
         remote_node,
         i2p_advanced,
-        "--i2p-tunnels-json",
-        &conn.i2p_tunnels_json,
         "--i2p-proxy-host",
         &conn.i2p_proxy_host,
         "--i2p-socks-proxy-host",
@@ -161,10 +152,6 @@ pub fn start_core(conn: &Connections) {
     if conn.is_i2p_advanced {
         // set the i2p proxy host for advanced user re-use
         std::env::set_var(crate::NEVEKO_I2P_PROXY_HOST, conn.i2p_proxy_host.clone());
-        std::env::set_var(
-            crate::NEVEKO_I2P_TUNNELS_JSON,
-            conn.i2p_tunnels_json.clone(),
-        );
         std::env::set_var(crate::NEVEKO_I2P_ADVANCED_MODE, String::from("1"));
     }
     if conn.is_remote_node {
@@ -398,7 +385,6 @@ fn gen_signing_keys() -> Result<(), NevekoError> {
         let mut data = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut data);
         let db = &DATABASE_LOCK;
-        
         db::write_chunks(&db.env, &db.handle, crate::NEVEKO_JWT_SECRET_KEY.as_bytes(), &data)
             .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
@@ -482,7 +468,7 @@ pub async fn start_up() -> Result<(), NevekoError> {
     }
     gen_signing_keys()?;
     if !is_using_remote_node() {
-        monero::start_daemon();
+        let _ = monero::start_daemon();
     }
     create_wallet_dir();
     // wait for daemon for a bit
@@ -504,7 +490,7 @@ pub async fn start_up() -> Result<(), NevekoError> {
     generate_nmpk().await?;
     let env: String = get_release_env().value();
     if !args.i2p_advanced {
-        i2p::start().await;
+        let _ = i2p::start();
     }
     gen_app_wallet(&wallet_password).await;
     // start async background tasks here

@@ -17,7 +17,7 @@ pub struct Args {
     #[arg(
         long,
         help = "Monero download absolute path.",
-        default_value = "monero-x86_64-linux-gnu-v0.18.3.3"
+        default_value = "monero-x86_64-linux-gnu-v0.18.3.4"
     )]
     pub monero_location: String,
     /// Monero RPC host
@@ -142,7 +142,7 @@ pub struct Args {
         default_value = "/home/user/neveko/i2p-manual"
     )]
     pub i2p_tunnels_json: String,
-    /// Dummy flag for normal neveko i2p-zero config. Future use.
+    /// Dummy flag for normal neveko i2p config. Future use.
     #[arg(
         long,
         help = "Normal mode. Neveko will handle i2p proxy tunnels and identity.",

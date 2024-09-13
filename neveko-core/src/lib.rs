@@ -22,6 +22,10 @@ pub const NEVEKO_JWT_SECRET_KEY: &str = "NEVEKO_JWT_SECRET_KEY";
 pub const NEVEKO_NMPK: &str = "NEVEKO_NMPK";
 
 // LMDB Keys
+pub const APP_B32_DEST:                 &str = "app-b32";
+pub const APP_ANON_IN_B32_DEST:         &str = "app-anon-in-b32";
+pub const APP_I2P_SK:                   &str = "app-i2p-sk";
+pub const APP_ANON_IN_SK:               &str = "app-anon-in-sk";
 pub const AUTH_DB_KEY:                  &str = "a";
 pub const CONTACT_DB_KEY:               &str = "c";
 pub const DISPUTE_DB_KEY:               &str = "d";
@@ -38,7 +42,7 @@ pub const RX_MESSAGE_DB_KEY:            &str = "rx";
 pub const DISPUTE_LAST_CHECK_DB_KEY:    &str = "dlc";
 pub const FTS_DB_KEY:                   &str = "fts"; 
 pub const CUSTOMER_ORDER_LIST_DB_KEY:   &str = "olc";
-pub const ADJUDICATOR_DB_KEY:              &str = "med8";
+pub const ADJUDICATOR_DB_KEY:           &str = "med8";
 pub const MSIG_MESSAGE_DB_KEY:          &str = "msig";
 pub const MSIG_MESSAGE_LIST_DB_KEY:     &str = "msigl";
 pub const FTS_JWP_DB_KEY:               &str = "fts-jwp";
@@ -49,8 +53,6 @@ pub const DELIVERY_INFO_DB_KEY:         &str = "delivery";
 pub const MONERO_WALLET_PASSWORD: &str = "MONERO_WALLET_PASSWORD";
 /// Environment variable for I2P proxy host
 pub const NEVEKO_I2P_PROXY_HOST: &str = "NEVEKO_I2P_PROXY_HOST";
-/// Environment variable for I2P manual tunnels.json
-pub const NEVEKO_I2P_TUNNELS_JSON: &str = "NEVEKO_I2P_TUNNELS_JSON";
 /// Environment variable for I2P advanced mode
 pub const NEVEKO_I2P_ADVANCED_MODE: &str = "NEVEKO_I2P_ADVANCED_MODE";
 /// Environment variable for I2P advanced mode
@@ -68,4 +70,8 @@ pub const FTS_RETRY_INTERVAL: u32 = 60000;
 pub const DISPUTE_AUTO_SETTLE: u32 = 1000 * 60 * 60 * 24 * 7;
 /// Daily dispute auto-settle check interval
 pub const DISPUTE_CHECK_INTERVAL: u32 = 1000 * 60 * 60 * 24;
+/// Default app port
+pub const DEFAULT_APP_PORT: u16 = 9000;
+/// Default app port
+pub const DEFAULT_SOCKS_PORT: u16 = 9051;
 // DO NOT EDIT BELOW THIS LINE

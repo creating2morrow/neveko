@@ -19,7 +19,7 @@ NEVidebla-EKOnomia (invisible economy)
 
 ## Dev
 
-* stack - rust (egui, rocket), lmdb, i2p-zero, monero(rpc, daemon)
+* stack - rust (egui, rocket), lmdb, i2p, monero(rpc, daemon)
 * install dependencies
     * ubuntu example: `sudo apt update -y && sudo apt upgrade -y`
     * `sudo apt install -y libssl-dev build-essential`
@@ -30,10 +30,10 @@ NEVidebla-EKOnomia (invisible economy)
     * the `--monero-location` flag is needed even when using a remote node because
       neveko has its own monero-wallet-rpc instance
     * remote nodes are forced over the `--i2p-proxy-host`
-* Recommended neveko-core startup with full node and i2p-zero locally running:
-    * ` ./scripts/build_all_and_run.sh "-- --monero-blockchain-dir=/home/user/.bitmonero --monero-location monero-x86_64-linux-gnu-v0.18.3.3 --i2p-zero-dir /home/user/i2p-zero-linux.v1.21/ --monero-blockchain-dir /home/user/.bitmonero"`
+* Recommended neveko-core startup with full node:
+    * ` ./scripts/build_all_and_run.sh "-- --monero-blockchain-dir=/home/user/.bitmonero --monero-location monero-x86_64-linux-gnu-v0.18.3.3 --monero-blockchain-dir /home/user/.bitmonero"`
     * monerod doesn't need to be running because neveko will start it and monero-wallet-rpc
-    * gui will automatically detect monerod, rpc and i2p-zero if neveko core is started first
+    * gui will automatically detect monerod, rpc if neveko core is started first
 * Neveko doesn't write logs to file. Use the command below to write to a log file:
   ```bash 
     {NEVEKO_START_CMDS} > neveko.log 2>&1
@@ -47,7 +47,6 @@ NEVidebla-EKOnomia (invisible economy)
 
 * additional required software can be downloaded from the gui home or `Binaries` links below
 * hashes are in core [lib.rs](./neveko-core/src/lib.rs)
-* download i2p-zero, put the path in the connection manager or cli `--i2p-zero-dir` flag
 * download monero, update connection manager or cli
   * `--monero-blockchain-dir`, where to put lmdb for monero (e.g. path/to/ssd)
   * `--monero-location`, path to monero download
@@ -101,7 +100,6 @@ NEVidebla-EKOnomia (invisible economy)
     * can be overriden with remote node
     * use the `--remote-node` flag
 * [monero-wallet-rpc](https://www.getmonero.org/downloads/#cli) - (not included) interface for xmr wallet ops
-* [i2p-zero](https://github.com/creating2morrow/i2p-zero/releases/tag/v1.21-neveko) - (not included) tunnel creation and http proxy
 
 most of the complex logic stays in neveko-core, exported from [lib.rs](./neveko-core/src/lib.rs)
 

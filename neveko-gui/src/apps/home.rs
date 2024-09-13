@@ -189,7 +189,8 @@ impl eframe::App for HomeApp {
             .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
-                let mut i2p_address = i2p::get_destination(None);
+                let mut i2p_address = i2p::get_destination(i2p::ServerTunnelType::App)
+                    .unwrap_or_default();
                 if !self.is_qr_set && !i2p_address.is_empty() {
                     let code = QrCode::new(&i2p_address).unwrap();
                     let image = code.render::<Luma<u8>>().build();
@@ -253,13 +254,6 @@ impl eframe::App for HomeApp {
                     ui.text_edit_singleline(&mut self.connections.monero_location)
                         .labelled_by(cm_xmr_dir_label.id);
                 });
-                if !self.connections.is_i2p_advanced {
-                    ui.horizontal(|ui| {
-                        let cm_i2p_dir_label = ui.label("i2p-zero path: \t");
-                        ui.text_edit_singleline(&mut self.connections.i2p_zero_dir)
-                            .labelled_by(cm_i2p_dir_label.id);
-                    });
-                }
                 if self.connections.is_i2p_advanced {
                     ui.horizontal(|ui| {
                         let cm_i2p_proxy_label = ui.label("i2p proxy host: \t");
@@ -270,11 +264,6 @@ impl eframe::App for HomeApp {
                         let cm_i2p_socks_label = ui.label("i2p socks host: \t");
                         ui.text_edit_singleline(&mut self.connections.i2p_socks_host)
                             .labelled_by(cm_i2p_socks_label.id);
-                    });
-                    ui.horizontal(|ui| {
-                        let cm_i2p_tunnels_label = ui.label("tunnels.json dir:  ");
-                        ui.text_edit_singleline(&mut self.connections.i2p_tunnels_json)
-                            .labelled_by(cm_i2p_tunnels_label.id);
                     });
                 }
                 let mut is_remote_node = self.connections.is_remote_node;
@@ -350,7 +339,8 @@ impl eframe::App for HomeApp {
             ui.horizontal(|ui| {
                 self.logo_i2p.show(ui);
                 ui.horizontal(|ui| {
-                    let i2p_address = i2p::get_destination(None);
+                    let i2p_address = i2p::get_destination(i2p::ServerTunnelType::App)
+                        .unwrap_or_default();
                     ui.label(
                         RichText::new(format!("- status: {}\n- address: {}", str_i2p_status, i2p_address))
                             .size(16.0)
@@ -463,7 +453,7 @@ fn send_wallet_req(
 fn send_i2p_status_req(tx: Sender<i2p::ProxyStatus>, ctx: egui::Context) {
     tokio::spawn(async move {
         let status = i2p::check_connection().await;
-        let _ = tx.send(status);
+        let _ = tx.send(status.unwrap_or(i2p::ProxyStatus::Opening));
         ctx.request_repaint();
     });
 }

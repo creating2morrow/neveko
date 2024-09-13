@@ -220,7 +220,7 @@ pub fn find_all_vendor_orders() -> Result<Vec<Order>, NevekoError> {
     let i_v_oid = de.split(",");
     let i_v: Vec<String> = i_v_oid.map(String::from).collect();
     let mut orders: Vec<Order> = Vec::new();
-    let vendor_b32: String = i2p::get_destination(None);
+    let vendor_b32: String = i2p::get_destination(i2p::ServerTunnelType::App)?;
     for o in i_v {
         let order: Order = find(&o)?;
         if !order.orid.is_empty() && order.cid != vendor_b32 {
@@ -467,7 +467,7 @@ pub async fn upload_delivery_info(
     modify(Json(m_order))?;
     // trigger nasr, this will cause the customer's neveko instance to request the
     // txset
-    let i2p_address = i2p::get_destination(None);
+    let i2p_address = i2p::get_destination(i2p::ServerTunnelType::App)?;
     // get jwp from db
     let db = &DATABASE_LOCK;
     

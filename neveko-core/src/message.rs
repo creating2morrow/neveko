@@ -63,7 +63,7 @@ pub async fn create(m: Json<Message>, jwp: String, m_type: MessageType) -> Resul
     let new_message = Message {
         mid: String::from(&f_mid),
         uid: String::from(&m.uid),
-        from: i2p::get_destination(None),
+        from: i2p::get_destination(i2p::ServerTunnelType::App)?,
         body: e_body,
         created,
         to: String::from(&m.to),
@@ -186,10 +186,10 @@ async fn parse_multisig_message(mid: String) -> Result<MultisigMessageData, Neve
 ///
 /// ```rust
 /// // lookup prepare info for vendor
-/// use neveko_core::db;
-/// let s = db::DatabaseEnvironment::open();
+/// use neveko_core::db::*;
+/// let db = &DATABASE_LOCK;
 /// let key = "prepare-o123-test.b32.i2p";
-/// let info_str = db::DatabaseEnvironment::read(&db.env, &s.handle, &key);
+/// let info_str = DatabaseEnvironment::read(&db.env, &db.handle, &key.as_bytes().to_vec());
 /// ```
 pub async fn rx_multisig(m: Json<Message>) -> Result<(), NevekoError> {
     info!("rx multisig from: {}", &m.from);
@@ -527,7 +527,7 @@ fn validate_message(j: &Json<Message>) -> bool {
     info!("validating message: {}", &j.mid);
     j.mid.len() < utils::string_limit()
         && j.body.len() < utils::message_limit()
-        && j.to == i2p::get_destination(None)
+        && j.to == i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default()
         && j.uid.len() < utils::string_limit()
 }
 
@@ -764,50 +764,53 @@ mod tests {
     use super::*;
 
     fn cleanup(k: &String) -> Result<(), NevekoError> {
-        let s = db::DatabaseEnvironment::open()
-            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-        let _ = db::DatabaseEnvironment::delete(&db.env, &s.handle, k.as_bytes())
+        let db = &DATABASE_LOCK;
+        let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())
             .map_err(|_| NevekoError::Database(MdbError::Panic))?;
         Ok(())
     }
 
     #[test]
-    fn create_test() {
+    fn create_test() -> Result<(), NevekoError> {
         // run and async cleanup so the test doesn't fail when deleting test data
         use tokio::runtime::Runtime;
         let rt = Runtime::new().expect("Unable to create Runtime for test");
         let _enter = rt.enter();
         let body: String = String::from("test body");
         let message = Message {
-            body: body,
+            body,
             ..Default::default()
         };
         let j_message = utils::message_to_json(&message);
         let jwp = String::from("test-jwp");
         tokio::spawn(async move {
-            let test_message = create(j_message, jwp, MessageType::Normal).await;
+            let a_test_message = create(j_message, jwp, MessageType::Normal).await;
+            let test_message = a_test_message.unwrap_or_default();
             let expected: Message = Default::default();
             assert_eq!(test_message.body, expected.body);
-            cleanup(&test_message.mid).await;
+            cleanup(&test_message.mid).unwrap();
         });
         Runtime::shutdown_background(rt);
+        Ok(())
     }
 
     #[test]
-    fn find_test() {
+    fn find_test() -> Result<(), NevekoError> {
         // run and async cleanup so the test doesn't fail when deleting test data
         let body: String = String::from("test body");
         let expected_message = Message {
-            body: body,
+            body,
             ..Default::default()
         };
         let k = "test-key";
         let db = &DATABASE_LOCK;
-        let message = bincode::serialize(&new_message).unwrap_or_default();
-        db::write_chunks(&db.env, &s.handle, k, &message);
-        let actual_message: Message = find(&String::from(k));
+        let message = bincode::serialize(&expected_message).unwrap_or_default();
+        db::write_chunks(&db.env, &db.handle, k.as_bytes(), &message)
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        let actual_message: Message = find(&String::from(k))?;
         assert_eq!(expected_message.body, actual_message.body);
-        cleanup(&String::from(k));
+        cleanup(&String::from(k))?;
+        Ok(())
     }
 
     #[test]
@@ -818,7 +821,7 @@ mod tests {
         let _enter = rt.enter();
         let body: String = String::from("test body");
         let message = Message {
-            body: body,
+            body,
             ..Default::default()
         };
         let j_message = utils::message_to_json(&message);

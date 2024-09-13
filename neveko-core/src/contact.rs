@@ -144,7 +144,7 @@ pub async fn share() -> Result<Contact, NevekoError> {
     let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
     monero::close_wallet(&wallet_name, &wallet_password).await;
     let nmpk = utils::get_nmpk()?;
-    let i2p_address = i2p::get_destination(None);
+    let i2p_address = i2p::get_destination(i2p::ServerTunnelType::App)?;
     let xmr_address = m_address.result.address;
     Ok(Contact {
         cid: String::new(),
@@ -221,9 +221,10 @@ pub async fn add_contact_request(contact: String) -> Result<Contact, Box<dyn Err
 mod tests {
     use super::*;
 
-    fn cleanup(k: &String) {
+    fn cleanup(k: &String) -> Result<(), MdbError> {
         let db = &DATABASE_LOCK;
-        let _ = db::DatabaseEnvironment::delete(&db.env, &s.handle, k)?;
+        let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())?;
+        Ok(())
     }
 
     #[test]
@@ -244,7 +245,7 @@ mod tests {
         tokio::spawn(async move {
             let test_contact = create(&j_contact).await;
             let expected: Contact = Default::default();
-            assert_eq!(test_contact.xmr_address, expected.xmr_address);
+            assert_eq!(test_contact.unwrap_or_default().xmr_address, expected.xmr_address);
         });
         Runtime::shutdown_background(rt);
     }
@@ -266,10 +267,10 @@ mod tests {
         tokio::spawn(async move {
             let db = &DATABASE_LOCK;
             let v = bincode::serialize(&expected_contact).unwrap_or_default();
-            db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v);
-            let actual_contact: Contact = find(&String::from(k));
+            let _ = db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v);
+            let actual_contact: Contact = find(&String::from(k)).unwrap_or_default();
             assert_eq!(expected_contact.xmr_address, actual_contact.xmr_address);
-            cleanup(&String::from(k));
+            let _ = cleanup(&String::from(k));
         });
         Runtime::shutdown_background(rt);
     }

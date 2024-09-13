@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn environment_test() -> Result<(), MdbError> {
-        let db: DatabaseEnvironment = &DATABASE_LOCK;
+        let db = &DATABASE_LOCK;
         const DATA_SIZE_10MB: usize = 10000000;
         let mut data = vec![0u8; DATA_SIZE_10MB];
         rand::thread_rng().fill_bytes(&mut data);

@@ -1,11 +1,7 @@
 //! TODO: replace with monero bindings
 
 use crate::{
-    args,
-    i2p,
-    proof,
-    reqres,
-    utils,
+    args, error::NevekoError, i2p, proof, reqres, utils
 };
 use clap::Parser;
 use diqwest::WithDigestAuth;
@@ -172,7 +168,7 @@ impl LockTimeLimit {
 /// Start monerod from the `--monero-location` flag
 ///
 /// default: /home/$USER/monero-xxx-xxx
-pub fn start_daemon() {
+pub fn start_daemon() -> Result<(), NevekoError>{
     info!("starting monerod");
     let blockchain_dir = get_blockchain_dir();
     let bin_dir = get_monero_location();
@@ -186,7 +182,7 @@ pub fn start_daemon() {
     let tx_proxy = format!("i2p,{}", socks_proxy_host);
     // proxy host can't have protocol
     let anon_in_port = get_anon_inbound_port();
-    let destination = i2p::get_destination(Some(anon_in_port));
+    let destination = i2p::get_destination(i2p::ServerTunnelType::App)?;
     let anon_inbound = format!("{},127.0.0.1:{}", destination, anon_in_port);
     let mut args = vec!["--data-dir", &blockchain_dir, "--detach"];
     if release_env == utils::ReleaseEnvironment::Development {
@@ -196,6 +192,7 @@ pub fn start_daemon() {
             .spawn()
             .expect("monerod failed to start");
         debug!("{:?}", output.stdout);
+        Ok(())
     } else {
         args.push("--tx-proxy");
         args.push(&tx_proxy);
@@ -206,6 +203,7 @@ pub fn start_daemon() {
             .spawn()
             .expect("monerod failed to start");
         debug!("{:?}", output.stdout);
+        Ok(())
     }
 }
 

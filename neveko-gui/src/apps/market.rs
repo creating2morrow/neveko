@@ -1445,7 +1445,7 @@ impl eframe::App for MarketApp {
                                         } else {
                                             if ui.button("Create Order").clicked() {
                                                 self.new_order.pid = p.pid.clone();
-                                                self.new_order.cid = i2p::get_destination(None);
+                                                self.new_order.cid = i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default();
                                                 self.new_order_price = p.price;
                                                 self.is_ordering = true;
                                             }
@@ -1906,7 +1906,7 @@ fn send_prepare_info_req(
                 message::PREPARE_MSIG
             );
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-                contact: i2p::get_destination(None),
+                contact: i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default(),
                 info: Vec::new(),
                 init_adjudicator: false,
                 kex_init: false,
@@ -1921,7 +1921,7 @@ fn send_prepare_info_req(
                 message::PREPARE_MSIG
             );
             let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-                contact: i2p::get_destination(None),
+                contact: i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default(),
                 info: Vec::new(),
                 init_adjudicator: true,
                 kex_init: false,
@@ -2034,7 +2034,7 @@ fn send_make_info_req(
         if v_make.is_empty() {
             log::debug!("constructing vendor {} msig messages", message::MAKE_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-                contact: i2p::get_destination(None),
+                contact: i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default(),
                 info: v_prepare_info_send,
                 init_adjudicator: false,
                 kex_init: false,
@@ -2049,7 +2049,7 @@ fn send_make_info_req(
                 message::MAKE_MSIG
             );
             let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-                contact: i2p::get_destination(None),
+                contact: i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default(),
                 info: m_prepare_info_send,
                 init_adjudicator: false,
                 kex_init: false,
@@ -2165,7 +2165,7 @@ fn send_kex_initial_req(
                 message::KEX_ONE_MSIG
             );
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-                contact: i2p::get_destination(None),
+                contact: i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default(),
                 info: v_kex_init_send,
                 init_adjudicator: false,
                 kex_init: true,
@@ -2180,7 +2180,7 @@ fn send_kex_initial_req(
                 message::KEX_ONE_MSIG
             );
             let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-                contact: i2p::get_destination(None),
+                contact: i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default(),
                 info: m_kex_init_send,
                 init_adjudicator: false,
                 kex_init: true,
@@ -2293,7 +2293,7 @@ fn send_kex_final_req(
                 message::KEX_TWO_MSIG
             );
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-                contact: i2p::get_destination(None),
+                contact: i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default(),
                 info: v_kex_final_send,
                 init_adjudicator: false,
                 kex_init: false,
@@ -2308,7 +2308,7 @@ fn send_kex_final_req(
                 message::KEX_TWO_MSIG
             );
             let m_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-                contact: i2p::get_destination(None),
+                contact: i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default(),
                 info: m_kex_final_send,
                 init_adjudicator: false,
                 kex_init: false,
@@ -2417,7 +2417,7 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
         if v_export.is_empty() {
             log::debug!("constructing vendor {} msig messages", message::EXPORT_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
-                contact: i2p::get_destination(None),
+                contact: i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default(),
                 info,
                 init_adjudicator: false,
                 kex_init: false,

@@ -1,27 +1,46 @@
-//! TODO: replace i2p-zero with i2pd bindings
+//! embedded i2p module
 
-use crate::{
-    args,
-    utils,
-};
-use clap::Parser;
-use log::{
-    debug,
-    info,
-    warn,
-};
+use std::{thread,fs::File, io::{self, BufRead}, path::Path};
+use j4i2prs::router_wrapper as rw;
+use j4i2prs::tunnel_control as tc;
+use kn0sys_lmdb_rs::MdbError;
+use log::*;
 use serde::{
     Deserialize,
     Serialize,
 };
-use std::{
-    env,
-    fs,
-    process::Command,
-    time::Duration,
+use std::sync::mpsc::{
+    Receiver,
+    Sender,
+};
+use crate::{
+    db::{self, DATABASE_LOCK}, error::NevekoError, monero::get_anon_inbound_port, utils, DEFAULT_APP_PORT, DEFAULT_SOCKS_PORT
 };
 
-const TODO: &str = "test";
+struct Listener {
+    is_running: bool,
+    run_tx: Sender<bool>,
+    run_rx: Receiver<bool>,
+}
+
+impl Default for Listener {
+    fn default() -> Self {
+        let is_running = false;
+        let (run_tx, run_rx) = std::sync::mpsc::channel();
+        Listener {
+            is_running,
+            run_tx,
+            run_rx,
+        }
+    }
+}
+
+/// https://doc.rust-lang.org/rust-by-example/std_misc/file/read_lines.html
+fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+where P: AsRef<Path>, {
+    let file = File::open(filename)?;
+    Ok(io::BufReader::new(file).lines())
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HttpProxyStatus {
@@ -43,134 +62,11 @@ impl ProxyStatus {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Tunnel {
-    // http proxy tunnel wont have this field
-    dest: Option<String>,
-    port: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[derive(Default)]
-struct Tunnels {
-    tunnels: Vec<Tunnel>,
-}
-
-
-/// Looks for the `tunnels-config.json` at /home/$USER/.i2p-zero/config/
-///
-/// and attempts to extract the app and http proxy tunnel information.
-async fn find_tunnels() {
-    let args = args::Args::parse();
-    let app_port = utils::get_app_port();
-    let file_path = format!(
-        "/home/{}/.i2p-zero/config/tunnels.json",
-        env::var("USER").unwrap_or(String::from("user"))
-    );
-    let contents = fs::read_to_string(file_path).unwrap_or(String::new());
-    debug!("i2p tunnels: {}", contents);
-    let has_app_tunnel = contents.contains(&format!("{}", app_port));
-    let proxy_port = get_i2p_proxy_port();
-    let socks_proxy_port = get_i2p_socks_proxy_port();
-    let has_http_tunnel = contents.contains(&proxy_port);
-    let has_socks_proxy_tunnel = contents.contains(&socks_proxy_port.to_string());
-    let has_anon_inbound_tunnel = contents.contains(&format!("{}", args.anon_inbound_port));
-    if !has_app_tunnel || !has_http_tunnel || !has_anon_inbound_tunnel || !has_socks_proxy_tunnel {
-        tokio::time::sleep(Duration::new(120, 0)).await;
-    }
-    if !has_app_tunnel {
-        debug!("creating app tunnel");
-        create_tunnel();
-    }
-    if !has_http_tunnel {
-        debug!("creating http tunnel");
-        create_http_proxy();
-    }
-    if !has_anon_inbound_tunnel {
-        debug!("creating anon inbound tunnel");
-        create_anon_inbound_tunnel();
-    }
-    if !has_socks_proxy_tunnel {
-        debug!("creating socks proxy tunnel");
-        create_socks_proxy_tunnel();
-    }
-}
-
-/// Called on application startup for i2p tunnel creation,
-///
-/// proxy tunnel, etc. Logs proxy status every 10 minutes.
-pub async fn start() {
-    info!("starting i2p-zero");
-    let path = TODO;
-    let output = Command::new(format!("{}/router/bin/i2p-zero", path)).spawn();
-    match output {
-        Ok(child) => debug!("{:?}", child.stdout),
-        _ => {
-            warn!("i2p-zero not installed, manual tunnel creation required");
-            
-        }
-    }
-    find_tunnels().await;
-    {
-        tokio::spawn(async move {
-            let tick: std::sync::mpsc::Receiver<()> =
-                schedule_recv::periodic_ms(crate::I2P_CONNECTIVITY_CHECK_INTERVAL);
-            loop {
-                tick.recv().unwrap();
-                check_connection().await;
-            }
-        });
-    }
-}
-
-/// Create an i2p tunnel for the NEVEKO application
-fn create_tunnel() {
-    info!("creating tunnel");
-    let path = TODO;
-    let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
-        .args([
-            "server.create",
-            "127.0.0.1",
-            &format!("{}", utils::get_app_port()),
-        ])
-        .spawn()
-        .expect("i2p-zero failed to create a app tunnel");
-    debug!("{:?}", output.stdout);
-}
-
-/// Create an i2p tunnel for the monero wallet socks proxy
-fn create_socks_proxy_tunnel() {
-    info!("creating monerod socks proxy tunnel");
-    let path = TODO;
-    let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
-        .args(["socks.create", &get_i2p_socks_proxy_port().to_string()])
-        .spawn()
-        .expect("i2p-zero failed to create a socks proxy tunnel");
-    debug!("{:?}", output.stdout);
-}
-
-/// Create an i2p tunnel for the monero tx proxy
-fn create_anon_inbound_tunnel() {
-    info!("creating monerod anon inbound proxy tunnel");
-    let args = args::Args::parse();
-    let path = TODO;
-    let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
-        .args([
-            "server.create",
-            "127.0.0.1",
-            &format!("{}", args.anon_inbound_port),
-        ])
-        .spawn()
-        .expect("i2p-zero failed to create a anon inbound tunnel");
-    debug!("{:?}", output.stdout);
-}
-
 /// Extract i2p port from command line arg
 fn get_i2p_proxy_port() -> String {
     let proxy_host = utils::get_i2p_http_proxy();
     let values = proxy_host.split(":");
     let mut v: Vec<String> = values.map(String::from).collect();
-    
     v.remove(2)
 }
 
@@ -179,79 +75,210 @@ fn get_i2p_socks_proxy_port() -> String {
     let proxy_host = utils::get_i2p_wallet_proxy_host();
     let values = proxy_host.split(":");
     let mut v: Vec<String> = values.map(String::from).collect();
-    
     v.remove(2)
-}
-
-/// Create the http proxy if it doesn't exist
-fn create_http_proxy() {
-    let path = TODO;
-    info!("creating http proxy");
-    let port = get_i2p_proxy_port();
-    let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
-        .args(["http.create", &port])
-        .spawn()
-        .expect("i2p-zero failed to create a http proxy");
-    debug!("{:?}", output.stdout);
 }
 
 /// This is the `dest` value of the app i2p tunnels
 ///
-/// in `tunnels-config.json`.
-///
-/// `port` - the port of the tunnel (e.g. `utils::get_app_port()`)
-pub fn get_destination(port: Option<u16>) -> String {
-    let mut file_path = format!(
-        "/home/{}/.i2p-zero/config/tunnels.json",
-        env::var("USER").unwrap_or(String::from("user"))
-    );
-    let args = args::Args::parse();
-    let is_advanced_mode =
-        std::env::var(crate::NEVEKO_I2P_ADVANCED_MODE).unwrap_or(String::new());
-    if args.i2p_advanced || is_advanced_mode == *"1" {
-        let advanced_tunnel =
-            std::env::var(crate::NEVEKO_I2P_TUNNELS_JSON).unwrap_or(String::new());
-        let manual_tunnel = if advanced_tunnel.is_empty() {
-            args.i2p_tunnels_json
-        } else {
-            advanced_tunnel
-        };
-        file_path = format!("{}/tunnels.json", manual_tunnel);
+/// `st` - ServerTunnelType (App or AnonInbound)
+pub fn get_destination(st: ServerTunnelType) -> Result<String, NevekoError> {
+    let db = &DATABASE_LOCK;
+    let r_anon_b32_dest = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &crate::APP_ANON_IN_B32_DEST.as_bytes().to_vec(),
+    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r_app_b32_dest = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &crate::APP_I2P_SK.as_bytes().to_vec(),
+    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let anon_b32_dest: String = bincode::deserialize(&r_anon_b32_dest[..]).unwrap_or_default();
+    let app_b32_dest: String = bincode::deserialize(&&r_app_b32_dest[..]).unwrap_or_default();
+    match st {
+        ServerTunnelType::App => Ok(app_b32_dest),
+        ServerTunnelType::AnonInbound => Ok(anon_b32_dest)
     }
-    // Don't panic if i2p-zero isn't installed
-    let contents = match fs::read_to_string(file_path) {
-        Ok(file) => file,
-        _ => String::new(),
-    };
-    if !contents.is_empty() {
-        let input = contents.to_string();
-        let j: Tunnels = serde_json::from_str(&input).unwrap_or(Default::default());
-        let mut destination: String = String::new();
-        let tunnels: Vec<Tunnel> = j.tunnels;
-        for tunnel in tunnels {
-            if tunnel.port == format!("{}", port.unwrap_or(utils::get_app_port())) {
-                destination = tunnel.dest.unwrap_or(String::new());
-            }
-        }
-        return destination;
-    }
-    String::new()
 }
 
-/// Ping the i2p-zero http proxy `tunnel-control http.state <port>`
-pub async fn check_connection() -> ProxyStatus {
-    let path = TODO;
-    let port = get_i2p_proxy_port();
-    let output = Command::new(format!("{}/router/bin/tunnel-control.sh", path))
-        .args(["http.state", &port])
-        .output()
-        .expect("check i2p connection failed");
-    let str_status = String::from_utf8(output.stdout).unwrap();
-    if str_status == ProxyStatus::Open.value() {
-        debug!("http proxy is open");
-        ProxyStatus::Open
-    } else {
-        debug!("http proxy is opening");
-        ProxyStatus::Opening
+/// Ping our base 32 destination address over the http proxy
+pub async fn check_connection() -> Result<ProxyStatus, NevekoError> {
+    let host = utils::get_i2p_http_proxy();
+    let proxy = reqwest::Proxy::http(&host).map_err(|_| NevekoError::I2P)?;
+    let client = reqwest::Client::builder().proxy(proxy).build();
+    let b32_dest = get_destination(ServerTunnelType::App)?;
+    match client.map_err(|_| NevekoError::I2P)?
+        .get(format!("http://{}/status", b32_dest))
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let res = response.json::<HttpProxyStatus>().await;
+            debug!("check_connection response: {:?}", res);
+            return match res {
+                Ok(r) => if r.open { Ok(ProxyStatus::Open) } else { Ok(ProxyStatus::Opening) },
+                _ => Err(NevekoError::I2P),
+            }
+        }
+        Err(e) => {
+            error!("failed to generate invoice due to: {:?}", e);
+            return Err(NevekoError::I2P);
+        }
     }
+}
+
+#[derive(PartialEq)]
+pub enum ServerTunnelType {
+    App,
+    AnonInbound,
+}
+
+/// Create app and anon inbound server tunnels if they don't exist yet
+fn create_server_tunnel(st: ServerTunnelType) -> Result<tc::Tunnel, NevekoError> {
+    let port: u16 = if st == ServerTunnelType::App {
+        utils::get_app_port()
+    } else {
+        get_anon_inbound_port()
+    };
+    let b32_key = if st == ServerTunnelType::App {
+        crate::APP_B32_DEST.as_bytes()
+    } else {
+        crate::APP_ANON_IN_B32_DEST.as_bytes()
+    };
+    let sk_key = if st == ServerTunnelType::App {
+        crate::APP_I2P_SK.as_bytes()
+    } else {
+        crate::APP_ANON_IN_SK.as_bytes()
+    };
+    let db = &DATABASE_LOCK;
+    let tunnel: tc::Tunnel = tc::Tunnel::new(
+        "127.0.0.1".to_string(),
+        port,
+        tc::TunnelType::Server
+    ).unwrap_or_default();
+    let b32_dest: String = tunnel.get_destination();
+    log::debug!("destination: {}", &b32_dest);
+    let v_b32_dest = bincode::serialize(&b32_dest).unwrap_or_default();
+    let v_sk = bincode::serialize(&tunnel.get_sk()).unwrap_or_default();
+    db::write_chunks(
+        &db.env,
+        &db.handle,
+        b32_key,
+        &v_b32_dest,
+    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(
+        &db.env,
+        &db.handle,
+        sk_key,
+        &v_sk,
+    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    Ok(tunnel)
+}
+
+/// Start router and automatic i2p tunnel creation
+/// 
+/// We'll check for an existing i2p secret key. If it doesn't
+/// 
+/// exist create a new one.
+pub fn start() -> Result<(), NevekoError> {
+    let http_proxy_port: u16 = get_i2p_proxy_port().parse::<u16>()
+        .unwrap_or(DEFAULT_APP_PORT);
+    let socks_port: u16 = get_i2p_socks_proxy_port().parse::<u16>()
+        .unwrap_or(DEFAULT_SOCKS_PORT);
+    // check for existing app and anon inbound server tunnels
+    let db = &DATABASE_LOCK;
+    let r_anon_in_sk = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &crate::APP_ANON_IN_SK.as_bytes().to_vec(),
+    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r_app_sk = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &crate::APP_I2P_SK.as_bytes().to_vec(),
+    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let anon_in_sk: String = bincode::deserialize(&r_anon_in_sk[..]).unwrap_or_default();
+    let app_sk: String = bincode::deserialize(&r_app_sk[..]).unwrap_or_default();
+    log::info!("starting j4i2prs...");
+    let r = rw::Wrapper::create_router().map_err(|_| NevekoError::I2P)?;
+    let mut l: Listener = Default::default();
+    let run_tx = l.run_tx.clone();
+    let _ = thread::spawn(move || {
+        log::info!("run thread started");
+        run_tx.send(true).unwrap_or_else(|_| log::error!("failed to run router"));
+    });
+    // run the main thread forever unless we get a router shutdown signal
+    let _ = thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        loop {
+            if let Ok(run) = l.run_rx.try_recv() {
+                if run {
+                    log::info!("starting router");
+                    r.invoke_router(rw::METHOD_RUN).unwrap_or_else(|_| log::error!("failed to run router"));
+                }
+            }
+            if !l.is_running {
+                let is_router_on = r.is_running().unwrap_or_default();
+                if !is_router_on {
+                    log::info!("router is warming up, please wait...");
+                }
+                std::thread::sleep(std::time::Duration::from_secs(60));
+                if is_router_on {
+                    // check router config
+                    if let Ok(lines) = read_lines("./router.config") {
+                        for line in lines.map_while(Result::ok) {
+                            if line.contains("i2np.udp.port") {
+                                let port = line.split("=").collect::<Vec<&str>>()[1];
+                                log::info!("router is running on external port = {}", port);
+                                log::info!("open this port for better connectivity");
+                                log::info!("this port was randomly assigned, keep it private");
+                                l.is_running = true;
+                                // start the http proxy
+                                let http_proxy: tc::Tunnel = tc::Tunnel::new(
+                                    "127.0.0.1".to_string(),
+                                    http_proxy_port,
+                                    tc::TunnelType::Http
+                                ).unwrap_or_default();
+                                let _ = http_proxy.start(None);
+                                // start the socks proxy
+                                let socks_proxy: tc::Tunnel = tc::Tunnel::new(
+                                    "127.0.0.1".to_string(),
+                                    socks_port,
+                                    tc::TunnelType::Socks
+                                ).unwrap_or_default();
+                                let _ = socks_proxy.start(None);
+                                log::info!("http proxy on port {}", http_proxy.get_port());
+                                log::info!("socks proxy on port {}", socks_proxy.get_port());
+                                if app_sk.is_empty() {
+                                    let t = create_server_tunnel(ServerTunnelType::App)
+                                        .unwrap_or_default();
+                                    let _ = t.start(None);       
+                                } else {
+                                    let app_tunnel = tc::Tunnel::new(
+                                        "127.0.0.1".to_string(),
+                                        utils::get_app_port(),
+                                        tc::TunnelType::ExistingServer
+                                    ).unwrap_or_default();
+                                    let _ = app_tunnel.start(Some(String::from(&app_sk)));
+                                }
+                                if anon_in_sk.is_empty() {
+                                    let t = create_server_tunnel(ServerTunnelType::AnonInbound)
+                                        .unwrap_or_default();
+                                    let _ = t.start(None);
+                                } else {
+                                    let anon_tunnel = tc::Tunnel::new(
+                                        "127.0.0.1".to_string(),
+                                        get_anon_inbound_port(),
+                                        tc::TunnelType::ExistingServer
+                                    ).unwrap_or_default();
+                                    let _ = anon_tunnel.start(Some(String::from(&anon_in_sk)));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+    Ok(())
 }

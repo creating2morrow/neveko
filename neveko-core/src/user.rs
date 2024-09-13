@@ -24,7 +24,7 @@ pub fn create(address: &String) -> Result<User, MdbError> {
     let db = &DATABASE_LOCK;
     let k = &new_user.uid;
     let v = bincode::serialize(&new_user).unwrap_or_default();
-    db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v)?;
+    let _ = db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v)?;
     Ok(new_user)
 }
 
@@ -51,28 +51,28 @@ mod tests {
 
     fn cleanup(k: &String) -> Result<(), MdbError> {
         let db = &DATABASE_LOCK;
-        db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes());
+        db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())?;
         Ok(())
     }
 
     #[test]
-    fn create_test() {
+    fn create_test() -> Result<(), MdbError> {
         // run and async cleanup so the test doesn't fail when deleting test data
         let address: String = String::from(
             "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
         );
-        let test_user = create(&address);
+        let test_user = create(&address)?;
         let db = &DATABASE_LOCK;
-        let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &test_user.uid);
-        let id = String::from(&test_user.uid);
+        let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &test_user.uid.as_bytes().to_vec())?;
         let cleanup_id = String::from(&test_user.uid);
-        let expected_user = User::from_db(id, r);
+        let expected_user: User = bincode::deserialize(&r[..]).unwrap_or_default();
         assert_eq!(test_user.xmr_address, expected_user.xmr_address);
-        cleanup(&cleanup_id);
+        cleanup(&cleanup_id)?;
+        Ok(())
     }
 
     #[test]
-    fn find_test() {
+    fn find_test() -> Result<(), MdbError> {
         let address: String = String::from(
             "73a4nWuvkYoYoksGurDjKZQcZkmaxLaKbbeiKzHnMmqKivrCzq5Q2JtJG1UZNZFqLPbQ3MiXCk2Q5bdwdUNSr7X9QrPubkn"
         );
@@ -82,9 +82,11 @@ mod tests {
             ..Default::default()
         };
         let db = &DATABASE_LOCK;
-        db::DatabaseEnvironment::write_chunks(&db.env, &db.handle, k, &User::to_db(&expected_user));
-        let actual_user: User = find(&String::from(k));
+        let v = bincode::serialize(&expected_user).unwrap_or_default();
+        db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v)?;
+        let actual_user: User = find(&String::from(k))?;
         assert_eq!(expected_user.xmr_address, actual_user.xmr_address);
-        cleanup(&String::from(k));
+        cleanup(&String::from(k))?;
+        Ok(())
     }
 }

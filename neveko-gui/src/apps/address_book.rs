@@ -802,7 +802,7 @@ fn send_message_req(tx: Sender<bool>, ctx: egui::Context, body: String, to: Stri
         mid: String::new(),
         uid: String::new(),
         created: 0,
-        from: i2p::get_destination(None),
+        from: i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default(),
     };
     let j_message = utils::message_to_json(&m);
     tokio::spawn(async move {
