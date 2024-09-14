@@ -76,7 +76,7 @@ impl Default for Connections {
             is_remote_node: false,
             is_i2p_advanced: false,
             mainnet: false,
-            monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.3.3"),
+            monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.3.4"),
             rpc_credential: String::from("pass"),
             rpc_username: String::from("user"),
             rpc_host: String::from("http://127.0.0.1:38083"),
@@ -446,7 +446,6 @@ async fn generate_nmpk() -> Result<(), NevekoError> {
     let nmpk: String = get_nmpk()?;
     // send to db
     let db = &DATABASE_LOCK;
-    
     if nmpk.is_empty() {
         let nmk: neveko25519::NevekoMessageKeys = neveko25519::generate_neveko_message_keys().await;
         db::write_chunks(&db.env, &db.handle, crate::NEVEKO_NMPK.as_bytes(), nmk.hex_nmpk.as_bytes())
