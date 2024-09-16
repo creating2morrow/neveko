@@ -2,7 +2,10 @@
 
 use crate::{
     args,
-    db::{self, DATABASE_LOCK},
+    db::{
+        self,
+        DATABASE_LOCK,
+    },
     models::*,
     monero,
     reqres,
@@ -88,7 +91,11 @@ fn update_expiration(f_auth: &Authorization, address: &String) -> Result<Authori
 }
 
 /// Performs the signature verfication against stored auth
-pub async fn verify_login(aid: String, uid: String, signature: String) -> Result<Authorization, MdbError> {
+pub async fn verify_login(
+    aid: String,
+    uid: String,
+    signature: String,
+) -> Result<Authorization, MdbError> {
     let wallet_name = String::from(crate::APP_NAME);
     let wallet_password =
         std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
@@ -203,7 +210,6 @@ impl BearerToken {
     }
 }
 
-
 #[derive(Debug)]
 pub enum BearerTokenError {
     Expired,
@@ -285,7 +291,7 @@ mod tests {
         Ok(result)
     }
 
-    fn cleanup(k: &String) -> Result<(), MdbError>{
+    fn cleanup(k: &String) -> Result<(), MdbError> {
         let db = &DATABASE_LOCK;
         let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())?;
         Ok(())

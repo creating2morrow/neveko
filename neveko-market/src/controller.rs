@@ -26,7 +26,7 @@ pub async fn create_product(
 /// Get a product by passing id
 #[get("/<pid>")]
 pub async fn get_product(pid: String, _token: auth::BearerToken) -> Custom<Json<models::Product>> {
-    let m_product= product::find(&pid);
+    let m_product = product::find(&pid);
     Custom(Status::Ok, Json(m_product.unwrap_or_default()))
 }
 

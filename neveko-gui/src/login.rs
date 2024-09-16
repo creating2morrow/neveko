@@ -56,7 +56,8 @@ impl eframe::App for LoginApp {
                 hasher.update(self.credential.clone());
                 let result = hasher.finalize();
                 let db = &DATABASE_LOCK;
-                db::write_chunks(&db.env, &db.handle, k.as_bytes(), hex::encode(&result[..]).as_bytes())
+                let v = bincode::serialize(&hex::encode(&result[..])).unwrap_or_default();
+                db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v)
                     .unwrap_or_else(|_| log::error!("failed to set credential"));
                 self.credential = String::new();
             }

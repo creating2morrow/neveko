@@ -1,7 +1,16 @@
 //! contact operations module
 
 use crate::{
-    db::{self, DATABASE_LOCK}, error::NevekoError, i2p, models::*, monero, reqres, utils
+    db::{
+        self,
+        DATABASE_LOCK,
+    },
+    error::NevekoError,
+    i2p,
+    models::*,
+    monero,
+    reqres,
+    utils,
 };
 use kn0sys_lmdb_rs::MdbError;
 use log::{
@@ -52,8 +61,13 @@ pub async fn create(c: &Json<Contact>) -> Result<Contact, MdbError> {
         "writing contact index {} for key {}",
         contact_list, list_key
     );
-    
-    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &contact_list.as_bytes())?;
+
+    db::write_chunks(
+        &db.env,
+        &db.handle,
+        list_key.as_bytes(),
+        &contact_list.as_bytes(),
+    )?;
     Ok(new_contact)
 }
 
@@ -70,7 +84,7 @@ pub fn find(cid: &String) -> Result<Contact, MdbError> {
 }
 
 /// Contact lookup
-pub fn find_by_i2p_address(i2p_address: &String) -> Result<Contact , NevekoError> {
+pub fn find_by_i2p_address(i2p_address: &String) -> Result<Contact, NevekoError> {
     let contacts = find_all().map_err(|_| NevekoError::Database(MdbError::NotFound))?;
     for c in contacts {
         if c.i2p_address == *i2p_address {
@@ -133,8 +147,12 @@ async fn validate_contact(j: &Json<Contact>) -> bool {
 /// Send our information
 pub async fn share() -> Result<Contact, NevekoError> {
     let db = &DATABASE_LOCK;
-    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &NEVEKO_VENDOR_ENABLED.as_bytes().to_vec())
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &NEVEKO_VENDOR_ENABLED.as_bytes().to_vec(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let str_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let is_vendor = str_r == NEVEKO_VENDOR_MODE_ON;
     let wallet_name = String::from(crate::APP_NAME);
@@ -245,7 +263,10 @@ mod tests {
         tokio::spawn(async move {
             let test_contact = create(&j_contact).await;
             let expected: Contact = Default::default();
-            assert_eq!(test_contact.unwrap_or_default().xmr_address, expected.xmr_address);
+            assert_eq!(
+                test_contact.unwrap_or_default().xmr_address,
+                expected.xmr_address
+            );
         });
         Runtime::shutdown_background(rt);
     }

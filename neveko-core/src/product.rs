@@ -1,7 +1,13 @@
 //! Marketplace products upload, modification, etc module
 
 use crate::{
-    db::{self, DATABASE_LOCK}, error::NevekoError, models::*, utils
+    db::{
+        self,
+        DATABASE_LOCK,
+    },
+    error::NevekoError,
+    models::*,
+    utils,
 };
 use kn0sys_lmdb_rs::MdbError;
 use log::{
@@ -47,8 +53,13 @@ pub fn create(d: Json<Product>) -> Result<Product, NevekoError> {
         "writing product index {} for id: {}",
         product_list, list_key
     );
-    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), product_list.as_bytes())
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(
+        &db.env,
+        &db.handle,
+        list_key.as_bytes(),
+        product_list.as_bytes(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(new_product)
 }
 

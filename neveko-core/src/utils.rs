@@ -1,7 +1,20 @@
 //! Generic functions for startup and convenience
 
 use crate::{
-    args, contact, db::{self, DATABASE_LOCK}, dispute, error::NevekoError, i2p, message, models, monero, neveko25519, reqres
+    args,
+    contact,
+    db::{
+        self,
+        DATABASE_LOCK,
+    },
+    dispute,
+    error::NevekoError,
+    i2p,
+    message,
+    models,
+    monero,
+    neveko25519,
+    reqres,
 };
 use clap::Parser;
 use kn0sys_lmdb_rs::MdbError;
@@ -75,7 +88,7 @@ impl Default for Connections {
             i2p_socks_host: String::from("http://127.0.0.1:9051"),
             is_remote_node: false,
             is_i2p_advanced: false,
-            mainnet: false,
+            mainnet: true,
             monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.3.4"),
             rpc_credential: String::from("pass"),
             rpc_username: String::from("user"),
@@ -371,22 +384,32 @@ async fn gen_app_wallet(password: &String) {
 /// Secret keys for signing internal/external auth tokens
 fn gen_signing_keys() -> Result<(), NevekoError> {
     info!("generating signing keys");
-    let jwp = get_jwp_secret_key()?;
-    let jwt = get_jwt_secret_key()?;
+    let jwp = get_jwp_secret_key().unwrap_or_default();
+    let jwt = get_jwt_secret_key().unwrap_or_default();
     // send to db
     if jwp.is_empty() {
         let mut data = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut data);
         let db = &DATABASE_LOCK;
-        db::write_chunks(&db.env, &db.handle, crate::NEVEKO_JWP_SECRET_KEY.as_bytes(), &data)
-            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        db::write_chunks(
+            &db.env,
+            &db.handle,
+            crate::NEVEKO_JWP_SECRET_KEY.as_bytes(),
+            &data,
+        )
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
     if jwt.is_empty() {
         let mut data = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut data);
         let db = &DATABASE_LOCK;
-        db::write_chunks(&db.env, &db.handle, crate::NEVEKO_JWT_SECRET_KEY.as_bytes(), &data)
-            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        db::write_chunks(
+            &db.env,
+            &db.handle,
+            crate::NEVEKO_JWT_SECRET_KEY.as_bytes(),
+            &data,
+        )
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
     Ok(())
 }
@@ -406,8 +429,12 @@ pub fn revoke_signing_keys() -> Result<(), NevekoError> {
 
 pub fn get_jwt_secret_key() -> Result<String, NevekoError> {
     let db = &DATABASE_LOCK;
-    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &crate::NEVEKO_JWT_SECRET_KEY.as_bytes().to_vec())
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &crate::NEVEKO_JWT_SECRET_KEY.as_bytes().to_vec(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         error!("JWT key not found");
         return Err(NevekoError::Database(MdbError::Panic));
@@ -418,8 +445,12 @@ pub fn get_jwt_secret_key() -> Result<String, NevekoError> {
 
 pub fn get_jwp_secret_key() -> Result<String, NevekoError> {
     let db = &DATABASE_LOCK;
-    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &crate::NEVEKO_JWP_SECRET_KEY.as_bytes().to_vec())
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &crate::NEVEKO_JWP_SECRET_KEY.as_bytes().to_vec(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         error!("JWP key not found");
         return Err(NevekoError::Database(MdbError::NotFound));
@@ -431,8 +462,9 @@ pub fn get_jwp_secret_key() -> Result<String, NevekoError> {
 /// Returns the hex encoded neveko message public key from LMDB
 pub fn get_nmpk() -> Result<String, NevekoError> {
     let db = &DATABASE_LOCK;
-    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &crate::NEVEKO_NMPK.as_bytes().to_vec())
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r =
+        db::DatabaseEnvironment::read(&db.env, &db.handle, &crate::NEVEKO_NMPK.as_bytes().to_vec())
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         error!("neveko message public key not found");
         return Err(NevekoError::Database(MdbError::Panic));
@@ -443,13 +475,18 @@ pub fn get_nmpk() -> Result<String, NevekoError> {
 
 async fn generate_nmpk() -> Result<(), NevekoError> {
     info!("generating neveko message public key");
-    let nmpk: String = get_nmpk()?;
+    let nmpk: String = get_nmpk().unwrap_or_default();
     // send to db
     let db = &DATABASE_LOCK;
     if nmpk.is_empty() {
         let nmk: neveko25519::NevekoMessageKeys = neveko25519::generate_neveko_message_keys().await;
-        db::write_chunks(&db.env, &db.handle, crate::NEVEKO_NMPK.as_bytes(), nmk.hex_nmpk.as_bytes())
-            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        db::write_chunks(
+            &db.env,
+            &db.handle,
+            crate::NEVEKO_NMPK.as_bytes(),
+            nmk.hex_nmpk.as_bytes(),
+        )
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
     Ok(())
 }
@@ -476,8 +513,7 @@ pub async fn start_up() -> Result<(), NevekoError> {
     // wait for rpc server for a bit
     tokio::time::sleep(std::time::Duration::new(5, 0)).await;
     monero::check_rpc_connection().await;
-    let mut wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or_default();
+    let mut wallet_password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or_default();
     if wallet_password.is_empty() {
         print!(
             "MONERO_WALLET_PASSWORD not set, enter neveko wallet password for monero-wallet-rpc: "
@@ -671,7 +707,11 @@ pub async fn can_transfer(invoice: u128) -> bool {
 pub fn toggle_vendor_enabled() -> Result<bool, MdbError> {
     // TODO(c2m): Dont toggle vendors with orders status != Delivered
     let db = &DATABASE_LOCK;
-    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &contact::NEVEKO_VENDOR_ENABLED.as_bytes().to_vec())?;
+    let r = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &contact::NEVEKO_VENDOR_ENABLED.as_bytes().to_vec(),
+    )?;
     let mode: String = bincode::deserialize(&r[..]).unwrap_or_default();
     if mode != contact::NEVEKO_VENDOR_MODE_ON {
         info!("neveko vendor mode enabled");
@@ -684,7 +724,7 @@ pub fn toggle_vendor_enabled() -> Result<bool, MdbError> {
         Ok(true)
     } else {
         info!("neveko vendor mode disabled");
-        
+
         db::write_chunks(
             &db.env,
             &db.handle,

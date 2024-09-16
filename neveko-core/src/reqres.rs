@@ -46,7 +46,7 @@ pub struct XmrRpcOpenWalletParams {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcPrepareParams {
-    pub enable_experimental_multisig: bool
+    pub enable_experimental_multisig: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -468,7 +468,6 @@ pub struct SubAddressIndex {
     pub minor: u64,
 }
 
-
 #[derive(Debug, Default, Deserialize)]
 pub struct Transfer {
     pub address: String,
@@ -688,7 +687,6 @@ pub struct XmrDaemonGetBlockResponse {
 pub struct XmrDaemonGetTransactionsResponse {
     pub txs_as_json: Vec<String>,
 }
-
 
 #[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcSignResponse {

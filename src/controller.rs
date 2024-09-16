@@ -150,7 +150,8 @@ pub async fn get_multisig_info(
     } else if r_info.msig_type == *message::IMPORT_MSIG {
         let _ = message::send_import_info(&r_info.orid, &r_info.info).await;
     } else {
-       let _ = message::send_exchange_info(&r_info.orid, &r_info.contact, info, r_info.kex_init).await;
+        let _ =
+            message::send_exchange_info(&r_info.orid, &r_info.contact, info, r_info.kex_init).await;
     }
     Custom(Status::Ok, Json(Default::default()))
 }

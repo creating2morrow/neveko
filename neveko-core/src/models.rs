@@ -17,7 +17,6 @@ pub struct Authorization {
     pub xmr_address: String,
 }
 
-
 impl Authorization {
     pub fn update_uid(a: Authorization, uid: String) -> Authorization {
         Authorization {

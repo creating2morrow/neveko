@@ -71,8 +71,13 @@ impl eframe::App for SettingsApp {
                     let mut hasher = Sha512::new();
                     hasher.update(self.credential.clone());
                     let result = hasher.finalize();
-                    db::write_chunks(&db.env, &db.handle, k.as_bytes(), hex::encode(&result[..]).as_bytes())
-                        .unwrap_or_else(|_| log::error!("failed to write credential"));
+                    db::write_chunks(
+                        &db.env,
+                        &db.handle,
+                        k.as_bytes(),
+                        hex::encode(&result[..]).as_bytes(),
+                    )
+                    .unwrap_or_else(|_| log::error!("failed to write credential"));
                     // update wallet rpc
                     change_wallet_password(
                         self.change_wallet_password_tx.clone(),

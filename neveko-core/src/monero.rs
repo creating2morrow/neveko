@@ -1,7 +1,12 @@
 //! TODO: replace with monero bindings
 
 use crate::{
-    args, error::NevekoError, i2p, proof, reqres, utils
+    args,
+    error::NevekoError,
+    i2p,
+    proof,
+    reqres,
+    utils,
 };
 use clap::Parser;
 use diqwest::WithDigestAuth;
@@ -168,7 +173,7 @@ impl LockTimeLimit {
 /// Start monerod from the `--monero-location` flag
 ///
 /// default: /home/$USER/monero-xxx-xxx
-pub fn start_daemon() -> Result<(), NevekoError>{
+pub fn start_daemon() -> Result<(), NevekoError> {
     info!("starting monerod");
     let blockchain_dir = get_blockchain_dir();
     let bin_dir = get_monero_location();

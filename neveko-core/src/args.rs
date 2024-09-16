@@ -10,7 +10,7 @@ pub struct Args {
         short,
         long,
         help = "Set release environment (dev, prod)",
-        default_value = "dev"
+        default_value = "prod"
     )]
     pub release_env: String,
     /// Monero location

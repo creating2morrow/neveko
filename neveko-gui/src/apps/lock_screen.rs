@@ -68,7 +68,8 @@ impl eframe::App for LockScreenApp {
                     &db.env,
                     &db.handle,
                     &CREDENTIAL_KEY.as_bytes().to_vec(),
-                ).unwrap();
+                )
+                .unwrap();
                 // hash the text entered and compare
                 let mut hasher = Sha512::new();
                 hasher.update(self.lock_screen.credential.clone());

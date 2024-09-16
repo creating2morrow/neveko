@@ -146,7 +146,8 @@ impl Default for MarketApp {
             &db.env,
             &db.handle,
             &contact::NEVEKO_VENDOR_ENABLED.as_bytes().to_vec(),
-        ).unwrap_or_default();
+        )
+        .unwrap_or_default();
         let sr: String = bincode::deserialize(&r[..]).unwrap_or_default();
         let is_vendor_enabled = sr == contact::NEVEKO_VENDOR_MODE_ON;
         let (contact_info_tx, contact_info_rx) = std::sync::mpsc::channel();
@@ -457,7 +458,7 @@ impl eframe::App for MarketApp {
                     if !self.msig.query_adjudicator {
                         let adjudicator_db =
                             utils::search_gui_db(String::from(&prefix), self.m_order.orid.clone())
-                            .unwrap_or_default();
+                                .unwrap_or_default();
                         log::debug!("adjudicator db: {}", adjudicator_db);
                         self.msig.has_adjudicator = !adjudicator_db.is_empty();
                         self.msig.adjudicator = adjudicator_db;
@@ -471,7 +472,8 @@ impl eframe::App for MarketApp {
                                 prefix,
                                 self.m_order.orid.clone(),
                                 self.msig.adjudicator.clone(),
-                            ).unwrap();
+                            )
+                            .unwrap();
                             self.msig.has_adjudicator = true;
                         }
                     } else {
@@ -498,10 +500,10 @@ impl eframe::App for MarketApp {
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             // get prepare multisig info from vendor and adjudicator
                             // call prepare multisig and save to db
                             send_prepare_info_req(
@@ -518,10 +520,10 @@ impl eframe::App for MarketApp {
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let sub_type = String::from(message::PREPARE_MSIG);
                             let is_prepared = validate_msig_step(
                                 &adjudicator,
@@ -543,10 +545,10 @@ impl eframe::App for MarketApp {
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             // get make multisig info from vendor and adjudicator
                             // call make multisig and save to db
                             send_make_info_req(
@@ -563,10 +565,10 @@ impl eframe::App for MarketApp {
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let sub_type = String::from(message::MAKE_MSIG);
                             let is_made = validate_msig_step(
                                 &adjudicator,
@@ -588,10 +590,10 @@ impl eframe::App for MarketApp {
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             // get kex round one info from vendor and adjudicator
                             // call make multisig and save to db
                             send_kex_initial_req(
@@ -608,10 +610,10 @@ impl eframe::App for MarketApp {
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let sub_type = String::from(message::KEX_ONE_MSIG);
                             let is_made = validate_msig_step(
                                 &adjudicator,
@@ -633,10 +635,10 @@ impl eframe::App for MarketApp {
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             // get kex round two info from vendor and adjudicator
                             // call make multisig and save to db
                             send_kex_final_req(
@@ -653,10 +655,10 @@ impl eframe::App for MarketApp {
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let adjudicator =
                                 utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             let sub_type = String::from(message::KEX_TWO_MSIG);
                             let is_made = validate_msig_step(
                                 &adjudicator,
@@ -686,7 +688,7 @@ impl eframe::App for MarketApp {
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let contact =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             verify_order_wallet_funded(
                                 &contact,
                                 &self.m_order.orid,
@@ -704,7 +706,7 @@ impl eframe::App for MarketApp {
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             // not much orchestration here afaik, just send the output to the vendor
                             // TODO(c2m): 'idk remember why this tx.clone() is being reused' but not
                             // nothing breaks for now...
@@ -719,7 +721,8 @@ impl eframe::App for MarketApp {
                             let info = utils::search_gui_db(
                                 String::from(crate::GUI_MSIG_EXPORT_DB_KEY),
                                 String::from(&self.m_order.orid.clone()),
-                            ).unwrap_or_default();
+                            )
+                            .unwrap_or_default();
                             if !info.is_empty() {
                                 self.msig.completed_export = true;
                             }
@@ -736,8 +739,7 @@ impl eframe::App for MarketApp {
                         )
                         .on_hover_text("Please wait for the vendor to upload delivery info.");
                         if ui.button("Check").clicked() {
-                            let order = order::find(&self.m_order.orid.clone())
-                            .unwrap_or_default();
+                            let order = order::find(&self.m_order.orid.clone()).unwrap_or_default();
                             if order.status == order::StatusType::Shipped.value() {
                                 self.msig.completed_shipping_request = true;
                             }
@@ -780,7 +782,7 @@ impl eframe::App for MarketApp {
                             let vendor_prefix = String::from(crate::GUI_OVL_DB_KEY);
                             let vendor =
                                 utils::search_gui_db(vendor_prefix, self.m_order.orid.clone())
-                                .unwrap_or_default();
+                                    .unwrap_or_default();
                             // async trigger for signing and submitted the txset
                             release_txset(
                                 vendor,
@@ -925,7 +927,8 @@ impl eframe::App for MarketApp {
                                         let e_info: String = utils::search_gui_db(
                                             String::from(neveko_core::DELIVERY_INFO_DB_KEY),
                                             String::from(&o.orid),
-                                        ).unwrap_or_default();
+                                        )
+                                        .unwrap_or_default();
                                         cipher_req(
                                             String::from(&o.cid),
                                             e_info,
@@ -944,7 +947,8 @@ impl eframe::App for MarketApp {
                                             let vendor = utils::search_gui_db(
                                                 vendor_prefix,
                                                 self.m_order.orid.clone(),
-                                            ).unwrap_or_default();
+                                            )
+                                            .unwrap_or_default();
                                             self.is_loading = true;
                                             cancel_order_req(
                                                 self.cancel_request_tx.clone(),
@@ -963,7 +967,8 @@ impl eframe::App for MarketApp {
                                             let vendor = utils::search_gui_db(
                                                 vendor_prefix,
                                                 self.m_order.orid.clone(),
-                                            ).unwrap_or_default();
+                                            )
+                                            .unwrap_or_default();
                                             self.is_loading = true;
                                             create_dispute_req(
                                                 &self.m_order.orid.clone(),
@@ -999,7 +1004,7 @@ impl eframe::App for MarketApp {
                 let adjudicator_prefix = String::from(crate::GUI_MSIG_ADJUDICATOR_DB_KEY);
                 let adjudicator =
                     utils::search_gui_db(adjudicator_prefix, self.m_order.orid.clone())
-                    .unwrap_or_default();
+                        .unwrap_or_default();
                 ui.label(format!("customer id: {}", self.new_order.cid));
                 ui.label(format!("adjudicator id: {}", adjudicator));
                 ui.label(format!("product id: {}", self.new_order.pid));
@@ -1085,9 +1090,7 @@ impl eframe::App for MarketApp {
                     ui.text_edit_singleline(&mut self.upload_dinfo_str)
                         .labelled_by(delivery_info.id);
                 });
-                if !self.new_order.orid.is_empty()
-                    && !self.upload_dinfo_str.is_empty()
-                {
+                if !self.new_order.orid.is_empty() && !self.upload_dinfo_str.is_empty() {
                     if ui.button("Trigger NASR").clicked() {
                         // upload delivery info
                         let dinfo_str = String::from(&self.upload_dinfo_str);
@@ -1173,7 +1176,8 @@ impl eframe::App for MarketApp {
                                             let nick_db = utils::search_gui_db(
                                                 String::from(crate::GUI_NICK_DB_KEY),
                                                 String::from(&v.i2p_address),
-                                            ).unwrap_or_default();
+                                            )
+                                            .unwrap_or_default();
                                             let nick = if nick_db.is_empty() {
                                                 String::from("anon")
                                             } else {
@@ -1185,16 +1189,19 @@ impl eframe::App for MarketApp {
                                             self.vendor_status.txp = utils::search_gui_db(
                                                 String::from(crate::GUI_TX_PROOF_DB_KEY),
                                                 String::from(&v.i2p_address),
-                                            ).unwrap_or_default();
+                                            )
+                                            .unwrap_or_default();
                                             // get the jwp
                                             self.vendor_status.jwp = utils::search_gui_db(
                                                 String::from(crate::GUI_JWP_DB_KEY),
                                                 String::from(&v.i2p_address),
-                                            ).unwrap_or_default();
+                                            )
+                                            .unwrap_or_default();
                                             let r_exp = utils::search_gui_db(
                                                 String::from(crate::GUI_EXP_DB_KEY),
                                                 String::from(&v.i2p_address),
-                                            ).unwrap_or_default();
+                                            )
+                                            .unwrap_or_default();
                                             self.vendor_status.exp = r_exp;
                                             let expire = match self.vendor_status.exp.parse::<i64>()
                                             {
@@ -1859,10 +1866,11 @@ fn send_prepare_info_req(
         let m_jwp: String = utils::search_gui_db(
             String::from(crate::GUI_JWP_DB_KEY),
             String::from(&adjudicator),
-        ).unwrap_or_default();
+        )
+        .unwrap_or_default();
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
-            .unwrap_or_default();
+                .unwrap_or_default();
         let wallet_password = String::new();
         monero::create_wallet(&w_orid, &wallet_password).await;
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
@@ -1880,7 +1888,8 @@ fn send_prepare_info_req(
             String::from(crate::GUI_MSIG_PREPARE_DB_KEY),
             String::from(&w_orid),
             String::from(ref_prepare_info),
-        ).unwrap();
+        )
+        .unwrap();
         // Request adjudicator and vendor while we're at it
         // Will coordinating send this on make requests next
         let db = &DATABASE_LOCK;
@@ -1896,10 +1905,12 @@ fn send_prepare_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_prepare = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
-        let v_prepare = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
+        let m_prepare =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
+        let v_prepare =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
         if v_prepare.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
@@ -1950,10 +1961,11 @@ fn send_make_info_req(
         let m_jwp: String = utils::search_gui_db(
             String::from(crate::GUI_JWP_DB_KEY),
             String::from(&adjudicator),
-        ).unwrap_or_default();
+        )
+        .unwrap_or_default();
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
-            .unwrap_or_default();
+                .unwrap_or_default();
         let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
@@ -1984,11 +1996,13 @@ fn send_make_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_prepare = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
+        let m_prepare =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
         let sm_prepare: String = bincode::deserialize(&m_prepare[..]).unwrap_or_default();
-        let v_prepare = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
+        let v_prepare =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
         let sv_prepare: String = bincode::deserialize(&&v_prepare[..]).unwrap_or_default();
         prepare_info_prep.push(String::from(&sm_prepare));
         prepare_info_prep.push(String::from(&sv_prepare));
@@ -2000,7 +2014,8 @@ fn send_make_info_req(
         let local_make = utils::search_gui_db(
             String::from(crate::GUI_MSIG_MAKE_DB_KEY),
             String::from(&w_orid),
-        ).unwrap_or_default();
+        )
+        .unwrap_or_default();
         if local_make.is_empty() {
             let make_info = monero::make_wallet(prepare_info_prep).await;
             monero::close_wallet(&w_orid, &wallet_password).await;
@@ -2010,7 +2025,8 @@ fn send_make_info_req(
                     String::from(crate::GUI_MSIG_MAKE_DB_KEY),
                     String::from(&w_orid),
                     String::from(ref_make_info),
-                ).unwrap();
+                )
+                .unwrap();
             }
         }
         // Request adjudicator and vendor while we're at it
@@ -2027,10 +2043,12 @@ fn send_make_info_req(
             String::from(&v_orid),
             vendor
         );
-        let m_make = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
-        let v_make = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
+        let m_make =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
+        let v_make =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
         if v_make.is_empty() {
             log::debug!("constructing vendor {} msig messages", message::MAKE_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
@@ -2078,10 +2096,11 @@ fn send_kex_initial_req(
         let m_jwp: String = utils::search_gui_db(
             String::from(crate::GUI_JWP_DB_KEY),
             String::from(&adjudicator),
-        ).unwrap_or_default();
+        )
+        .unwrap_or_default();
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
-            .unwrap_or_default();
+                .unwrap_or_default();
         let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
@@ -2098,7 +2117,8 @@ fn send_kex_initial_req(
         let c_kex_init = utils::search_gui_db(
             String::from(crate::GUI_MSIG_MAKE_DB_KEY),
             String::from(&w_orid),
-        ).unwrap_or_default();
+        )
+        .unwrap_or_default();
         let db = &DATABASE_LOCK;
         let m_msig_key = format!(
             "{}-{}-{}",
@@ -2112,11 +2132,13 @@ fn send_kex_initial_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_init = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
+        let m_kex_init =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
         let sm_kex_init: String = bincode::deserialize(&m_kex_init[..]).unwrap_or_default();
-        let v_kex_init = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
+        let v_kex_init =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
         let sv_kex_init: String = bincode::deserialize(&v_kex_init[..]).unwrap_or_default();
         kex_init_prep.push(String::from(&sm_kex_init));
         kex_init_prep.push(String::from(&sv_kex_init));
@@ -2127,7 +2149,8 @@ fn send_kex_initial_req(
         let local_kex_init = utils::search_gui_db(
             String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
             String::from(&w_orid),
-        ).unwrap_or_default();
+        )
+        .unwrap_or_default();
         if local_kex_init.is_empty() {
             let kex_out =
                 monero::exchange_multisig_keys(false, kex_init_prep, &wallet_password).await;
@@ -2138,7 +2161,8 @@ fn send_kex_initial_req(
                     String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
                     String::from(&w_orid),
                     String::from(ref_kex_info),
-                ).unwrap();
+                )
+                .unwrap();
             }
         }
         // Request adjudicator and vendor while we're at it
@@ -2155,10 +2179,12 @@ fn send_kex_initial_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_init = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
-        let v_kex_init = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
+        let m_kex_init =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
+        let v_kex_init =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
         if v_kex_init.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
@@ -2209,10 +2235,11 @@ fn send_kex_final_req(
         let m_jwp: String = utils::search_gui_db(
             String::from(crate::GUI_JWP_DB_KEY),
             String::from(&adjudicator),
-        ).unwrap_or_default();
+        )
+        .unwrap_or_default();
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
-            .unwrap_or_default();
+                .unwrap_or_default();
         let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
@@ -2227,7 +2254,8 @@ fn send_kex_final_req(
         let c_kex_final = utils::search_gui_db(
             String::from(crate::GUI_MSIG_KEX_ONE_DB_KEY),
             String::from(&w_orid),
-        ).unwrap_or_default();
+        )
+        .unwrap_or_default();
         let db = &DATABASE_LOCK;
         let m_msig_key = format!(
             "{}-{}-{}",
@@ -2241,10 +2269,12 @@ fn send_kex_final_req(
             String::from(&v_orid),
             vendor
         );
-        let r_m_kex_final = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
-        let r_v_kex_final = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
+        let r_m_kex_final =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
+        let r_v_kex_final =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
         let m_kex_final: String = bincode::deserialize(&r_m_kex_final[..]).unwrap_or_default();
         let v_kex_final: String = bincode::deserialize(&r_v_kex_final[..]).unwrap_or_default();
         kex_final_prep.push(String::from(&m_kex_final));
@@ -2256,7 +2286,8 @@ fn send_kex_final_req(
         let local_kex_final = utils::search_gui_db(
             String::from(crate::GUI_MSIG_KEX_TWO_DB_KEY),
             String::from(&w_orid),
-        ).unwrap_or_default();
+        )
+        .unwrap_or_default();
         if local_kex_final.is_empty() {
             let kex_out =
                 monero::exchange_multisig_keys(false, kex_final_prep, &wallet_password).await;
@@ -2267,7 +2298,8 @@ fn send_kex_final_req(
                     String::from(crate::GUI_MSIG_KEX_TWO_DB_KEY),
                     String::from(&w_orid),
                     String::from(ref_kex_info),
-                ).unwrap_or_default();
+                )
+                .unwrap_or_default();
             }
         }
         // we can verify all good if the senders all send back the correct wallet address
@@ -2283,10 +2315,12 @@ fn send_kex_final_req(
             String::from(&v_orid),
             vendor
         );
-        let m_kex_final = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
-        let v_kex_final = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
+        let m_kex_final =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
+        let v_kex_final =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
         if v_kex_final.is_empty() {
             log::debug!(
                 "constructing vendor {} msig messages",
@@ -2359,7 +2393,7 @@ fn verify_order_wallet_funded(
         let vendor = String::from(&l_contact);
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
-            .unwrap_or_default();
+                .unwrap_or_default();
         let opid = String::from(&order.pid);
         let result = product::get_vendor_product(vendor, v_jwp, opid).await;
         if !result.is_ok() {
@@ -2385,7 +2419,7 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
     tokio::spawn(async move {
         let v_jwp: String =
             utils::search_gui_db(String::from(crate::GUI_JWP_DB_KEY), String::from(&vendor))
-            .unwrap_or_default();
+                .unwrap_or_default();
         let wallet_password = String::new();
         let m_wallet = monero::open_wallet(&w_orid, &wallet_password).await;
         if !m_wallet {
@@ -2402,7 +2436,8 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
             String::from(crate::GUI_MSIG_EXPORT_DB_KEY),
             String::from(&w_orid),
             String::from(ref_export_info),
-        ).unwrap_or_default();
+        )
+        .unwrap_or_default();
         // Request vendor while we're at it
         // Will coordinating send this on make requests next
         let db = &DATABASE_LOCK;
@@ -2412,8 +2447,9 @@ fn send_import_info_req(tx: Sender<String>, ctx: egui::Context, orid: &String, v
             String::from(&v_orid),
             vendor
         );
-        let v_export = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
-            .unwrap_or_default();
+        let v_export =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+                .unwrap_or_default();
         if v_export.is_empty() {
             log::debug!("constructing vendor {} msig messages", message::EXPORT_MSIG);
             let v_msig_request: reqres::MultisigInfoRequest = reqres::MultisigInfoRequest {
@@ -2478,10 +2514,12 @@ fn validate_msig_step(
     let db = &DATABASE_LOCK;
     let m_msig_key = format!("{}-{}-{}", sub_type, orid, adjudicator);
     let v_msig_key = format!("{}-{}-{}", sub_type, orid, vendor);
-    let r_m_info = db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
-        .unwrap_or_default();
-    let r_v_info = db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
-        .unwrap_or_default();
+    let r_m_info =
+        db::DatabaseEnvironment::read(&db.env, &db.handle, &m_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
+    let r_v_info =
+        db::DatabaseEnvironment::read(&db.env, &db.handle, &v_msig_key.as_bytes().to_vec())
+            .unwrap_or_default();
     let m_info: String = bincode::deserialize(&&r_m_info[..]).unwrap_or_default();
     let v_info: String = bincode::deserialize(&&r_v_info[..]).unwrap_or_default();
     log::debug!("{} adjudicator info: {}", sub_type, &m_info);

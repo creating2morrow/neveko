@@ -3,7 +3,14 @@
 use std::error::Error;
 
 use crate::{
-    db::{self, DATABASE_LOCK}, error::NevekoError, models::*, monero, utils
+    db::{
+        self,
+        DATABASE_LOCK,
+    },
+    error::NevekoError,
+    models::*,
+    monero,
+    utils,
 };
 use kn0sys_lmdb_rs::MdbError;
 use log::{
@@ -18,7 +25,7 @@ pub fn create(d: Json<Dispute>) -> Result<Dispute, MdbError> {
     let f_did: String = format!("{}{}", crate::DISPUTE_DB_KEY, utils::generate_rnd());
     info!("create dispute: {}", &f_did);
     let new_dispute = Dispute {
-        did: String::from(&f_did),  
+        did: String::from(&f_did),
         created: chrono::offset::Utc::now().timestamp(),
         orid: String::from(&d.orid),
         tx_set: String::from(&d.tx_set),
@@ -40,7 +47,12 @@ pub fn create(d: Json<Dispute>) -> Result<Dispute, MdbError> {
         "writing dispute index {} for id: {}",
         dispute_list, list_key
     );
-    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), dispute_list.as_bytes())?;
+    db::write_chunks(
+        &db.env,
+        &db.handle,
+        list_key.as_bytes(),
+        dispute_list.as_bytes(),
+    )?;
     // restart the dispute aut-settle thread
     let cleared = is_dispute_clear(s_r);
     if !cleared {
@@ -91,7 +103,7 @@ pub fn delete(did: &String) -> Result<(), MdbError> {
         error!("dispute not found");
         return Err(MdbError::NotFound);
     }
-    
+
     db::DatabaseEnvironment::delete(&db.env, &db.handle, did.as_bytes())
 }
 
@@ -102,7 +114,7 @@ pub fn delete(did: &String) -> Result<(), MdbError> {
 /// creation date of the dispute plus the one week
 ///
 /// grace period then the dispute is auto-settled.
-pub async fn settle_dispute() -> Result<(), MdbError>{
+pub async fn settle_dispute() -> Result<(), MdbError> {
     let tick: std::sync::mpsc::Receiver<()> =
         schedule_recv::periodic_ms(crate::DISPUTE_CHECK_INTERVAL);
     loop {
@@ -155,9 +167,7 @@ fn is_dispute_clear(r: String) -> bool {
     debug!("dispute index contents: {:#?}", v);
     let limit = v.len() <= 1;
     if !limit {
-        v.len() >= 2
-            && v[v.len() - 1].is_empty()
-            && v[0].is_empty()
+        v.len() >= 2 && v[v.len() - 1].is_empty() && v[0].is_empty()
     } else {
         limit
     }
@@ -172,7 +182,7 @@ fn remove_from_auto_settle(did: String) -> Result<(), MdbError> {
     if r.is_empty() {
         debug!("dispute list index is empty");
     }
-    let str_r: String = bincode::deserialize(&r[..]).unwrap_or_default(); 
+    let str_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let pre_v_fts = str_r.split(",");
     let v: Vec<String> = pre_v_fts
         .map(|s| {
@@ -188,8 +198,13 @@ fn remove_from_auto_settle(did: String) -> Result<(), MdbError> {
         "writing dipsute index {} for id: {}",
         dispute_list, list_key
     );
-    
-    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), dispute_list.as_bytes())?;
+
+    db::write_chunks(
+        &db.env,
+        &db.handle,
+        list_key.as_bytes(),
+        dispute_list.as_bytes(),
+    )?;
     Ok(())
 }
 
@@ -234,13 +249,16 @@ async fn transmit_dispute_request(
 /// A decomposition trigger for the dispute request so that the logic
 ///
 /// can be executed from the gui.
-pub async fn trigger_dispute_request(contact: &String, dispute: &Dispute) -> Result<Dispute, NevekoError> {
+pub async fn trigger_dispute_request(
+    contact: &String,
+    dispute: &Dispute,
+) -> Result<Dispute, NevekoError> {
     info!("executing trigger_dispute_request");
     let db = &DATABASE_LOCK;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
     let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let str_jwp: String = bincode::deserialize(&jwp[..]).unwrap_or_default(); 
+    let str_jwp: String = bincode::deserialize(&jwp[..]).unwrap_or_default();
     let dispute = transmit_dispute_request(contact, &str_jwp, dispute).await;
     // handle a failure to create dispute
     if dispute.is_err() {

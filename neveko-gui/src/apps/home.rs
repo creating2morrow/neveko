@@ -189,8 +189,8 @@ impl eframe::App for HomeApp {
             .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
-                let mut i2p_address = i2p::get_destination(i2p::ServerTunnelType::App)
-                    .unwrap_or_default();
+                let mut i2p_address =
+                    i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default();
                 if !self.is_qr_set && !i2p_address.is_empty() {
                     let code = QrCode::new(&i2p_address).unwrap();
                     let image = code.render::<Luma<u8>>().build();
@@ -403,8 +403,7 @@ impl eframe::App for HomeApp {
 //-------------------------------------------------------------------------------------------------
 fn send_xmrd_get_info_req(tx: Sender<reqres::XmrDaemonGetInfoResponse>, ctx: egui::Context) {
     tokio::spawn(async move {
-        let remote_var =
-            std::env::var(neveko_core::GUI_REMOTE_NODE).unwrap_or(String::new());
+        let remote_var = std::env::var(neveko_core::GUI_REMOTE_NODE).unwrap_or(String::new());
         if remote_var == String::from(neveko_core::GUI_SET_REMOTE_NODE) {
             let p_info = monero::p_get_info().await;
             let info = p_info.unwrap_or(Default::default());

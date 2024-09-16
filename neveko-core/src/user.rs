@@ -2,7 +2,10 @@
 //! authenticated user
 
 use crate::{
-    db::{self, DATABASE_LOCK},
+    db::{
+        self,
+        DATABASE_LOCK,
+    },
     models::*,
     utils,
 };
@@ -63,7 +66,8 @@ mod tests {
         );
         let test_user = create(&address)?;
         let db = &DATABASE_LOCK;
-        let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &test_user.uid.as_bytes().to_vec())?;
+        let r =
+            db::DatabaseEnvironment::read(&db.env, &db.handle, &test_user.uid.as_bytes().to_vec())?;
         let cleanup_id = String::from(&test_user.uid);
         let expected_user: User = bincode::deserialize(&r[..]).unwrap_or_default();
         assert_eq!(test_user.xmr_address, expected_user.xmr_address);

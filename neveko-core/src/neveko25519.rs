@@ -1,5 +1,6 @@
 //! NEVEKO modified ed25519 library extending curve25519-dalek
 
+use crate::monero;
 use curve25519_dalek::{
     edwards::{
         CompressedEdwardsY,
@@ -15,7 +16,6 @@ use sha2::{
     Digest,
     Sha512,
 };
-use crate::monero;
 
 #[derive(Debug)]
 /// Container for the Neveko Message Keys

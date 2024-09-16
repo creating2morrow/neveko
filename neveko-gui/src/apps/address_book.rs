@@ -242,8 +242,7 @@ impl eframe::App for AddressBookApp {
 
         // Payment approval window
         //-----------------------------------------------------------------------------------
-        let mut is_approving_payment =
-            self.approve_payment && !self.s_invoice.address.is_empty();
+        let mut is_approving_payment = self.approve_payment && !self.s_invoice.address.is_empty();
         let address = self.s_invoice.address.clone();
         let amount = self.s_invoice.pay_threshold;
         let expire = self.s_invoice.conf_threshold;
@@ -343,20 +342,19 @@ impl eframe::App for AddressBookApp {
                         self.is_approving_jwp = true;
                     }
                 }
-                let failed_to_prove = !self.status.txp.is_empty()
-                    && self.status.jwp.is_empty();
+                let failed_to_prove = !self.status.txp.is_empty() && self.status.jwp.is_empty();
                 if !self.status.jwp.is_empty() || failed_to_prove {
                     if ui.button("Clear stale JWP").clicked() {
-                        utils::clear_gui_db(String::from("gui-txp"), self.status.i2p.clone()).unwrap();
-                        utils::clear_gui_db(String::from("gui-jwp"), self.status.i2p.clone()).unwrap();
-                        utils::clear_gui_db(String::from("gui-exp"), self.status.i2p.clone()).unwrap();
+                        utils::clear_gui_db(String::from("gui-txp"), self.status.i2p.clone())
+                            .unwrap();
+                        utils::clear_gui_db(String::from("gui-jwp"), self.status.i2p.clone())
+                            .unwrap();
+                        utils::clear_gui_db(String::from("gui-exp"), self.status.i2p.clone())
+                            .unwrap();
                         self.showing_status = false;
                     }
                 }
-                if !self.status.txp.is_empty()
-                    && self.status.jwp.is_empty()
-                    && status == "online"
-                {
+                if !self.status.txp.is_empty() && self.status.jwp.is_empty() && status == "online" {
                     if ui.button("Prove Retry").clicked() {
                         send_payment_req(
                             self.payment_tx.clone(),
@@ -553,16 +551,19 @@ impl eframe::App for AddressBookApp {
                                         self.status.txp = utils::search_gui_db(
                                             String::from(crate::GUI_TX_PROOF_DB_KEY),
                                             String::from(&c.i2p_address),
-                                        ).unwrap_or_default();
+                                        )
+                                        .unwrap_or_default();
                                         // get the jwp
                                         self.status.jwp = utils::search_gui_db(
                                             String::from(crate::GUI_JWP_DB_KEY),
                                             String::from(&c.i2p_address),
-                                        ).unwrap_or_default();
+                                        )
+                                        .unwrap_or_default();
                                         let r_exp = utils::search_gui_db(
                                             String::from(crate::GUI_EXP_DB_KEY),
                                             String::from(&c.i2p_address),
-                                        ).unwrap_or_default();
+                                        )
+                                        .unwrap_or_default();
                                         self.status.exp = r_exp;
                                         let expire = match self.status.exp.parse::<i64>() {
                                             Ok(n) => n,
@@ -690,8 +691,7 @@ fn send_payment_req(
             log::debug!("creating transaction proof for: {}", &ptxp.hash);
             // if we made it this far we can now request a JWP from our friend
             // wait a bit for the tx to propogate, i2p takes longer
-            let wait = if std::env::var(neveko_core::GUI_REMOTE_NODE)
-                .unwrap_or(String::new())
+            let wait = if std::env::var(neveko_core::GUI_REMOTE_NODE).unwrap_or(String::new())
                 == String::from(neveko_core::GUI_SET_REMOTE_NODE)
             {
                 crate::I2P_PROPAGATION_TIME_IN_SECS_EST
@@ -713,22 +713,26 @@ fn send_payment_req(
                 String::from(crate::GUI_TX_PROOF_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.signature),
-            ).unwrap();
+            )
+            .unwrap();
             utils::write_gui_db(
                 String::from(crate::GUI_TX_HASH_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.hash),
-            ).unwrap();
+            )
+            .unwrap();
             utils::write_gui_db(
                 String::from(crate::GUI_TX_SIGNATURE_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.signature),
-            ).unwrap();
+            )
+            .unwrap();
             utils::write_gui_db(
                 String::from(crate::GUI_TX_SUBADDRESS_DB_KEY),
                 String::from(&contact),
                 String::from(&ftxp.subaddress),
-            ).unwrap();
+            )
+            .unwrap();
             log::debug!(
                 "proving payment to {} for: {}",
                 String::from(&contact),
@@ -740,7 +744,8 @@ fn send_payment_req(
                         String::from(crate::GUI_JWP_DB_KEY),
                         String::from(&contact),
                         String::from(&result.jwp),
-                    ).unwrap();
+                    )
+                    .unwrap();
                     // this is just an estimate expiration but should suffice
                     let seconds: i64 = expire as i64 * 2 * 60;
                     let unix: i64 = chrono::offset::Utc::now().timestamp() + seconds;
@@ -748,7 +753,8 @@ fn send_payment_req(
                         String::from(crate::GUI_EXP_DB_KEY),
                         String::from(&contact),
                         format!("{}", unix),
-                    ).unwrap();
+                    )
+                    .unwrap();
                     ctx.request_repaint();
                 }
                 _ => log::error!("failed to obtain jwp"),
@@ -759,12 +765,10 @@ fn send_payment_req(
             let k_hash = String::from(crate::GUI_TX_HASH_DB_KEY);
             let k_sig = String::from(crate::GUI_TX_SIGNATURE_DB_KEY);
             let k_subaddress = String::from(crate::GUI_TX_SUBADDRESS_DB_KEY);
-            let hash = utils::search_gui_db(k_hash, String::from(&contact))
-                .unwrap_or_default();
-            let signature = utils::search_gui_db(k_sig, String::from(&contact))
-                .unwrap_or_default();
-            let subaddress = utils::search_gui_db(k_subaddress, String::from(&contact))
-                .unwrap_or_default();
+            let hash = utils::search_gui_db(k_hash, String::from(&contact)).unwrap_or_default();
+            let signature = utils::search_gui_db(k_sig, String::from(&contact)).unwrap_or_default();
+            let subaddress =
+                utils::search_gui_db(k_subaddress, String::from(&contact)).unwrap_or_default();
             let ftxp: proof::TxProof = proof::TxProof {
                 subaddress,
                 confirmations: 0,
@@ -783,7 +787,8 @@ fn send_payment_req(
                         String::from(crate::GUI_JWP_DB_KEY),
                         String::from(&contact),
                         String::from(&result.jwp),
-                    ).unwrap();
+                    )
+                    .unwrap();
                     ctx.request_repaint();
                 }
                 _ => log::error!("failed to obtain jwp"),
@@ -824,7 +829,8 @@ fn change_nick_req(contact: String, nick: String) {
         String::from(crate::GUI_NICK_DB_KEY),
         String::from(&contact),
         nick,
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn send_can_transfer_req(tx: Sender<bool>, ctx: egui::Context, invoice: u128) {

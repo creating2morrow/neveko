@@ -5,9 +5,12 @@
 extern crate kn0sys_lmdb_rs as lmdb;
 
 use lmdb::*;
-use log::{error, info};
-use sysinfo::System;
+use log::{
+    error,
+    info,
+};
 use std::sync::LazyLock;
+use sysinfo::System;
 
 use crate::utils;
 
@@ -34,7 +37,8 @@ pub struct DatabaseEnvironment {
 impl DatabaseEnvironment {
     /// Opens environment in specified path. The map size defaults to 20 percent
     ///
-    /// of available memory and can be set via the `LMDB_MAP_SIZE` environment variable.
+    /// of available memory and can be set via the `LMDB_MAP_SIZE` environment
+    /// variable.
     ///
     /// The path of the user can be set with `LMDB_USER`.
     pub fn open() -> Result<Self, MdbError> {
@@ -52,7 +56,7 @@ impl DatabaseEnvironment {
         };
         info!("$LMDB_USER={}", user);
         info!("excecuting lmdb open");
-        let file_path: String = format!("/home/{}/.{}/", user, "valentinus");
+        let file_path: String = format!("/home/{}/.{}/", user, "neveko");
         let env_str = utils::get_release_env().value();
         let env: Environment = EnvBuilder::new()
             .map_size(env_map_size)
@@ -63,10 +67,7 @@ impl DatabaseEnvironment {
             panic!("could not set db handle")
         }
         let handle: DbHandle = default?;
-        Ok(DatabaseEnvironment {
-            env,
-            handle,
-        })
+        Ok(DatabaseEnvironment { env, handle })
     }
     /// Write a key/value pair to the database. It is not possible to
     ///

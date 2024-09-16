@@ -1,20 +1,38 @@
 //! embedded i2p module
 
-use std::{thread,fs::File, io::{self, BufRead}, path::Path};
-use j4i2prs::router_wrapper as rw;
-use j4i2prs::tunnel_control as tc;
+use crate::{
+    db::{
+        self,
+        DATABASE_LOCK,
+    },
+    error::NevekoError,
+    monero::get_anon_inbound_port,
+    utils,
+    DEFAULT_APP_PORT,
+    DEFAULT_SOCKS_PORT,
+};
+use j4i2prs::{
+    router_wrapper as rw,
+    tunnel_control as tc,
+};
 use kn0sys_lmdb_rs::MdbError;
 use log::*;
 use serde::{
     Deserialize,
     Serialize,
 };
-use std::sync::mpsc::{
-    Receiver,
-    Sender,
-};
-use crate::{
-    db::{self, DATABASE_LOCK}, error::NevekoError, monero::get_anon_inbound_port, utils, DEFAULT_APP_PORT, DEFAULT_SOCKS_PORT
+use std::{
+    fs::File,
+    io::{
+        self,
+        BufRead,
+    },
+    path::Path,
+    sync::mpsc::{
+        Receiver,
+        Sender,
+    },
+    thread,
 };
 
 struct Listener {
@@ -37,7 +55,9 @@ impl Default for Listener {
 
 /// https://doc.rust-lang.org/rust-by-example/std_misc/file/read_lines.html
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
@@ -87,17 +107,16 @@ pub fn get_destination(st: ServerTunnelType) -> Result<String, NevekoError> {
         &db.env,
         &db.handle,
         &crate::APP_ANON_IN_B32_DEST.as_bytes().to_vec(),
-    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let r_app_b32_dest = db::DatabaseEnvironment::read(
-        &db.env,
-        &db.handle,
-        &crate::APP_I2P_SK.as_bytes().to_vec(),
-    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r_app_b32_dest =
+        db::DatabaseEnvironment::read(&db.env, &db.handle, &crate::APP_I2P_SK.as_bytes().to_vec())
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let anon_b32_dest: String = bincode::deserialize(&r_anon_b32_dest[..]).unwrap_or_default();
     let app_b32_dest: String = bincode::deserialize(&&r_app_b32_dest[..]).unwrap_or_default();
     match st {
         ServerTunnelType::App => Ok(app_b32_dest),
-        ServerTunnelType::AnonInbound => Ok(anon_b32_dest)
+        ServerTunnelType::AnonInbound => Ok(anon_b32_dest),
     }
 }
 
@@ -107,7 +126,8 @@ pub async fn check_connection() -> Result<ProxyStatus, NevekoError> {
     let proxy = reqwest::Proxy::http(&host).map_err(|_| NevekoError::I2P)?;
     let client = reqwest::Client::builder().proxy(proxy).build();
     let b32_dest = get_destination(ServerTunnelType::App)?;
-    match client.map_err(|_| NevekoError::I2P)?
+    match client
+        .map_err(|_| NevekoError::I2P)?
         .get(format!("http://{}/status", b32_dest))
         .send()
         .await
@@ -116,9 +136,15 @@ pub async fn check_connection() -> Result<ProxyStatus, NevekoError> {
             let res = response.json::<HttpProxyStatus>().await;
             debug!("check_connection response: {:?}", res);
             return match res {
-                Ok(r) => if r.open { Ok(ProxyStatus::Open) } else { Ok(ProxyStatus::Opening) },
+                Ok(r) => {
+                    if r.open {
+                        Ok(ProxyStatus::Open)
+                    } else {
+                        Ok(ProxyStatus::Opening)
+                    }
+                }
                 _ => Err(NevekoError::I2P),
-            }
+            };
         }
         Err(e) => {
             error!("failed to generate invoice due to: {:?}", e);
@@ -151,39 +177,30 @@ fn create_server_tunnel(st: ServerTunnelType) -> Result<tc::Tunnel, NevekoError>
         crate::APP_ANON_IN_SK.as_bytes()
     };
     let db = &DATABASE_LOCK;
-    let tunnel: tc::Tunnel = tc::Tunnel::new(
-        "127.0.0.1".to_string(),
-        port,
-        tc::TunnelType::Server
-    ).unwrap_or_default();
+    let tunnel: tc::Tunnel =
+        tc::Tunnel::new("127.0.0.1".to_string(), port, tc::TunnelType::Server).unwrap_or_default();
     let b32_dest: String = tunnel.get_destination();
     log::debug!("destination: {}", &b32_dest);
     let v_b32_dest = bincode::serialize(&b32_dest).unwrap_or_default();
     let v_sk = bincode::serialize(&tunnel.get_sk()).unwrap_or_default();
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        b32_key,
-        &v_b32_dest,
-    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        sk_key,
-        &v_sk,
-    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&db.env, &db.handle, b32_key, &v_b32_dest)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&db.env, &db.handle, sk_key, &v_sk)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(tunnel)
 }
 
 /// Start router and automatic i2p tunnel creation
-/// 
+///
 /// We'll check for an existing i2p secret key. If it doesn't
-/// 
+///
 /// exist create a new one.
 pub fn start() -> Result<(), NevekoError> {
-    let http_proxy_port: u16 = get_i2p_proxy_port().parse::<u16>()
+    let http_proxy_port: u16 = get_i2p_proxy_port()
+        .parse::<u16>()
         .unwrap_or(DEFAULT_APP_PORT);
-    let socks_port: u16 = get_i2p_socks_proxy_port().parse::<u16>()
+    let socks_port: u16 = get_i2p_socks_proxy_port()
+        .parse::<u16>()
         .unwrap_or(DEFAULT_SOCKS_PORT);
     // check for existing app and anon inbound server tunnels
     let db = &DATABASE_LOCK;
@@ -191,12 +208,11 @@ pub fn start() -> Result<(), NevekoError> {
         &db.env,
         &db.handle,
         &crate::APP_ANON_IN_SK.as_bytes().to_vec(),
-    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let r_app_sk = db::DatabaseEnvironment::read(
-        &db.env,
-        &db.handle,
-        &crate::APP_I2P_SK.as_bytes().to_vec(),
-    ).map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r_app_sk =
+        db::DatabaseEnvironment::read(&db.env, &db.handle, &crate::APP_I2P_SK.as_bytes().to_vec())
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let anon_in_sk: String = bincode::deserialize(&r_anon_in_sk[..]).unwrap_or_default();
     let app_sk: String = bincode::deserialize(&r_app_sk[..]).unwrap_or_default();
     log::info!("starting j4i2prs...");
@@ -205,7 +221,9 @@ pub fn start() -> Result<(), NevekoError> {
     let run_tx = l.run_tx.clone();
     let _ = thread::spawn(move || {
         log::info!("run thread started");
-        run_tx.send(true).unwrap_or_else(|_| log::error!("failed to run router"));
+        run_tx
+            .send(true)
+            .unwrap_or_else(|_| log::error!("failed to run router"));
     });
     // run the main thread forever unless we get a router shutdown signal
     let _ = thread::spawn(move || {
@@ -214,7 +232,8 @@ pub fn start() -> Result<(), NevekoError> {
             if let Ok(run) = l.run_rx.try_recv() {
                 if run {
                     log::info!("starting router");
-                    r.invoke_router(rw::METHOD_RUN).unwrap_or_else(|_| log::error!("failed to run router"));
+                    r.invoke_router(rw::METHOD_RUN)
+                        .unwrap_or_else(|_| log::error!("failed to run router"));
                 }
             }
             if !l.is_running {
@@ -237,28 +256,31 @@ pub fn start() -> Result<(), NevekoError> {
                                 let http_proxy: tc::Tunnel = tc::Tunnel::new(
                                     "127.0.0.1".to_string(),
                                     http_proxy_port,
-                                    tc::TunnelType::Http
-                                ).unwrap_or_default();
+                                    tc::TunnelType::Http,
+                                )
+                                .unwrap_or_default();
                                 let _ = http_proxy.start(None);
                                 // start the socks proxy
                                 let socks_proxy: tc::Tunnel = tc::Tunnel::new(
                                     "127.0.0.1".to_string(),
                                     socks_port,
-                                    tc::TunnelType::Socks
-                                ).unwrap_or_default();
+                                    tc::TunnelType::Socks,
+                                )
+                                .unwrap_or_default();
                                 let _ = socks_proxy.start(None);
                                 log::info!("http proxy on port {}", http_proxy.get_port());
                                 log::info!("socks proxy on port {}", socks_proxy.get_port());
                                 if app_sk.is_empty() {
                                     let t = create_server_tunnel(ServerTunnelType::App)
                                         .unwrap_or_default();
-                                    let _ = t.start(None);       
+                                    let _ = t.start(None);
                                 } else {
                                     let app_tunnel = tc::Tunnel::new(
                                         "127.0.0.1".to_string(),
                                         utils::get_app_port(),
-                                        tc::TunnelType::ExistingServer
-                                    ).unwrap_or_default();
+                                        tc::TunnelType::ExistingServer,
+                                    )
+                                    .unwrap_or_default();
                                     let _ = app_tunnel.start(Some(String::from(&app_sk)));
                                 }
                                 if anon_in_sk.is_empty() {
@@ -269,8 +291,9 @@ pub fn start() -> Result<(), NevekoError> {
                                     let anon_tunnel = tc::Tunnel::new(
                                         "127.0.0.1".to_string(),
                                         get_anon_inbound_port(),
-                                        tc::TunnelType::ExistingServer
-                                    ).unwrap_or_default();
+                                        tc::TunnelType::ExistingServer,
+                                    )
+                                    .unwrap_or_default();
                                     let _ = anon_tunnel.start(Some(String::from(&anon_in_sk)));
                                 }
                             }

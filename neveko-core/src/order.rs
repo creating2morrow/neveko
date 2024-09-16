@@ -3,9 +3,24 @@
 use std::error::Error;
 
 use crate::{
-    contact, db::{self, DATABASE_LOCK}, error::NevekoError, i2p, models::*, monero, neveko25519, order, product, reqres, utils
+    contact,
+    db::{
+        self,
+        DATABASE_LOCK,
+    },
+    error::NevekoError,
+    i2p,
+    models::*,
+    monero,
+    neveko25519,
+    order,
+    product,
+    reqres,
+    utils,
 };
-use kn0sys_lmdb_rs::MdbError::{self};
+use kn0sys_lmdb_rs::MdbError::{
+    self,
+};
 use log::{
     debug,
     error,
@@ -69,8 +84,13 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Result<Order, Neveko
     let db = &DATABASE_LOCK;
     // inject adjudicator separately, modifying the order model is mendokusai
     let adjudicator_k = format!("{}-{}", crate::ADJUDICATOR_DB_KEY, &orid);
-    db::write_chunks(&db.env, &db.handle, adjudicator_k.as_bytes(), j_order.adjudicator.as_bytes())
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(
+        &db.env,
+        &db.handle,
+        adjudicator_k.as_bytes(),
+        j_order.adjudicator.as_bytes(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let k = &new_order.orid;
     let order = bincode::serialize(&new_order).unwrap_or_default();
     db::write_chunks(&db.env, &db.handle, k.as_bytes(), &order)
@@ -85,8 +105,13 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Result<Order, Neveko
     let old: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let order_list = [old, String::from(&orid)].join(",");
     debug!("writing order index {} for id: {}", order_list, list_key);
-    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &order_list.as_bytes())
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(
+        &db.env,
+        &db.handle,
+        list_key.as_bytes(),
+        &order_list.as_bytes(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(new_order)
 }
 
@@ -117,8 +142,13 @@ pub fn backup(order: &Order) -> Result<(), NevekoError> {
     }
     debug!("writing order index {} for id: {}", order_list, list_key);
     let db = &DATABASE_LOCK;
-    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), order_list.as_bytes())
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(
+        &db.env,
+        &db.handle,
+        list_key.as_bytes(),
+        order_list.as_bytes(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
 
@@ -343,7 +373,9 @@ pub async fn cancel_order(orid: &String, signature: &String) -> Result<Order, Ne
 /// Check for import multisig info, validate block time and that the
 ///
 /// order wallet has been funded properly. Update the order to multisig complete
-pub async fn validate_order_for_ship(orid: &String) -> Result<reqres::FinalizeOrderResponse, NevekoError> {
+pub async fn validate_order_for_ship(
+    orid: &String,
+) -> Result<reqres::FinalizeOrderResponse, NevekoError> {
     info!("validating order for shipment");
     let m_order: Order = find(orid).map_err(|_| NevekoError::Order)?;
     let contact: Contact = contact::find(&m_order.cid).map_err(|_| NevekoError::Contact)?;
@@ -470,7 +502,7 @@ pub async fn upload_delivery_info(
     let i2p_address = i2p::get_destination(i2p::ServerTunnelType::App)?;
     // get jwp from db
     let db = &DATABASE_LOCK;
-    
+
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &lookup.cid);
     let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
@@ -480,13 +512,11 @@ pub async fn upload_delivery_info(
         error!("failed to trigger nasr");
         return Err(NevekoError::Nasr);
     }
-    Ok(
-        reqres::FinalizeOrderResponse {
-            delivery_info: e_delivery_info,
-            orid: String::from(orid),
-            vendor_update_success: false,
-        }
-    )
+    Ok(reqres::FinalizeOrderResponse {
+        delivery_info: e_delivery_info,
+        orid: String::from(orid),
+        vendor_update_success: false,
+    })
 }
 
 /// Vendor will very txset submission and then update the order to `Delivered`
@@ -494,7 +524,7 @@ pub async fn upload_delivery_info(
 /// status type. Then customer will update the status on the neveko instanced
 ///
 /// upon a `vendor_update_success: true`  response
-pub async fn finalize_order(orid: &String) -> Result< reqres::FinalizeOrderResponse, NevekoError> {
+pub async fn finalize_order(orid: &String) -> Result<reqres::FinalizeOrderResponse, NevekoError> {
     info!("finalizing order: {}", orid);
     // verify recipient and unlock time
     let mut m_order: Order = order::find(orid).map_err(|_| NevekoError::Order)?;
@@ -531,12 +561,10 @@ pub async fn finalize_order(orid: &String) -> Result< reqres::FinalizeOrderRespo
     monero::close_wallet(orid, &wallet_password).await;
     m_order.status = order::StatusType::Delivered.value();
     order::modify(Json(m_order))?;
-    Ok(
-        reqres::FinalizeOrderResponse {
-            vendor_update_success: true,
-            ..Default::default()
-        }
-    )
+    Ok(reqres::FinalizeOrderResponse {
+        vendor_update_success: true,
+        ..Default::default()
+    })
 }
 
 /// Executes POST /order/finalize/{orid}
@@ -607,7 +635,7 @@ pub async fn d_trigger_finalize_request(
     // get jwp from db
     let db = &DATABASE_LOCK;
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-    
+
     let jwp = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     info!("executing d_trigger_finalize_request");
@@ -731,7 +759,7 @@ pub async fn transmit_sor_request(
 pub async fn trigger_ship_request(
     contact: &String,
     jwp: &String,
-    orid: &String
+    orid: &String,
 ) -> Result<Order, NevekoError> {
     info!("executing trigger_ship_request");
     let data = String::from(orid);
@@ -756,8 +784,8 @@ pub async fn trigger_ship_request(
 /// can be executed from the gui.
 pub async fn trigger_cancel_request(
     contact: &String,
-    jwp: &String, 
-    orid: &String
+    jwp: &String,
+    orid: &String,
 ) -> Result<Order, NevekoError> {
     info!("executing trigger_cancel_request");
     let data = String::from(orid);
@@ -798,8 +826,13 @@ pub async fn d_trigger_ship_request(contact: &String, orid: &String) -> Result<O
         let u_ship_res = ship_res.unwrap_or(Default::default());
         let hex_delivery_info: String = hex::encode(u_ship_res.delivery_info);
         let key = format!("{}-{}", crate::DELIVERY_INFO_DB_KEY, orid);
-        db::write_chunks(&db.env, &db.handle, key.as_bytes(), hex_delivery_info.as_bytes())
-            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        db::write_chunks(
+            &db.env,
+            &db.handle,
+            key.as_bytes(),
+            hex_delivery_info.as_bytes(),
+        )
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
     Ok(trigger)
 }
@@ -846,7 +879,10 @@ pub async fn transmit_cancel_request(
 }
 
 /// Decomposition trigger for the cancel request
-pub async fn d_trigger_cancel_request(contact: &String, orid: &String) -> Result<Order, NevekoError> {
+pub async fn d_trigger_cancel_request(
+    contact: &String,
+    orid: &String,
+) -> Result<Order, NevekoError> {
     // ugh, sorry seems we need to get jwp for vendor from fts cache
     // get jwp from db
     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
