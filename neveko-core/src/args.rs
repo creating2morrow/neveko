@@ -90,14 +90,14 @@ pub struct Args {
     #[arg(
         long,
         help = "i2p http proxy host",
-        default_value = "http://localhost:4444"
+        default_value = "http://localhost:4455"
     )]
     pub i2p_proxy_host: String,
     /// i2p wallet proxy host (i2p socks)
     #[arg(
         long,
         help = "i2p remote node socks proxy host",
-        default_value = "http://localhost:9051"
+        default_value = "http://localhost:9055"
     )]
     pub i2p_socks_proxy_host: String,
     /// Connect wallet rpc for a remote-node, WARNING: may harm privacy

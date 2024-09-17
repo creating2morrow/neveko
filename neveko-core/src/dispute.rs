@@ -63,22 +63,24 @@ pub fn create(d: Json<Dispute>) -> Result<Dispute, MdbError> {
 }
 
 /// Dispute lookup
-pub fn find(did: &String) -> Result<Dispute, MdbError> {
+pub fn find(did: &String) -> Result<Dispute, NevekoError> {
     let db = &DATABASE_LOCK;
-    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &did.as_bytes().to_vec())?;
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &did.as_bytes().to_vec())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         error!("dispute not found");
-        return Err(MdbError::NotFound);
+        return Err(NevekoError::Database(MdbError::Panic));
     }
     let result: Dispute = bincode::deserialize(&r[..]).unwrap_or_default();
     Ok(result)
 }
 
 /// Lookup all disputes
-pub fn find_all() -> Result<Vec<Dispute>, MdbError> {
+pub fn find_all() -> Result<Vec<Dispute>, NevekoError> {
     let db = &DATABASE_LOCK;
     let d_list_key = crate::DISPUTE_LIST_DB_KEY;
-    let d_r = db::DatabaseEnvironment::read(&db.env, &db.handle, &d_list_key.as_bytes().to_vec())?;
+    let d_r = db::DatabaseEnvironment::read(&db.env, &db.handle, &d_list_key.as_bytes().to_vec())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if d_r.is_empty() {
         error!("dispute index not found");
     }
@@ -114,7 +116,7 @@ pub fn delete(did: &String) -> Result<(), MdbError> {
 /// creation date of the dispute plus the one week
 ///
 /// grace period then the dispute is auto-settled.
-pub async fn settle_dispute() -> Result<(), MdbError> {
+pub async fn settle_dispute() -> Result<(), NevekoError> {
     let tick: std::sync::mpsc::Receiver<()> =
         schedule_recv::periodic_ms(crate::DISPUTE_CHECK_INTERVAL);
     loop {
@@ -122,9 +124,11 @@ pub async fn settle_dispute() -> Result<(), MdbError> {
         tick.recv().unwrap();
         let db = &DATABASE_LOCK;
         let list_key = crate::DISPUTE_LIST_DB_KEY;
-        let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())?;
+        let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
         if r.is_empty() {
             info!("dispute index not found");
+            return Err(NevekoError::Database(MdbError::NotFound));
         }
         let str_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
         let v_mid = str_r.split(",");
@@ -134,7 +138,8 @@ pub async fn settle_dispute() -> Result<(), MdbError> {
         if cleared {
             // index was created but cleared
             info!("terminating dispute auto-settle thread");
-            let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, list_key.as_bytes())?;
+            let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, list_key.as_bytes())
+                .map_err(|_| NevekoError::Database(MdbError::Panic))?;
             return Ok(());
         }
         for d in d_vec {
@@ -154,7 +159,7 @@ pub async fn settle_dispute() -> Result<(), MdbError> {
                         return Ok(());
                     }
                     // remove the dispute from the db
-                    remove_from_auto_settle(dispute.did)?;
+                    remove_from_auto_settle(dispute.did).map(|_| NevekoError::Dispute)?;
                 }
             }
         }
@@ -174,11 +179,12 @@ fn is_dispute_clear(r: String) -> bool {
 }
 
 /// clear dispute from index
-fn remove_from_auto_settle(did: String) -> Result<(), MdbError> {
+fn remove_from_auto_settle(did: String) -> Result<(), NevekoError> {
     info!("removing id {} from disputes", &did);
     let db = &DATABASE_LOCK;
     let list_key = crate::DISPUTE_LIST_DB_KEY;
-    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())?;
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     if r.is_empty() {
         debug!("dispute list index is empty");
     }
@@ -198,13 +204,13 @@ fn remove_from_auto_settle(did: String) -> Result<(), MdbError> {
         "writing dipsute index {} for id: {}",
         dispute_list, list_key
     );
-
     db::write_chunks(
         &db.env,
         &db.handle,
         list_key.as_bytes(),
         dispute_list.as_bytes(),
-    )?;
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
 

@@ -9,7 +9,10 @@ use crate::{
     },
     dispute,
     error::NevekoError,
-    i2p,
+    i2p::{
+        self,
+        ProxyStatus,
+    },
     message,
     models,
     monero,
@@ -83,16 +86,16 @@ impl Default for Connections {
     fn default() -> Self {
         Connections {
             blockchain_dir: String::from("/home/user/.bitmonero"),
-            daemon_host: String::from("http://127.0.0.1:38081"),
-            i2p_proxy_host: String::from("http://127.0.0.1:4444"),
-            i2p_socks_host: String::from("http://127.0.0.1:9051"),
+            daemon_host: String::from("http://127.0.0.1:18081"),
+            i2p_proxy_host: String::from("http://127.0.0.1:4455"),
+            i2p_socks_host: String::from("http://127.0.0.1:9055"),
             is_remote_node: false,
             is_i2p_advanced: false,
             mainnet: true,
             monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.3.4"),
             rpc_credential: String::from("pass"),
             rpc_username: String::from("user"),
-            rpc_host: String::from("http://127.0.0.1:38083"),
+            rpc_host: String::from("http://127.0.0.1:18083"),
         }
     }
 }
@@ -391,11 +394,13 @@ fn gen_signing_keys() -> Result<(), NevekoError> {
         let mut data = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut data);
         let db = &DATABASE_LOCK;
+        let h = hex::encode(data);
+        let v = bincode::serialize(&h).unwrap_or_default();
         db::write_chunks(
             &db.env,
             &db.handle,
             crate::NEVEKO_JWP_SECRET_KEY.as_bytes(),
-            &data,
+            &v,
         )
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
@@ -403,11 +408,13 @@ fn gen_signing_keys() -> Result<(), NevekoError> {
         let mut data = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut data);
         let db = &DATABASE_LOCK;
+        let h = hex::encode(data);
+        let v = bincode::serialize(&h).unwrap_or_default();
         db::write_chunks(
             &db.env,
             &db.handle,
             crate::NEVEKO_JWT_SECRET_KEY.as_bytes(),
-            &data,
+            &v,
         )
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
@@ -480,20 +487,34 @@ async fn generate_nmpk() -> Result<(), NevekoError> {
     let db = &DATABASE_LOCK;
     if nmpk.is_empty() {
         let nmk: neveko25519::NevekoMessageKeys = neveko25519::generate_neveko_message_keys().await;
-        db::write_chunks(
-            &db.env,
-            &db.handle,
-            crate::NEVEKO_NMPK.as_bytes(),
-            nmk.hex_nmpk.as_bytes(),
-        )
-        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+        let v = bincode::serialize(&nmk.hex_nmpk).unwrap_or_default();
+        db::write_chunks(&db.env, &db.handle, crate::NEVEKO_NMPK.as_bytes(), &v)
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
+    Ok(())
+}
+
+fn reset_i2p_status() -> Result<(), NevekoError> {
+    let db = &DATABASE_LOCK;
+    let v = bincode::serialize(&ProxyStatus::Opening).unwrap_or_default();
+    db::write_chunks(&db.env, &db.handle, crate::I2P_STATUS.as_bytes(), &v)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
 
 /// Put all app pre-checks here
 pub async fn start_up() -> Result<(), NevekoError> {
+    let db = &DATABASE_LOCK;
+    db::write_chunks(
+        &db.env,
+        &db.handle,
+        crate::NEVEKO_NMPK.as_bytes(),
+        &Vec::new(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+
     info!("neveko is starting up");
+    let _ = reset_i2p_status()?;
     warn!("monero multisig is experimental and usage of neveko may lead to loss of funds");
     let args = args::Args::parse();
     if args.clear_fts {
@@ -522,16 +543,31 @@ pub async fn start_up() -> Result<(), NevekoError> {
         wallet_password = read_password().unwrap();
         std::env::set_var(crate::MONERO_WALLET_PASSWORD, &wallet_password);
     }
-    generate_nmpk().await?;
     let env: String = get_release_env().value();
     if !args.i2p_advanced {
-        let _ = i2p::start();
+        // let _ = i2p::start();
     }
-    gen_app_wallet(&wallet_password).await;
     // start async background tasks here
     {
-        tokio::spawn(async {
+        tokio::spawn(async move {
             let _ = message::retry_fts().await;
+            // wait for the i2p http proxy tunnel since remote nodes are forced over i2p
+            if is_using_remote_node() {
+                loop {
+                    let is_i2p_online = i2p::check_connection().await;
+                    let i2p_status = is_i2p_online.unwrap_or(ProxyStatus::Opening);
+                    if i2p_status == ProxyStatus::Opening {
+                        log::error!("i2p has not warmed up yet, check wrapper.log");
+                    } else {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_secs(60));
+                }
+            }
+            gen_app_wallet(&wallet_password).await;
+            generate_nmpk()
+                .await
+                .unwrap_or_else(|_| log::debug!("unable to generate neveko message keys"));
             let _ = dispute::settle_dispute().await;
         });
     }

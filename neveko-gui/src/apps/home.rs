@@ -387,14 +387,6 @@ impl eframe::App for HomeApp {
                     }
                 }
             }
-            if !self.is_core_running && !self.is_installing && !self.connections.is_remote_node && !self.connections.is_i2p_advanced
-            && (self.s_xmr_rpc_ver.result.version == 0 || self.s_i2p_status == i2p::ProxyStatus::Opening) {
-                if !self.is_loading {
-                    if ui.button("Install Software").clicked() {
-                        self.is_installing = true;
-                    }
-                }
-            }
         });
     }
 }

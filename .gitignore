@@ -29,3 +29,8 @@ router.keys.dat
 prngseed.rnd
 hostsdb.blockfile
 logs/log-1.txt
+certificates/
+netDb/*
+peerProfiles/*
+*.dat
+ssu2tokens.txt

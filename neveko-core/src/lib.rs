@@ -62,16 +62,15 @@ pub const MONERO_WALLET_RPC_HOST: &str = "MONERO_WALLET_RPC_HOST";
 /// Reference to check if gui set remote node flag
 pub const GUI_REMOTE_NODE: &str = "GUI_REMOTE_NODE";
 pub const GUI_SET_REMOTE_NODE: &str = "1";
-
-pub const LMDB_MAPSIZE: u64 = 1024 * 1024 * 1024;
-pub const I2P_CONNECTIVITY_CHECK_INTERVAL: u32 = 600000;
 pub const FTS_RETRY_INTERVAL: u32 = 60000;
 /// There is a one week grace period for manual intervention of disputes
 pub const DISPUTE_AUTO_SETTLE: u32 = 1000 * 60 * 60 * 24 * 7;
 /// Daily dispute auto-settle check interval
 pub const DISPUTE_CHECK_INTERVAL: u32 = 1000 * 60 * 60 * 24;
 /// Default app port
-pub const DEFAULT_APP_PORT: u16 = 9000;
+pub const DEFAULT_HTTP_PROXY_PORT: u16 = 4455;
 /// Default app port
 pub const DEFAULT_SOCKS_PORT: u16 = 9051;
+/// I2P CONNECTION CHECK
+pub const I2P_STATUS: &str = "I2P_STATUS";
 // DO NOT EDIT BELOW THIS LINE

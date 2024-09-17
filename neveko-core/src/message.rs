@@ -519,7 +519,7 @@ pub async fn retry_fts() -> Result<(), NevekoError> {
             .map_err(|_| NevekoError::Database(MdbError::Panic))?;
         if r.is_empty() {
             info!("fts message index not found");
-            break Err(NevekoError::Database(MdbError::NotFound)); // terminate fts if no message to send
+            return Err(NevekoError::Database(MdbError::NotFound)); // terminate fts if no message to send
         }
         let s_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
         let v_mid = s_r.split(",");

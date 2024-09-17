@@ -8,7 +8,7 @@ use crate::{
     error::NevekoError,
     monero::get_anon_inbound_port,
     utils,
-    DEFAULT_APP_PORT,
+    DEFAULT_HTTP_PROXY_PORT,
     DEFAULT_SOCKS_PORT,
 };
 use j4i2prs::{
@@ -67,7 +67,7 @@ pub struct HttpProxyStatus {
     pub open: bool,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub enum ProxyStatus {
     Opening,
     Open,
@@ -109,9 +109,12 @@ pub fn get_destination(st: ServerTunnelType) -> Result<String, NevekoError> {
         &crate::APP_ANON_IN_B32_DEST.as_bytes().to_vec(),
     )
     .map_err(|_| NevekoError::Database(MdbError::Panic))?;
-    let r_app_b32_dest =
-        db::DatabaseEnvironment::read(&db.env, &db.handle, &crate::APP_I2P_SK.as_bytes().to_vec())
-            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let r_app_b32_dest = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &crate::APP_B32_DEST.as_bytes().to_vec(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let anon_b32_dest: String = bincode::deserialize(&r_anon_b32_dest[..]).unwrap_or_default();
     let app_b32_dest: String = bincode::deserialize(&&r_app_b32_dest[..]).unwrap_or_default();
     match st {
@@ -122,35 +125,16 @@ pub fn get_destination(st: ServerTunnelType) -> Result<String, NevekoError> {
 
 /// Ping our base 32 destination address over the http proxy
 pub async fn check_connection() -> Result<ProxyStatus, NevekoError> {
-    let host = utils::get_i2p_http_proxy();
-    let proxy = reqwest::Proxy::http(&host).map_err(|_| NevekoError::I2P)?;
-    let client = reqwest::Client::builder().proxy(proxy).build();
-    let b32_dest = get_destination(ServerTunnelType::App)?;
-    match client
-        .map_err(|_| NevekoError::I2P)?
-        .get(format!("http://{}/status", b32_dest))
-        .send()
-        .await
-    {
-        Ok(response) => {
-            let res = response.json::<HttpProxyStatus>().await;
-            debug!("check_connection response: {:?}", res);
-            return match res {
-                Ok(r) => {
-                    if r.open {
-                        Ok(ProxyStatus::Open)
-                    } else {
-                        Ok(ProxyStatus::Opening)
-                    }
-                }
-                _ => Err(NevekoError::I2P),
-            };
-        }
-        Err(e) => {
-            error!("failed to generate invoice due to: {:?}", e);
-            return Err(NevekoError::I2P);
-        }
+    let db = &DATABASE_LOCK;
+    let r =
+        db::DatabaseEnvironment::read(&db.env, &db.handle, &crate::I2P_STATUS.as_bytes().to_vec())
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    if r.is_empty() {
+        error!("i2p status not found");
+        return Err(NevekoError::Database(MdbError::NotFound));
     }
+    let result: ProxyStatus = bincode::deserialize(&r[..]).unwrap_or(ProxyStatus::Opening);
+    Ok(result)
 }
 
 #[derive(PartialEq)]
@@ -198,7 +182,7 @@ fn create_server_tunnel(st: ServerTunnelType) -> Result<tc::Tunnel, NevekoError>
 pub fn start() -> Result<(), NevekoError> {
     let http_proxy_port: u16 = get_i2p_proxy_port()
         .parse::<u16>()
-        .unwrap_or(DEFAULT_APP_PORT);
+        .unwrap_or(DEFAULT_HTTP_PROXY_PORT);
     let socks_port: u16 = get_i2p_socks_proxy_port()
         .parse::<u16>()
         .unwrap_or(DEFAULT_SOCKS_PORT);
@@ -296,6 +280,16 @@ pub fn start() -> Result<(), NevekoError> {
                                     .unwrap_or_default();
                                     let _ = anon_tunnel.start(Some(String::from(&anon_in_sk)));
                                 }
+                                let db = &DATABASE_LOCK;
+                                let v = bincode::serialize(&ProxyStatus::Open).unwrap_or_default();
+                                db::write_chunks(
+                                    &db.env,
+                                    &db.handle,
+                                    crate::I2P_STATUS.as_bytes(),
+                                    &v,
+                                )
+                                .map_err(|_| NevekoError::Database(MdbError::Panic))
+                                .unwrap_or_else(|_| log::error!("failed to write i2p status."));
                             }
                         }
                     }
