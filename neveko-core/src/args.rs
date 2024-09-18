@@ -24,7 +24,7 @@ pub struct Args {
     #[arg(
         long,
         help = "Monero RPC host.",
-        default_value = "http://localhost:38083"
+        default_value = "http://localhost:18083"
     )]
     pub monero_rpc_host: String,
     /// Monero blockchain location
@@ -38,7 +38,7 @@ pub struct Args {
     #[arg(
         long,
         help = "Monero RPC daemon.",
-        default_value = "http://localhost:38081"
+        default_value = "http://localhost:18081"
     )]
     pub monero_rpc_daemon: String,
     /// Monero RPC Username
@@ -90,14 +90,14 @@ pub struct Args {
     #[arg(
         long,
         help = "i2p http proxy host",
-        default_value = "http://localhost:4455"
+        default_value = "http://localhost:4456"
     )]
     pub i2p_proxy_host: String,
     /// i2p wallet proxy host (i2p socks)
     #[arg(
         long,
         help = "i2p remote node socks proxy host",
-        default_value = "http://localhost:9055"
+        default_value = "http://localhost:9056"
     )]
     pub i2p_socks_proxy_host: String,
     /// Connect wallet rpc for a remote-node, WARNING: may harm privacy
@@ -153,7 +153,7 @@ pub struct Args {
     #[arg(
         long,
         help = "Set i2p anon inbound connectivity",
-        default_value = "38089"
+        default_value = "18089"
     )]
     pub anon_inbound_port: u16,
 }

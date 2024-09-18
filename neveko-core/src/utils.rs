@@ -87,8 +87,8 @@ impl Default for Connections {
         Connections {
             blockchain_dir: String::from("/home/user/.bitmonero"),
             daemon_host: String::from("http://127.0.0.1:18081"),
-            i2p_proxy_host: String::from("http://127.0.0.1:4455"),
-            i2p_socks_host: String::from("http://127.0.0.1:9055"),
+            i2p_proxy_host: String::from("http://127.0.0.1:4456"),
+            i2p_socks_host: String::from("http://127.0.0.1:9056"),
             is_remote_node: false,
             is_i2p_advanced: false,
             mainnet: true,
@@ -545,7 +545,7 @@ pub async fn start_up() -> Result<(), NevekoError> {
     }
     let env: String = get_release_env().value();
     if !args.i2p_advanced {
-        // let _ = i2p::start();
+        let _ = i2p::start();
     }
     // start async background tasks here
     {
