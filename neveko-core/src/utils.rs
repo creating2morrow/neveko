@@ -782,7 +782,8 @@ pub fn search_gui_db(f: String, data: String) -> Result<String, MdbError> {
 pub fn write_gui_db(f: String, key: String, data: String) -> Result<(), MdbError> {
     let db = &DATABASE_LOCK;
     let k = format!("{}-{}", f, key);
-    db::write_chunks(&db.env, &db.handle, k.as_bytes(), data.as_bytes())?;
+    let v = bincode::serialize(&data).unwrap_or_default();
+    db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v)?;
     Ok(())
 }
 
