@@ -18,6 +18,7 @@ use std::{
 };
 
 pub struct HomeApp {
+    b32_destination: String,
     /// blocks fetched during last wallet refresh
     blocks_fetched: u64,
     wallet_height: u64,
@@ -65,6 +66,8 @@ pub struct HomeApp {
 
 impl Default for HomeApp {
     fn default() -> Self {
+        let b32_destination = i2p::get_destination(i2p::ServerTunnelType::App)
+            .unwrap_or(String::from("error: b32 address not found."));
         let blocks_fetched = 0;
         let connections = Default::default();
         let is_core_running = false;
@@ -100,6 +103,7 @@ impl Default for HomeApp {
             egui_extras::RetainedImage::from_image_bytes("./assets/i2p.png", &c_i2p_logo).unwrap();
         let wallet_height = 0;
         Self {
+            b32_destination,
             blocks_fetched,
             connections,
             core_timeout_rx,
@@ -339,10 +343,8 @@ impl eframe::App for HomeApp {
             ui.horizontal(|ui| {
                 self.logo_i2p.show(ui);
                 ui.horizontal(|ui| {
-                    let i2p_address = i2p::get_destination(i2p::ServerTunnelType::App)
-                        .unwrap_or_default();
                     ui.label(
-                        RichText::new(format!("- status: {}\n- address: {}", str_i2p_status, i2p_address))
+                        RichText::new(format!("- status: {}\n- address: {}", str_i2p_status, self.b32_destination))
                             .size(16.0)
                             .color(color),
                     ).on_hover_text(hover_txt);
