@@ -545,7 +545,10 @@ pub async fn start_up() -> Result<(), NevekoError> {
     }
     let env: String = get_release_env().value();
     if !args.i2p_advanced {
-        let _ = i2p::start();
+        let i2p = i2p::start();
+        if i2p.is_err() {
+            panic!("failed to start i2p");
+        }
     }
     // start async background tasks here
     {

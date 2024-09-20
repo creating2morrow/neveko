@@ -57,17 +57,13 @@ pub async fn create(c: &Json<Contact>) -> Result<Contact, MdbError> {
     }
     let old: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let contact_list = [old, String::from(&f_cid)].join(",");
+    let s_contactlist = bincode::serialize(&contact_list).unwrap_or_default();
     debug!(
         "writing contact index {} for key {}",
         contact_list, list_key
     );
 
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        list_key.as_bytes(),
-        &contact_list.as_bytes(),
-    )?;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_contactlist)?;
     Ok(new_contact)
 }
 

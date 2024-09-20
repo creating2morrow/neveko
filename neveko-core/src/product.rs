@@ -49,17 +49,13 @@ pub fn create(d: Json<Product>) -> Result<Product, NevekoError> {
     }
     let old: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let product_list = [old, String::from(&pid)].join(",");
+    let s_product_list = bincode::serialize(&product_list).unwrap_or_default();
     debug!(
         "writing product index {} for id: {}",
         product_list, list_key
     );
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        list_key.as_bytes(),
-        product_list.as_bytes(),
-    )
-    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_product_list)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(new_product)
 }
 

@@ -90,15 +90,11 @@ pub async fn create(
     }
     let d_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let msg_list = [d_r, String::from(&f_mid)].join(",");
+    let s_msg_list = bincode::serialize(&msg_list).unwrap_or_default();
     debug!("writing message index {} for id: {}", msg_list, list_key);
     let db = &DATABASE_LOCK;
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        list_key.as_bytes(),
-        msg_list.as_bytes(),
-    )
-    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_msg_list)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     info!("attempting to send message");
     let send = send_message(&new_message, &jwp, m_type).await;
     send.unwrap();
@@ -144,14 +140,10 @@ pub async fn rx(m: Json<Message>) -> Result<(), NevekoError> {
     }
     let old: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let msg_list = [old, String::from(&f_mid)].join(",");
+    let s_msg_list = bincode::serialize(&msg_list).unwrap_or_default();
     debug!("writing message index {} for {}", msg_list, list_key);
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        list_key.as_bytes(),
-        msg_list.as_bytes(),
-    )
-    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_msg_list)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
 
@@ -245,19 +237,15 @@ pub async fn rx_multisig(m: Json<Message>) -> Result<(), NevekoError> {
     }
     let old: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let msg_list = [old, String::from(&f_mid)].join(",");
+    let s_msg_list = bincode::serialize(&msg_list).unwrap_or_default();
     debug!(
         "writing msig message index {} for id: {}",
         msg_list, list_key
     );
     let db = &DATABASE_LOCK;
 
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        list_key.as_bytes(),
-        msg_list.as_bytes(),
-    )
-    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_msg_list)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let data: MultisigMessageData = parse_multisig_message(new_message.mid).await?;
     debug!(
         "writing multisig message type {} for order {}",
@@ -436,6 +424,7 @@ async fn send_to_retry(mid: String) -> Result<(), NevekoError> {
     }
     let i_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let mut msg_list = [String::from(&i_r), String::from(&mid)].join(",");
+    let s_msg_list = bincode::serialize(&msg_list).unwrap_or_default();
     // don't duplicate message ids in fts
     if String::from(&i_r).contains(&String::from(&mid)) {
         msg_list = i_r;
@@ -444,13 +433,8 @@ async fn send_to_retry(mid: String) -> Result<(), NevekoError> {
         "writing fts message index {} for id: {}",
         msg_list, list_key
     );
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        list_key.as_bytes(),
-        msg_list.as_bytes(),
-    )
-    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_msg_list)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     // restart fts if not empty
     let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
@@ -489,17 +473,13 @@ fn remove_from_fts(mid: String) -> Result<(), NevekoError> {
         })
         .collect();
     let msg_list = v.join(",");
+    let s_msg_list = bincode::serialize(&msg_list).unwrap_or_default();
     debug!(
         "writing fts message index {} for id: {}",
         msg_list, list_key
     );
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        list_key.as_bytes(),
-        msg_list.as_bytes(),
-    )
-    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_msg_list)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
 

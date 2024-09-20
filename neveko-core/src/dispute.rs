@@ -43,16 +43,12 @@ pub fn create(d: Json<Dispute>) -> Result<Dispute, MdbError> {
     }
     let s_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let dispute_list = [String::from(&s_r), String::from(&f_did)].join(",");
+    let s_dispute_list = bincode::serialize(&dispute_list).unwrap_or_default();
     debug!(
         "writing dispute index {} for id: {}",
         dispute_list, list_key
     );
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        list_key.as_bytes(),
-        dispute_list.as_bytes(),
-    )?;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_dispute_list)?;
     // restart the dispute aut-settle thread
     let cleared = is_dispute_clear(s_r);
     if !cleared {
@@ -200,17 +196,13 @@ fn remove_from_auto_settle(did: String) -> Result<(), NevekoError> {
         })
         .collect();
     let dispute_list = v.join(",");
+    let s_dispute_list = bincode::serialize(&dispute_list).unwrap_or_default();
     debug!(
         "writing dipsute index {} for id: {}",
         dispute_list, list_key
     );
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        list_key.as_bytes(),
-        dispute_list.as_bytes(),
-    )
-    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_dispute_list)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
 

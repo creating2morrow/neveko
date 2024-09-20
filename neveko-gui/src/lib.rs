@@ -40,7 +40,7 @@ pub const I2P_PROPAGATION_TIME_IN_SECS_EST: u64 = PROPAGATION_TIME_IN_SECS_EST *
 /// time to wait before giving up on adding a contact
 pub const ADD_CONTACT_TIMEOUT_SECS: u64 = 0x5A;
 /// time to wait before giving up on neveko core
-pub const START_CORE_TIMEOUT_SECS: u64 = 0x79;
+pub const START_CORE_TIMEOUT_SECS: u64 = 0x4B0;
 /// bytes in a a GB for calculating space on home page
 pub const BYTES_IN_GB: u64 = 1000000000;
 /// Useful flag to keep services running in background

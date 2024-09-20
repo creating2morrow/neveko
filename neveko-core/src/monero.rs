@@ -214,11 +214,11 @@ pub fn start_daemon() -> Result<(), NevekoError> {
 
 /// Start monero-wallet-rpc
 pub fn start_rpc() {
-    info!("starting monero-wallet-rpc");
     let cli_args = args::Args::parse();
     let bin_dir = get_monero_location();
     let port = get_rpc_port();
     let login = get_rpc_creds();
+    info!("starting monero-wallet-rpc from {}", &bin_dir);
     let daemon_address = cli_args.monero_rpc_daemon;
     let rpc_login = format!("{}:{}", &login.username, &login.credential);
     let release_env = utils::get_release_env();
@@ -322,8 +322,7 @@ fn get_blockchain_dir() -> String {
 /// Get monero download location
 fn get_monero_location() -> String {
     let args = args::Args::parse();
-    let user = std::env::var("USER").unwrap_or(String::new());
-    format!("/home/{}/{}", &user, &args.monero_location)
+    args.monero_location.to_string()
 }
 
 /// Get monero rpc host from the `--monero-rpc-host` cli arg

@@ -104,14 +104,10 @@ pub async fn create(j_order: Json<reqres::OrderRequest>) -> Result<Order, Neveko
     }
     let old: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let order_list = [old, String::from(&orid)].join(",");
+    let s_order_list = bincode::serialize(&order_list).unwrap_or_default();
     debug!("writing order index {} for id: {}", order_list, list_key);
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        list_key.as_bytes(),
-        &order_list.as_bytes(),
-    )
-    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_order_list)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(new_order)
 }
 
@@ -136,19 +132,15 @@ pub fn backup(order: &Order) -> Result<(), NevekoError> {
     }
     let d_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
     let mut order_list = [String::from(&d_r), String::from(&order.orid)].join(",");
+    let s_order_list = bincode::serialize(&order_list).unwrap_or_default();
     // don't duplicate order ids when backing up updates from vendor
     if String::from(&d_r).contains(&String::from(&order.orid)) {
         order_list = d_r;
     }
     debug!("writing order index {} for id: {}", order_list, list_key);
     let db = &DATABASE_LOCK;
-    db::write_chunks(
-        &db.env,
-        &db.handle,
-        list_key.as_bytes(),
-        order_list.as_bytes(),
-    )
-    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_order_list)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
 
