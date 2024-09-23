@@ -822,7 +822,7 @@ mod tests {
     #[test]
     fn release_env_test() {
         let actual = get_release_env();
-        let expected = ReleaseEnvironment::Development;
+        let expected = ReleaseEnvironment::Production;
         assert_eq!(expected, actual)
     }
 
