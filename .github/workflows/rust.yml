@@ -22,7 +22,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Install dependencies
-      run: sudo apt install -y libssl-dev build-essential
+      run: sudo apt install -y libssl-dev build-essential && rustup toolchain install nightly
     - name: Build and Clippy
       run: RUSTFLAGS="-Z threads=4" cargo +nightly build --future-incompat-report && cargo clippy
     - name: Run tests
