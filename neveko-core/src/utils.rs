@@ -3,17 +3,24 @@
 use crate::{
     args,
     contact,
-    db,
+    db::{
+        self,
+        DATABASE_LOCK,
+    },
     dispute,
-    i2p,
+    error::NevekoError,
+    i2p::{
+        self,
+        ProxyStatus,
+    },
     message,
     models,
     monero,
     neveko25519,
     reqres,
-    utils,
 };
 use clap::Parser;
+use kn0sys_lmdb_rs::MdbError;
 use log::{
     debug,
     error,
@@ -49,35 +56,13 @@ pub struct ContactStatus {
 impl Default for ContactStatus {
     fn default() -> Self {
         ContactStatus {
-            exp: utils::empty_string(),
-            h_exp: utils::empty_string(),
-            i2p: utils::empty_string(),
+            exp: String::new(),
+            h_exp: String::new(),
+            i2p: String::new(),
             is_vendor: false,
-            jwp: utils::empty_string(),
+            jwp: String::new(),
             nick: String::from("anon"),
-            txp: utils::empty_string(),
-        }
-    }
-}
-
-/// Enum for selecting hash validation
-#[derive(PartialEq)]
-enum ExternalSoftware {
-    I2PZero,
-    XMR,
-}
-
-/// Handles the state for the installation manager popup
-pub struct Installations {
-    pub xmr: bool,
-    pub i2p_zero: bool,
-}
-
-impl Default for Installations {
-    fn default() -> Self {
-        Installations {
-            xmr: false,
-            i2p_zero: false,
+            txp: String::new(),
         }
     }
 }
@@ -88,9 +73,6 @@ pub struct Connections {
     pub daemon_host: String,
     pub i2p_proxy_host: String,
     pub i2p_socks_host: String,
-    /// path to manually created tunnels json
-    pub i2p_tunnels_json: String,
-    pub i2p_zero_dir: String,
     pub is_remote_node: bool,
     pub is_i2p_advanced: bool,
     pub mainnet: bool,
@@ -104,18 +86,16 @@ impl Default for Connections {
     fn default() -> Self {
         Connections {
             blockchain_dir: String::from("/home/user/.bitmonero"),
-            daemon_host: String::from("http://127.0.0.1:38081"),
-            i2p_proxy_host: String::from("http://127.0.0.1:4444"),
-            i2p_socks_host: String::from("http://127.0.0.1:9051"),
-            i2p_tunnels_json: String::from("/home/user/neveko/i2p-manual"),
-            i2p_zero_dir: String::from("/home/user/i2p-zero-linux.v1.21"),
+            daemon_host: String::from("http://127.0.0.1:18081"),
+            i2p_proxy_host: String::from("http://127.0.0.1:4456"),
+            i2p_socks_host: String::from("http://127.0.0.1:9056"),
             is_remote_node: false,
             is_i2p_advanced: false,
-            mainnet: false,
-            monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.3.3"),
+            mainnet: true,
+            monero_location: String::from("/home/user/monero-x86_64-linux-gnu-v0.18.3.4"),
             rpc_credential: String::from("pass"),
             rpc_username: String::from("user"),
-            rpc_host: String::from("http://127.0.0.1:38083"),
+            rpc_host: String::from("http://127.0.0.1:18083"),
         }
     }
 }
@@ -176,14 +156,10 @@ pub fn start_core(conn: &Connections) {
         &conn.rpc_username,
         "--monero-rpc-cred",
         &conn.rpc_credential,
-        "--i2p-zero-dir",
-        &conn.i2p_zero_dir,
         "-r",
         env,
         remote_node,
         i2p_advanced,
-        "--i2p-tunnels-json",
-        &conn.i2p_tunnels_json,
         "--i2p-proxy-host",
         &conn.i2p_proxy_host,
         "--i2p-socks-proxy-host",
@@ -191,16 +167,12 @@ pub fn start_core(conn: &Connections) {
     ];
     if conn.is_i2p_advanced {
         // set the i2p proxy host for advanced user re-use
-        std::env::set_var(crate::NEVEKO_I2P_PROXY_HOST, &conn.i2p_proxy_host.clone());
-        std::env::set_var(
-            crate::NEVEKO_I2P_TUNNELS_JSON,
-            &conn.i2p_tunnels_json.clone(),
-        );
+        std::env::set_var(crate::NEVEKO_I2P_PROXY_HOST, conn.i2p_proxy_host.clone());
         std::env::set_var(crate::NEVEKO_I2P_ADVANCED_MODE, String::from("1"));
     }
     if conn.is_remote_node {
-        std::env::set_var(crate::MONERO_DAEMON_HOST, &conn.daemon_host.clone());
-        std::env::set_var(crate::MONERO_WALLET_RPC_HOST, &conn.rpc_host.clone());
+        std::env::set_var(crate::MONERO_DAEMON_HOST, conn.daemon_host.clone());
+        std::env::set_var(crate::MONERO_WALLET_RPC_HOST, conn.rpc_host.clone());
         std::env::set_var(crate::GUI_REMOTE_NODE, crate::GUI_SET_REMOTE_NODE)
     }
     let output = std::process::Command::new("./neveko")
@@ -230,11 +202,11 @@ pub fn generate_rnd() -> String {
 /// Helper for separation of dev and prod concerns
 pub fn get_release_env() -> ReleaseEnvironment {
     let args = args::Args::parse();
-    let env = String::from(args.release_env);
+    let env = args.release_env;
     if env == "prod" {
-        return ReleaseEnvironment::Production;
+        ReleaseEnvironment::Production
     } else {
-        return ReleaseEnvironment::Development;
+        ReleaseEnvironment::Development
     }
 }
 
@@ -247,8 +219,8 @@ pub fn get_app_port() -> u16 {
 /// i2p http proxy
 pub fn get_i2p_http_proxy() -> String {
     let args = args::Args::parse();
-    let advanced_proxy = std::env::var(crate::NEVEKO_I2P_PROXY_HOST).unwrap_or(empty_string());
-    if advanced_proxy == empty_string() {
+    let advanced_proxy = std::env::var(crate::NEVEKO_I2P_PROXY_HOST).unwrap_or(String::new());
+    if advanced_proxy.is_empty() {
         args.i2p_proxy_host
     } else {
         advanced_proxy
@@ -314,7 +286,7 @@ pub fn message_to_json(m: &models::Message) -> Json<models::Message> {
     let r_message: models::Message = models::Message {
         body: String::from(&m.body),
         mid: String::from(&m.mid),
-        uid: utils::empty_string(),
+        uid: String::new(),
         created: m.created,
         from: String::from(&m.from),
         to: String::from(&m.to),
@@ -327,7 +299,7 @@ pub fn product_to_json(m: &models::Product) -> Json<models::Product> {
     let r_product: models::Product = models::Product {
         pid: String::from(&m.pid),
         description: String::from(&m.description),
-        image: m.image.iter().cloned().collect(),
+        image: m.image.to_vec(),
         in_stock: m.in_stock,
         name: String::from(&m.name),
         price: m.price,
@@ -355,11 +327,6 @@ pub fn dispute_to_json(d: &models::Dispute) -> Json<models::Dispute> {
         tx_set: String::from(&d.tx_set),
     };
     Json(dispute)
-}
-
-/// Instead of putting `String::from("")`
-pub fn empty_string() -> String {
-    String::from("")
 }
 
 // DoS prevention
@@ -418,87 +385,147 @@ async fn gen_app_wallet(password: &String) {
 }
 
 /// Secret keys for signing internal/external auth tokens
-fn gen_signing_keys() {
+fn gen_signing_keys() -> Result<(), NevekoError> {
     info!("generating signing keys");
-    let jwp = get_jwp_secret_key();
-    let jwt = get_jwt_secret_key();
+    let jwp = get_jwp_secret_key().unwrap_or_default();
+    let jwt = get_jwt_secret_key().unwrap_or_default();
     // send to db
-    let s = db::Interface::open();
-    if jwp == utils::empty_string() {
-        let rnd_jwp = generate_rnd();
-        db::Interface::write(&s.env, &s.handle, crate::NEVEKO_JWP_SECRET_KEY, &rnd_jwp);
+    if jwp.is_empty() {
+        let mut data = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut data);
+        let db = &DATABASE_LOCK;
+        let h = hex::encode(data);
+        let v = bincode::serialize(&h).unwrap_or_default();
+        db::write_chunks(
+            &db.env,
+            &db.handle,
+            crate::NEVEKO_JWP_SECRET_KEY.as_bytes(),
+            &v,
+        )
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
-    if jwt == utils::empty_string() {
-        let rnd_jwt = generate_rnd();
-        db::Interface::write(&s.env, &s.handle, crate::NEVEKO_JWT_SECRET_KEY, &rnd_jwt);
+    if jwt.is_empty() {
+        let mut data = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut data);
+        let db = &DATABASE_LOCK;
+        let h = hex::encode(data);
+        let v = bincode::serialize(&h).unwrap_or_default();
+        db::write_chunks(
+            &db.env,
+            &db.handle,
+            crate::NEVEKO_JWT_SECRET_KEY.as_bytes(),
+            &v,
+        )
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
+    Ok(())
 }
 
 /// TODO(c2m): add a button to gui to call this
 ///
 /// dont' forget to generate new keys as well
-pub fn revoke_signing_keys() {
-    let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, crate::NEVEKO_JWT_SECRET_KEY);
-    db::Interface::delete(&s.env, &s.handle, crate::NEVEKO_JWP_SECRET_KEY);
+pub fn revoke_signing_keys() -> Result<(), NevekoError> {
+    let db = &DATABASE_LOCK;
+    db::DatabaseEnvironment::delete(&db.env, &db.handle, crate::NEVEKO_JWT_SECRET_KEY.as_bytes())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let db = &DATABASE_LOCK;
+    db::DatabaseEnvironment::delete(&db.env, &db.handle, crate::NEVEKO_JWP_SECRET_KEY.as_bytes())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    Ok(())
 }
 
-pub fn get_jwt_secret_key() -> String {
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, crate::NEVEKO_JWT_SECRET_KEY);
-    if r == utils::empty_string() {
+pub fn get_jwt_secret_key() -> Result<String, NevekoError> {
+    let db = &DATABASE_LOCK;
+    let r = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &crate::NEVEKO_JWT_SECRET_KEY.as_bytes().to_vec(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    if r.is_empty() {
         error!("JWT key not found");
-        return Default::default();
+        return Err(NevekoError::Database(MdbError::Panic));
     }
-    r
+    let result: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
-pub fn get_jwp_secret_key() -> String {
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, crate::NEVEKO_JWP_SECRET_KEY);
-    if r == utils::empty_string() {
+pub fn get_jwp_secret_key() -> Result<String, NevekoError> {
+    let db = &DATABASE_LOCK;
+    let r = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &crate::NEVEKO_JWP_SECRET_KEY.as_bytes().to_vec(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    if r.is_empty() {
         error!("JWP key not found");
-        return Default::default();
+        return Err(NevekoError::Database(MdbError::NotFound));
     }
-    r
+    let result: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
 /// Returns the hex encoded neveko message public key from LMDB
-pub fn get_nmpk() -> String {
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, crate::NEVEKO_NMPK);
-    if r == utils::empty_string() {
+pub fn get_nmpk() -> Result<String, NevekoError> {
+    let db = &DATABASE_LOCK;
+    let r =
+        db::DatabaseEnvironment::read(&db.env, &db.handle, &crate::NEVEKO_NMPK.as_bytes().to_vec())
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    if r.is_empty() {
         error!("neveko message public key not found");
-        return Default::default();
+        return Err(NevekoError::Database(MdbError::Panic));
     }
-    r
+    let result: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
-async fn generate_nmpk() {
+async fn generate_nmpk() -> Result<(), NevekoError> {
     info!("generating neveko message public key");
-    let nmpk: String = get_nmpk();
+    let nmpk: String = get_nmpk().unwrap_or_default();
     // send to db
-    let s = db::Interface::open();
-    if nmpk == utils::empty_string() {
+    let db = &DATABASE_LOCK;
+    if nmpk.is_empty() {
         let nmk: neveko25519::NevekoMessageKeys = neveko25519::generate_neveko_message_keys().await;
-        db::Interface::write(&s.env, &s.handle, crate::NEVEKO_NMPK, &nmk.hex_nmpk);
+        let v = bincode::serialize(&nmk.hex_nmpk).unwrap_or_default();
+        db::write_chunks(&db.env, &db.handle, crate::NEVEKO_NMPK.as_bytes(), &v)
+            .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     }
+    Ok(())
+}
+
+fn reset_i2p_status() -> Result<(), NevekoError> {
+    let db = &DATABASE_LOCK;
+    let v = bincode::serialize(&ProxyStatus::Opening).unwrap_or_default();
+    db::write_chunks(&db.env, &db.handle, crate::I2P_STATUS.as_bytes(), &v)
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    Ok(())
 }
 
 /// Put all app pre-checks here
-pub async fn start_up() {
+pub async fn start_up() -> Result<(), NevekoError> {
+    let db = &DATABASE_LOCK;
+    db::write_chunks(
+        &db.env,
+        &db.handle,
+        crate::NEVEKO_NMPK.as_bytes(),
+        &Vec::new(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+
     info!("neveko is starting up");
+    let _ = reset_i2p_status()?;
     warn!("monero multisig is experimental and usage of neveko may lead to loss of funds");
     let args = args::Args::parse();
     if args.clear_fts {
-        clear_fts();
+        clear_fts()?;
     }
     if args.clear_disputes {
-        clear_disputes();
+        clear_disputes()?;
     }
-    gen_signing_keys();
+    gen_signing_keys()?;
     if !is_using_remote_node() {
-        monero::start_daemon();
+        let _ = monero::start_daemon();
     }
     create_wallet_dir();
     // wait for daemon for a bit
@@ -507,9 +534,8 @@ pub async fn start_up() {
     // wait for rpc server for a bit
     tokio::time::sleep(std::time::Duration::new(5, 0)).await;
     monero::check_rpc_connection().await;
-    let mut wallet_password =
-        std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(empty_string());
-    if wallet_password == empty_string() {
+    let mut wallet_password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or_default();
+    if wallet_password.is_empty() {
         print!(
             "MONERO_WALLET_PASSWORD not set, enter neveko wallet password for monero-wallet-rpc: "
         );
@@ -517,20 +543,39 @@ pub async fn start_up() {
         wallet_password = read_password().unwrap();
         std::env::set_var(crate::MONERO_WALLET_PASSWORD, &wallet_password);
     }
-    generate_nmpk().await;
     let env: String = get_release_env().value();
     if !args.i2p_advanced {
-        i2p::start().await;
+        let i2p = i2p::start();
+        if i2p.is_err() {
+            panic!("failed to start i2p");
+        }
     }
-    gen_app_wallet(&wallet_password).await;
     // start async background tasks here
     {
-        tokio::spawn(async {
-            message::retry_fts().await;
-            dispute::settle_dispute().await;
+        tokio::spawn(async move {
+            let _ = message::retry_fts().await;
+            // wait for the i2p http proxy tunnel since remote nodes are forced over i2p
+            if is_using_remote_node() {
+                loop {
+                    let is_i2p_online = i2p::check_connection().await;
+                    let i2p_status = is_i2p_online.unwrap_or(ProxyStatus::Opening);
+                    if i2p_status == ProxyStatus::Opening {
+                        log::error!("i2p has not warmed up yet, check wrapper.log");
+                    } else {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_secs(60));
+                }
+            }
+            gen_app_wallet(&wallet_password).await;
+            generate_nmpk()
+                .await
+                .unwrap_or_else(|_| log::debug!("unable to generate neveko message keys"));
+            let _ = dispute::settle_dispute().await;
         });
     }
     info!("{} - neveko is online", env);
+    Ok(())
 }
 
 /// TODO(?): get rid of this after implementing monero bindings
@@ -566,120 +611,33 @@ pub fn kill_child_processes(cm: bool) {
 /// We can restart fts from since it gets terminated when empty
 pub fn restart_retry_fts() {
     tokio::spawn(async move {
-        message::retry_fts().await;
+        let _ = message::retry_fts().await;
     });
 }
 
 /// We can restart dispute auto-settle from since it gets terminated when empty
 pub fn restart_dispute_auto_settle() {
     tokio::spawn(async move {
-        dispute::settle_dispute().await;
+        let _ = dispute::settle_dispute().await;
     });
 }
 
 /// Called on app startup if `--clear-fts` flag is passed.
-fn clear_fts() {
+fn clear_fts() -> Result<(), NevekoError> {
     info!("clear fts");
-    let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, crate::FTS_DB_KEY);
+    let db = &DATABASE_LOCK;
+    db::DatabaseEnvironment::delete(&db.env, &db.handle, crate::FTS_DB_KEY.as_bytes())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    Ok(())
 }
 
 /// Called on app startup if `--clear-dispute` flag is passed.
-fn clear_disputes() {
+fn clear_disputes() -> Result<(), NevekoError> {
     info!("clear_disputes");
-    let s = db::Interface::open();
-    db::Interface::delete(&s.env, &s.handle, crate::DISPUTE_LIST_DB_KEY);
-}
-
-/// TODO(?): get rid of this after implementing monero bindings
-///
-/// Handle the request from user to additional software
-///
-/// from gui startup. Power users will most like install
-///
-/// software on their own. Note that software pull is over
-///
-/// clearnet. TODO(c2m): remove this after monero and i2pd
-///
-/// are completed.
-pub async fn install_software(installations: Installations) -> bool {
-    let mut valid_i2p_zero_hash = true;
-    let mut valid_xmr_hash = true;
-    if installations.i2p_zero {
-        info!("installing i2p-zero");
-        let i2p_version = crate::I2P_ZERO_RELEASE_VERSION;
-        let i2p_zero_zip = format!("i2p-zero-linux.{}.zip", i2p_version);
-        let link = format!(
-            "https://github.com/creating2morrow/i2p-zero/releases/download/{}-neveko/{}",
-            i2p_version, i2p_zero_zip
-        );
-        let curl = std::process::Command::new("curl")
-            .args(["-LO#", &link])
-            .status();
-        match curl {
-            Ok(curl_output) => {
-                debug!("{:?}", curl_output);
-                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                let unzip_output = std::process::Command::new("unzip")
-                    .arg(&i2p_zero_zip)
-                    .spawn()
-                    .expect("i2p unzip failed");
-                debug!("{:?}", unzip_output.stdout);
-            }
-            _ => error!("i2p-zero download failed"),
-        }
-        valid_i2p_zero_hash = validate_installation_hash(ExternalSoftware::I2PZero, &i2p_zero_zip);
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    }
-    if installations.xmr {
-        info!("installing monero");
-        let link = format!(
-            "https://downloads.getmonero.org/cli/{}",
-            crate::MONERO_RELEASE_VERSION
-        );
-        let curl = std::process::Command::new("curl")
-            .args(["-O#", &link])
-            .status();
-        match curl {
-            Ok(curl_output) => {
-                debug!("{:?}", curl_output);
-                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                let tar_output = std::process::Command::new("tar")
-                    .args(["-xvf", crate::MONERO_RELEASE_VERSION])
-                    .spawn()
-                    .expect("monero tar extraction failed");
-                debug!("{:?}", tar_output.stdout);
-            }
-            _ => error!("monero download failed"),
-        }
-        valid_xmr_hash = validate_installation_hash(
-            ExternalSoftware::XMR,
-            &String::from(crate::MONERO_RELEASE_VERSION),
-        );
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    }
-    valid_i2p_zero_hash && valid_xmr_hash
-}
-
-/// Linux specific hash validation using the command `sha256sum`
-fn validate_installation_hash(sw: ExternalSoftware, filename: &String) -> bool {
-    debug!("validating hash");
-    let expected_hash = if sw == ExternalSoftware::I2PZero {
-        String::from(crate::I2P_ZERO_RELEASH_HASH)
-    } else {
-        String::from(crate::MONERO_RELEASE_HASH)
-    };
-    let sha_output = std::process::Command::new("sha256sum")
-        .arg(filename)
-        .output()
-        .expect("hash validation failed");
-    let str_sha = String::from_utf8(sha_output.stdout).unwrap();
-    let split1 = str_sha.split(" ");
-    let mut v: Vec<String> = split1.map(|s| String::from(s)).collect();
-    let actual_hash = v.remove(0);
-    debug!("actual hash: {}", actual_hash);
-    debug!("expected hash: {}", expected_hash);
-    actual_hash == expected_hash
+    let db = &DATABASE_LOCK;
+    db::DatabaseEnvironment::delete(&db.env, &db.handle, crate::DISPUTE_LIST_DB_KEY.as_bytes())
+        .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    Ok(())
 }
 
 /// ### The highly ineffecient fee estimator.
@@ -707,8 +665,8 @@ pub async fn estimate_fee() -> u128 {
     let mut count: u64 = 1;
     let mut v_fee: Vec<u128> = Vec::new();
     let mut r_height: reqres::XmrDaemonGetHeightResponse = Default::default();
-    let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
-    let remote_set = remote_var == String::from(crate::GUI_SET_REMOTE_NODE);
+    let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or(String::new());
+    let remote_set = remote_var == *crate::GUI_SET_REMOTE_NODE;
     if remote_set {
         let p_height = monero::p_get_height().await;
         r_height = p_height.unwrap_or(r_height);
@@ -726,12 +684,12 @@ pub async fn estimate_fee() -> u128 {
         }
         // TODO(?): determine a more effecient fix than this for slow fee estimation
         // over i2p
-        if v_fee.len() >= 1 && remote_set {
+        if !v_fee.is_empty() && remote_set {
             break;
         }
         height = r_height.height - count;
         let mut block: reqres::XmrDaemonGetBlockResponse = Default::default();
-        if remote_var == String::from(crate::GUI_SET_REMOTE_NODE) {
+        if remote_var == *crate::GUI_SET_REMOTE_NODE {
             let p_block = monero::p_get_block(height).await;
             block = p_block.unwrap_or(block);
         } else {
@@ -748,10 +706,10 @@ pub async fn estimate_fee() -> u128 {
             }
             for tx in transactions.txs_as_json {
                 let pre_fee_split = tx.split("txnFee\":");
-                let mut v1: Vec<String> = pre_fee_split.map(|s| String::from(s)).collect();
+                let mut v1: Vec<String> = pre_fee_split.map(String::from).collect();
                 let fee_split = v1.remove(1);
                 let post_fee_split = fee_split.split(",");
-                let mut v2: Vec<String> = post_fee_split.map(|s| String::from(s)).collect();
+                let mut v2: Vec<String> = post_fee_split.map(String::from).collect();
                 let fee: u128 = match v2.remove(0).trim().parse::<u128>() {
                     Ok(n) => n,
                     Err(_e) => 0,
@@ -785,47 +743,58 @@ pub async fn can_transfer(invoice: u128) -> bool {
 }
 
 /// Gui toggle for vendor mode
-pub fn toggle_vendor_enabled() -> bool {
+pub fn toggle_vendor_enabled() -> Result<bool, MdbError> {
     // TODO(c2m): Dont toggle vendors with orders status != Delivered
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, contact::NEVEKO_VENDOR_ENABLED);
-    if r != contact::NEVEKO_VENDOR_MODE_ON {
+    let db = &DATABASE_LOCK;
+    let r = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &contact::NEVEKO_VENDOR_ENABLED.as_bytes().to_vec(),
+    )?;
+    let mode: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    if mode != contact::NEVEKO_VENDOR_MODE_ON {
         info!("neveko vendor mode enabled");
-        db::Interface::write(
-            &s.env,
-            &s.handle,
-            contact::NEVEKO_VENDOR_ENABLED,
-            contact::NEVEKO_VENDOR_MODE_ON,
-        );
-        return true;
+        db::write_chunks(
+            &db.env,
+            &db.handle,
+            contact::NEVEKO_VENDOR_ENABLED.as_bytes(),
+            contact::NEVEKO_VENDOR_MODE_ON.as_bytes(),
+        )?;
+        Ok(true)
     } else {
         info!("neveko vendor mode disabled");
-        db::Interface::write(
-            &s.env,
-            &s.handle,
-            contact::NEVEKO_VENDOR_ENABLED,
-            contact::NEVEKO_VENDOR_MODE_OFF,
-        );
-        return false;
+
+        db::write_chunks(
+            &db.env,
+            &db.handle,
+            contact::NEVEKO_VENDOR_ENABLED.as_bytes(),
+            contact::NEVEKO_VENDOR_MODE_OFF.as_bytes(),
+        )?;
+        Ok(false)
     }
 }
 
-pub fn search_gui_db(f: String, data: String) -> String {
-    let s = db::Interface::open();
+pub fn search_gui_db(f: String, data: String) -> Result<String, MdbError> {
+    let db = &DATABASE_LOCK;
     let k = format!("{}-{}", f, data);
-    db::Interface::read(&s.env, &s.handle, &k)
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &k.as_bytes().to_vec())?;
+    let result: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
-pub fn write_gui_db(f: String, key: String, data: String) {
-    let s = db::Interface::open();
+pub fn write_gui_db(f: String, key: String, data: String) -> Result<(), MdbError> {
+    let db = &DATABASE_LOCK;
     let k = format!("{}-{}", f, key);
-    db::Interface::write(&s.env, &s.handle, &k, &data);
+    let v = bincode::serialize(&data).unwrap_or_default();
+    db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v)?;
+    Ok(())
 }
 
-pub fn clear_gui_db(f: String, key: String) {
-    let s = db::Interface::open();
+pub fn clear_gui_db(f: String, key: String) -> Result<(), MdbError> {
+    let db = &DATABASE_LOCK;
     let k = format!("{}-{}", f, key);
-    db::Interface::delete(&s.env, &s.handle, &k);
+    db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())?;
+    Ok(())
 }
 
 // Tests
@@ -853,7 +822,7 @@ mod tests {
     #[test]
     fn release_env_test() {
         let actual = get_release_env();
-        let expected = ReleaseEnvironment::Development;
+        let expected = ReleaseEnvironment::Production;
         assert_eq!(expected, actual)
     }
 

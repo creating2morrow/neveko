@@ -19,7 +19,7 @@ async fn rocket() -> _ {
         ..rocket::Config::debug_default()
     };
     env_logger::init();
-    utils::start_up().await;
+    let _ = utils::start_up().await;
     rocket::custom(&config)
         .register(
             "/",

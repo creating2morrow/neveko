@@ -1,185 +1,212 @@
-//! Primary LMDB interface for read, write, delete etc.
+#![deny(missing_docs)]
+
+//! Logic for interfacing with LMDB.
 
 extern crate kn0sys_lmdb_rs as lmdb;
 
-use lmdb::{
-    DbFlags,
-    DbHandle,
-    EnvBuilder,
-    Environment,
-};
+use lmdb::*;
 use log::{
-    debug,
     error,
     info,
 };
+use std::sync::LazyLock;
+use sysinfo::System;
 
 use crate::utils;
 
-/// LMDB Interface allows access to the env
+/// Ratio of map size to available memory is 20 percent
+const MAP_SIZE_MEMORY_RATIO: f32 = 0.2;
+/// Ratio of chunk size to available memory is 0.2 percent
+const CHUNK_SIZE_MEMORY_RATIO: f32 = MAP_SIZE_MEMORY_RATIO * 0.01;
+
+/// Database lock is initialized on startup in order to cache the db handle
+pub static DATABASE_LOCK: LazyLock<DatabaseEnvironment> = LazyLock::new(|| {
+    DatabaseEnvironment::open().unwrap_or_else(|_| panic!("failed to initialize lmdb!"))
+});
+
+/// The database environment for handling primary database operations.
 ///
-/// and handle for the write, read and delete
-///
-/// functionality.
-pub struct Interface {
+/// By default the database will be written to /home/user/.neveko/{ENV}/lmdb
+pub struct DatabaseEnvironment {
+    /// Represents LMDB Environment.
     pub env: Environment,
+    /// DB handle.
     pub handle: DbHandle,
 }
 
-impl Interface {
-    /// Instantiation of ```Environment``` and ```DbHandle```
-    pub fn open() -> Self {
-        info!("excecuting lmdb open");
-        let release_env = utils::get_release_env();
-        let file_path = format!(
-            "/home/{}/.{}/",
-            std::env::var("USER").unwrap_or(String::from("user")),
-            crate::APP_NAME,
-        );
-        let mut env_str: &str = "test-lmdb";
-        if release_env != utils::ReleaseEnvironment::Development {
-            env_str = "lmdb";
-        };
-        let env = EnvBuilder::new()
-            // increase map size for writing the multisig txset
-            .map_size(crate::LMDB_MAPSIZE)
-            .open(format!("{}/{}", file_path, env_str), 0o777)
-            .expect(&format!("could not open LMDB at {}", file_path));
-        let handle = env.get_default_db(DbFlags::empty()).unwrap();
-        Interface { env, handle }
-    }
-    pub async fn async_open() -> Self {
-        info!("excecuting lmdb async open");
-        tokio::time::sleep(std::time::Duration::from_micros(1)).await;
-        self::Interface::open()
-    }
-    /// Write a key-value to LMDB. NEVEKO does not currently support
+impl DatabaseEnvironment {
+    /// Opens environment in specified path. The map size defaults to 20 percent
     ///
-    /// writing multiple key value pairs.
-    pub fn write(e: &Environment, h: &DbHandle, k: &str, v: &str) {
+    /// of available memory and can be set via the `LMDB_MAP_SIZE` environment
+    /// variable.
+    ///
+    /// The path of the user can be set with `LMDB_USER`.
+    pub fn open() -> Result<Self, MdbError> {
+        let s = System::new_all();
+        let default_map_size: u64 =
+            (s.available_memory() as f32 * MAP_SIZE_MEMORY_RATIO).floor() as u64;
+        let env_map_size: u64 = match std::env::var("LMDB_MAP_SIZE") {
+            Err(_) => default_map_size,
+            Ok(size) => size.parse::<u64>().unwrap_or(default_map_size),
+        };
+        info!("setting lmdb map size to: {}", env_map_size);
+        let user: String = match std::env::var("LMDB_USER") {
+            Err(_) => std::env::var("USER").unwrap_or(String::from("user")),
+            Ok(user) => user,
+        };
+        info!("$LMDB_USER={}", user);
+        info!("excecuting lmdb open");
+        let file_path: String = format!("/home/{}/.{}/", user, "neveko");
+        let env_str = utils::get_release_env().value();
+        let env: Environment = EnvBuilder::new()
+            .map_size(env_map_size)
+            .open(format!("{}/{}", file_path, env_str), 0o777)
+            .unwrap_or_else(|_| panic!("could not open LMDB at {}", file_path));
+        let default: Result<DbHandle, MdbError> = env.get_default_db(DbFlags::empty());
+        if default.is_err() {
+            panic!("could not set db handle")
+        }
+        let handle: DbHandle = default?;
+        Ok(DatabaseEnvironment { env, handle })
+    }
+    /// Write a key/value pair to the database. It is not possible to
+    ///
+    /// write with empty keys.
+    fn write(e: &Environment, h: &DbHandle, k: &Vec<u8>, v: &Vec<u8>) -> Result<(), MdbError> {
         info!("excecuting lmdb write");
-        // don't try and write empty keys
         if k.is_empty() {
             error!("can't write empty key");
-            return;
+            return Err(MdbError::NotFound);
         }
-        let txn = e.new_transaction().unwrap();
+        let new_txn = e.new_transaction()?;
+        let txn = new_txn;
         {
-            // get a database bound to this transaction
-            let db = txn.bind(&h);
-            let pair = vec![(k, v)];
+            let db: Database = txn.bind(h);
+            let pair: Vec<(&Vec<u8>, &Vec<u8>)> = vec![(k, v)];
             for &(key, value) in pair.iter() {
-                db.set(&key, &value).unwrap();
+                db.set(key, value)
+                    .unwrap_or_else(|_| error!("failed to set key: {:?}", k));
             }
         }
-        match txn.commit() {
-            Err(_) => error!("failed to commit!"),
-            Ok(_) => (),
-        }
+        txn.commit()
     }
-    pub async fn async_write(e: &Environment, h: &DbHandle, k: &str, v: &str) {
-        info!("excecuting lmdb async write");
-        tokio::time::sleep(std::time::Duration::from_micros(1)).await;
-        self::Interface::write(e, h, k, v)
-    }
-    /// Read a value from LMDB by passing the key as a static
+    /// Read key from the database. If it doesn't exist then
     ///
-    /// string. If the value does not exist an empty string is
+    /// an empty vector will be returned. Treat all empty vectors
     ///
-    /// returned. NEVEKO does not currently support duplicate keys.
-    pub fn read(e: &Environment, h: &DbHandle, k: &str) -> String {
+    /// from database operations as failures.
+    pub fn read(e: &Environment, h: &DbHandle, k: &Vec<u8>) -> Result<Vec<u8>, MdbError> {
         info!("excecuting lmdb read");
         // don't try and read empty keys
         if k.is_empty() {
             error!("can't read empty key");
-            return utils::empty_string();
+            return Err(MdbError::NotFound);
         }
-        let reader = e.get_reader().unwrap();
-        let db = reader.bind(&h);
-        let value = db.get::<&str>(&k).unwrap_or_else(|_| "");
-        let r = String::from(value);
+        let get_reader = e.get_reader();
+        let reader: ReadonlyTransaction = get_reader?;
+        let db: Database = reader.bind(h);
+        let mut result: Vec<u8> = Vec::new();
+        for num_writes in 0..usize::MAX {
+            let mut new_key: Vec<u8> = k.to_vec();
+            let mut key_count: Vec<u8> = (num_writes).to_be_bytes().to_vec();
+            new_key.append(&mut key_count);
+            let mut r = db.get::<Vec<u8>>(&new_key).unwrap_or_default();
+            if r.is_empty() {
+                break;
+            }
+            result.append(&mut r);
+        }
         {
-            if r == utils::empty_string() {
-                debug!("Failed to read from db.")
+            if result.is_empty() {
+                error!("failed to read key {:?} from db", k);
             }
         }
-        r
+        Ok(result)
     }
-    pub async fn async_read(e: &Environment, h: &DbHandle, k: &str) -> String {
-        info!("excecuting lmdb async read");
-        tokio::time::sleep(std::time::Duration::from_micros(1)).await;
-        self::Interface::read(e, h, k)
-    }
-    /// Delete a value from LMDB by passing the key as a
-    ///
-    /// static string. If the value does not exist then an
-    ///
-    /// error will be logged.
-    pub fn delete(e: &Environment, h: &DbHandle, k: &str) {
+    /// Deletes a key/value pair from the database
+    pub fn delete(e: &Environment, h: &DbHandle, k: &[u8]) -> Result<(), MdbError> {
         info!("excecuting lmdb delete");
-        // don't try and delete empty keys
         if k.is_empty() {
             error!("can't delete empty key");
-            return;
+            return Err(MdbError::NotFound);
         }
-        let txn = e.new_transaction().unwrap();
+        let new_txn = e.new_transaction();
+        let txn = new_txn?;
+        let get_reader = e.get_reader();
+        let reader: ReadonlyTransaction = get_reader?;
+        let db_reader: Database = reader.bind(h);
         {
-            // get a database bound to this transaction
-            let db = txn.bind(&h);
-            db.del(&k).unwrap_or_else(|_| error!("failed to delete"));
+            let db = txn.bind(h);
+
+            for num_writes in 0..usize::MAX {
+                let mut new_key: Vec<u8> = k.to_vec();
+                let mut key_count: Vec<u8> = num_writes.to_be_bytes().to_vec();
+                new_key.append(&mut key_count);
+                let r = db_reader.get::<Vec<u8>>(&new_key).unwrap_or_default();
+                if r.is_empty() {
+                    break;
+                }
+                db.del(&new_key)
+                    .unwrap_or_else(|_| error!("failed to delete"));
+            }
         }
-        match txn.commit() {
-            Err(_) => error!("failed to commit!"),
-            Ok(_) => (),
-        }
+        txn.commit()
     }
-    pub async fn async_delete(e: &Environment, h: &DbHandle, k: &str) {
-        info!("excecuting lmdb async delete");
-        tokio::time::sleep(std::time::Duration::from_micros(1)).await;
-        self::Interface::delete(e, h, k)
+}
+
+/// Write chunks to the database. This function uses one percent
+///
+/// of the map size . Setting the map_size to a low value
+///
+/// will cause degraded performance.
+pub fn write_chunks(e: &Environment, h: &DbHandle, k: &[u8], v: &[u8]) -> Result<(), MdbError> {
+    let s = System::new_all();
+    let chunk_size = (s.available_memory() as f32 * CHUNK_SIZE_MEMORY_RATIO) as usize;
+    let mut writes: usize = 1;
+    let mut index: usize = 0;
+    let length = v.len();
+    loop {
+        let mut old_key: Vec<u8> = k.to_vec();
+        let mut append: Vec<u8> = (writes - 1).to_be_bytes().to_vec();
+        old_key.append(&mut append);
+        if length > chunk_size && (length - index > chunk_size) {
+            // write chunks until the last value which is smaller than chunk_size
+            let _ = DatabaseEnvironment::write(
+                e,
+                h,
+                &old_key,
+                &v[index..(chunk_size * writes)].to_vec(),
+            );
+            index += chunk_size;
+            writes += 1;
+        } else {
+            DatabaseEnvironment::write(e, h, &old_key, &v[index..length].to_vec())?;
+            return Ok(());
+        }
     }
 }
 
 // Tests
 //-------------------------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
-    #[test]
-    fn async_write_and_read_test() {
-        // run and async cleanup so the test doesn't fail when deleting test data
-        use tokio::runtime::Runtime;
-        let rt = Runtime::new().expect("Unable to create Runtime for test");
-        let _enter = rt.enter();
-        tokio::spawn(async move {
-            let s = Interface::async_open().await;
-            let k = "async-test-key";
-            let v = "async-test-value";
-            Interface::async_write(&s.env, &s.handle, k, v).await;
-            let expected = String::from(v);
-            let actual = Interface::async_read(&s.env, &s.handle, k).await;
-            assert_eq!(expected, actual);
-            Interface::async_delete(&s.env, &s.handle, &k).await;
-        });
-    }
+    use rand::RngCore;
 
     #[test]
-    fn async_write_and_delete_test() {
-        // run and async cleanup so the test doesn't fail when deleting test data
-        use tokio::runtime::Runtime;
-        let rt = Runtime::new().expect("Unable to create Runtime for test");
-        let _enter = rt.enter();
-        tokio::spawn(async move {
-            let s = Interface::open();
-            let k = "write_and_delete_test_test-key";
-            let v = "write_and_delete_test_test-value";
-            Interface::async_write(&s.env, &s.handle, k, v).await;
-            let expected = utils::empty_string();
-            Interface::async_delete(&s.env, &s.handle, &k).await;
-            let actual = Interface::async_read(&s.env, &s.handle, k).await;
-            assert_eq!(expected, actual);
-        });
+    fn environment_test() -> Result<(), MdbError> {
+        let db = &DATABASE_LOCK;
+        const DATA_SIZE_10MB: usize = 10000000;
+        let mut data = vec![0u8; DATA_SIZE_10MB];
+        rand::thread_rng().fill_bytes(&mut data);
+        let k = "test-key".as_bytes();
+        let expected = &data.to_vec();
+        write_chunks(&db.env, &db.handle, &Vec::from(k), &Vec::from(data))?;
+        let actual = DatabaseEnvironment::read(&db.env, &db.handle, &Vec::from(k));
+        assert_eq!(expected.to_vec(), actual?);
+        let _ = DatabaseEnvironment::delete(&db.env, &db.handle, &Vec::from(k))?;
+        Ok(())
     }
 }

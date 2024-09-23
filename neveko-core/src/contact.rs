@@ -1,13 +1,18 @@
 //! contact operations module
 
 use crate::{
-    db,
+    db::{
+        self,
+        DATABASE_LOCK,
+    },
+    error::NevekoError,
     i2p,
     models::*,
     monero,
     reqres,
     utils,
 };
+use kn0sys_lmdb_rs::MdbError;
 use log::{
     debug,
     error,
@@ -21,22 +26,8 @@ pub const NEVEKO_VENDOR_ENABLED: &str = "NEVEKO_VENDOR_ENABLED";
 pub const NEVEKO_VENDOR_MODE_OFF: &str = "0";
 pub const NEVEKO_VENDOR_MODE_ON: &str = "1";
 
-pub enum Prune {
-    Full,
-    Pruned,
-}
-
-impl Prune {
-    pub fn value(&self) -> u32 {
-        match *self {
-            Prune::Full => 0,
-            Prune::Pruned => 1,
-        }
-    }
-}
-
 /// Create a new contact
-pub async fn create(c: &Json<Contact>) -> Contact {
+pub async fn create(c: &Json<Contact>) -> Result<Contact, MdbError> {
     let f_cid: String = format!("{}{}", crate::CONTACT_DB_KEY, utils::generate_rnd());
     info!("creating contact: {}", f_cid);
     let new_contact = Contact {
@@ -48,80 +39,90 @@ pub async fn create(c: &Json<Contact>) -> Contact {
     };
     let is_valid = validate_contact(c).await;
     if !is_valid {
-        return Default::default();
+        log::error!("invalid contact");
+        return Ok(Default::default());
     }
     debug!("insert contact: {:?}", &new_contact);
-    let s = db::Interface::open();
+    let db = &DATABASE_LOCK;
     let k = &new_contact.cid;
-    db::Interface::write(&s.env, &s.handle, k, &Contact::to_db(&new_contact));
+    let v = bincode::serialize(&new_contact).unwrap_or_default();
+    db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v)?;
     // in order to retrieve all contact, write keys to with cl
     let list_key = crate::CONTACT_LIST_DB_KEY;
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
-    if r == utils::empty_string() {
+    let str_lk = String::from(list_key);
+    let lk_bytes = str_lk.as_bytes();
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &lk_bytes.to_vec())?;
+    if r.is_empty() {
         debug!("creating contact index");
     }
-    let contact_list = [r, String::from(&f_cid)].join(",");
+    let old: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    let contact_list = [old, String::from(&f_cid)].join(",");
+    let s_contactlist = bincode::serialize(&contact_list).unwrap_or_default();
     debug!(
         "writing contact index {} for key {}",
         contact_list, list_key
     );
-    db::Interface::write(&s.env, &s.handle, &String::from(list_key), &contact_list);
-    new_contact
+
+    db::write_chunks(&db.env, &db.handle, list_key.as_bytes(), &s_contactlist)?;
+    Ok(new_contact)
 }
 
 /// Contact lookup
-pub fn find(cid: &String) -> Contact {
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(cid));
-    if r == utils::empty_string() {
+pub fn find(cid: &String) -> Result<Contact, MdbError> {
+    let db = &DATABASE_LOCK;
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &cid.as_bytes().to_vec())?;
+    if r.is_empty() {
         error!("contact not found");
-        return Default::default();
+        return Err(MdbError::NotFound);
     }
-    Contact::from_db(String::from(cid), r)
+    let result: Contact = bincode::deserialize(&r[..]).unwrap_or_default();
+    Ok(result)
 }
 
 /// Contact lookup
-pub fn find_by_i2p_address(i2p_address: &String) -> Contact {
-    let contacts = find_all();
+pub fn find_by_i2p_address(i2p_address: &String) -> Result<Contact, NevekoError> {
+    let contacts = find_all().map_err(|_| NevekoError::Database(MdbError::NotFound))?;
     for c in contacts {
-        if c.i2p_address == String::from(i2p_address) {
-            return c;
+        if c.i2p_address == *i2p_address {
+            return Ok(c);
         }
     }
-    Default::default()
+    Err(NevekoError::Database(MdbError::NotFound))
 }
 
 /// Contact deletion
-pub fn delete(cid: &String) {
-    let s = db::Interface::open();
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(cid));
-    if r == utils::empty_string() {
+pub fn delete(cid: &String) -> Result<(), MdbError> {
+    let db = &DATABASE_LOCK;
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &cid.as_bytes().to_vec())?;
+    if r.is_empty() {
         error!("contact not found");
-        return;
+        return Err(MdbError::NotFound);
     }
-    db::Interface::delete(&s.env, &s.handle, &cid);
+    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, cid.as_bytes())?;
+    Ok(())
 }
 
 /// All contact lookup
-pub fn find_all() -> Vec<Contact> {
+pub fn find_all() -> Result<Vec<Contact>, MdbError> {
     info!("looking up all contacts");
-    let s = db::Interface::open();
+    let db = &DATABASE_LOCK;
     let list_key = crate::CONTACT_LIST_DB_KEY;
-    let r = db::Interface::read(&s.env, &s.handle, &String::from(list_key));
-    if r == utils::empty_string() {
+    let r = db::DatabaseEnvironment::read(&db.env, &db.handle, &list_key.as_bytes().to_vec())?;
+    if r.is_empty() {
         error!("contact index not found");
-        return Default::default();
+        return Err(MdbError::NotFound);
     }
-    let v_cid = r.split(",");
-    let v: Vec<String> = v_cid.map(|s| String::from(s)).collect();
+    let str_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    let v_cid = str_r.split(",");
+    let v: Vec<String> = v_cid.map(String::from).collect();
     let mut contacts: Vec<Contact> = Vec::new();
     for id in v {
-        if id != utils::empty_string() {
-            let contact: Contact = find(&id);
+        if !id.is_empty() {
+            let contact: Contact = find(&id)?;
             contacts.push(contact);
         }
     }
-    contacts
+    Ok(contacts)
 }
 
 async fn validate_contact(j: &Json<Contact>) -> bool {
@@ -140,35 +141,41 @@ async fn validate_contact(j: &Json<Contact>) -> bool {
 }
 
 /// Send our information
-pub async fn share() -> Contact {
-    let s = db::Interface::async_open().await;
-    let r = db::Interface::async_read(&s.env, &s.handle, NEVEKO_VENDOR_ENABLED).await;
-    let is_vendor = r == NEVEKO_VENDOR_MODE_ON;
+pub async fn share() -> Result<Contact, NevekoError> {
+    let db = &DATABASE_LOCK;
+    let r = db::DatabaseEnvironment::read(
+        &db.env,
+        &db.handle,
+        &NEVEKO_VENDOR_ENABLED.as_bytes().to_vec(),
+    )
+    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
+    let str_r: String = bincode::deserialize(&r[..]).unwrap_or_default();
+    let is_vendor = str_r == NEVEKO_VENDOR_MODE_ON;
     let wallet_name = String::from(crate::APP_NAME);
     let wallet_password =
         std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::from("password"));
     monero::open_wallet(&wallet_name, &wallet_password).await;
     let m_address: reqres::XmrRpcAddressResponse = monero::get_address().await;
     monero::close_wallet(&wallet_name, &wallet_password).await;
-    let nmpk = utils::get_nmpk();
-    let i2p_address = i2p::get_destination(None);
+    let nmpk = utils::get_nmpk()?;
+    let i2p_address = i2p::get_destination(i2p::ServerTunnelType::App)?;
     let xmr_address = m_address.result.address;
-    Contact {
-        cid: utils::empty_string(),
+    Ok(Contact {
+        cid: String::new(),
         nmpk,
         i2p_address,
         is_vendor,
         xmr_address,
-    }
+    })
 }
 
-pub fn exists(from: &String) -> bool {
-    let all = find_all();
+pub fn exists(from: &String) -> Result<bool, MdbError> {
+    let all = find_all()?;
     let mut addresses: Vec<String> = Vec::new();
     for c in all {
         addresses.push(c.i2p_address);
     }
-    return addresses.contains(from);
+    Ok(addresses.contains(from))
 }
 
 /// Get invoice for jwp creation
@@ -228,10 +235,10 @@ pub async fn add_contact_request(contact: String) -> Result<Contact, Box<dyn Err
 mod tests {
     use super::*;
 
-    async fn cleanup(k: &String) {
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        let s = db::Interface::async_open().await;
-        db::Interface::async_delete(&s.env, &s.handle, k).await;
+    fn cleanup(k: &String) -> Result<(), MdbError> {
+        let db = &DATABASE_LOCK;
+        let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())?;
+        Ok(())
     }
 
     #[test]
@@ -252,7 +259,10 @@ mod tests {
         tokio::spawn(async move {
             let test_contact = create(&j_contact).await;
             let expected: Contact = Default::default();
-            assert_eq!(test_contact.xmr_address, expected.xmr_address);
+            assert_eq!(
+                test_contact.unwrap_or_default().xmr_address,
+                expected.xmr_address
+            );
         });
         Runtime::shutdown_background(rt);
     }
@@ -272,12 +282,12 @@ mod tests {
             ..Default::default()
         };
         tokio::spawn(async move {
-            let s = db::Interface::async_open().await;
-            db::Interface::async_write(&s.env, &s.handle, k, &Contact::to_db(&expected_contact))
-                .await;
-            let actual_contact: Contact = find(&String::from(k));
+            let db = &DATABASE_LOCK;
+            let v = bincode::serialize(&expected_contact).unwrap_or_default();
+            let _ = db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v);
+            let actual_contact: Contact = find(&String::from(k)).unwrap_or_default();
             assert_eq!(expected_contact.xmr_address, actual_contact.xmr_address);
-            cleanup(&String::from(k)).await;
+            let _ = cleanup(&String::from(k));
         });
         Runtime::shutdown_background(rt);
     }

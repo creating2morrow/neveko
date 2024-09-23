@@ -18,16 +18,13 @@ use std::{
 };
 
 pub struct HomeApp {
+    b32_destination: String,
     /// blocks fetched during last wallet refresh
     blocks_fetched: u64,
     wallet_height: u64,
     connections: utils::Connections,
     core_timeout_tx: Sender<bool>,
     core_timeout_rx: Receiver<bool>,
-    has_install_failed: bool,
-    installations: utils::Installations,
-    installation_tx: Sender<bool>,
-    installation_rx: Receiver<bool>,
     is_core_running: bool,
     is_editing_connections: bool,
     is_init: bool,
@@ -69,10 +66,10 @@ pub struct HomeApp {
 
 impl Default for HomeApp {
     fn default() -> Self {
+        let b32_destination = i2p::get_destination(i2p::ServerTunnelType::App)
+            .unwrap_or(String::from("error: b32 address not found."));
         let blocks_fetched = 0;
         let connections = Default::default();
-        let has_install_failed = false;
-        let installations = Default::default();
         let is_core_running = false;
         let is_editing_connections = false;
         let is_init = true;
@@ -91,7 +88,6 @@ impl Default for HomeApp {
         let (wallet_height_tx, wallet_height_rx) = std::sync::mpsc::channel();
         let (can_refresh_tx, can_refresh_rx) = std::sync::mpsc::channel();
         let (i2p_status_tx, i2p_status_rx) = std::sync::mpsc::channel();
-        let (installation_tx, installation_rx) = std::sync::mpsc::channel();
         let contents = std::fs::read("./assets/qr.png").unwrap_or(Vec::new());
         let s_xmr_rpc_ver = Default::default();
         let s_xmr_address = Default::default();
@@ -107,14 +103,11 @@ impl Default for HomeApp {
             egui_extras::RetainedImage::from_image_bytes("./assets/i2p.png", &c_i2p_logo).unwrap();
         let wallet_height = 0;
         Self {
+            b32_destination,
             blocks_fetched,
             connections,
             core_timeout_rx,
             core_timeout_tx,
-            has_install_failed,
-            installations,
-            installation_rx,
-            installation_tx,
             is_core_running,
             is_editing_connections,
             is_init,
@@ -183,13 +176,6 @@ impl eframe::App for HomeApp {
         if let Ok(info) = self.xmrd_get_info_rx.try_recv() {
             self.s_xmrd_get_info = info;
         }
-        if let Ok(install) = self.installation_rx.try_recv() {
-            self.is_installing = !install;
-            if !install && self.is_loading {
-                self.has_install_failed = true
-            }
-            self.is_loading = false;
-        }
         if let Ok(timeout) = self.core_timeout_rx.try_recv() {
             self.is_timeout = true;
             if timeout {
@@ -207,8 +193,9 @@ impl eframe::App for HomeApp {
             .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
-                let mut i2p_address = i2p::get_destination(None);
-                if !self.is_qr_set && i2p_address != utils::empty_string() {
+                let mut i2p_address =
+                    i2p::get_destination(i2p::ServerTunnelType::App).unwrap_or_default();
+                if !self.is_qr_set && !i2p_address.is_empty() {
                     let code = QrCode::new(&i2p_address).unwrap();
                     let image = code.render::<Luma<u8>>().build();
                     let file_path = format!(
@@ -229,22 +216,6 @@ impl eframe::App for HomeApp {
                 ui.label("\n");
                 if ui.button("Exit").clicked() {
                     self.is_showing_qr = false;
-                }
-            });
-
-        // Installation Error window
-        //-----------------------------------------------------------------------------------
-        let mut has_install_failed = self.has_install_failed;
-        egui::Window::new("error")
-            .open(&mut has_install_failed)
-            .title_bar(false)
-            .vscroll(false)
-            .show(&ctx, |ui| {
-                ui.heading("Installation Failure");
-                if ui.button("Exit").clicked() {
-                    self.has_install_failed = false;
-                    self.is_installing = false;
-                    self.is_loading = false;
                 }
             });
 
@@ -287,13 +258,6 @@ impl eframe::App for HomeApp {
                     ui.text_edit_singleline(&mut self.connections.monero_location)
                         .labelled_by(cm_xmr_dir_label.id);
                 });
-                if !self.connections.is_i2p_advanced {
-                    ui.horizontal(|ui| {
-                        let cm_i2p_dir_label = ui.label("i2p-zero path: \t");
-                        ui.text_edit_singleline(&mut self.connections.i2p_zero_dir)
-                            .labelled_by(cm_i2p_dir_label.id);
-                    });
-                }
                 if self.connections.is_i2p_advanced {
                     ui.horizontal(|ui| {
                         let cm_i2p_proxy_label = ui.label("i2p proxy host: \t");
@@ -304,11 +268,6 @@ impl eframe::App for HomeApp {
                         let cm_i2p_socks_label = ui.label("i2p socks host: \t");
                         ui.text_edit_singleline(&mut self.connections.i2p_socks_host)
                             .labelled_by(cm_i2p_socks_label.id);
-                    });
-                    ui.horizontal(|ui| {
-                        let cm_i2p_tunnels_label = ui.label("tunnels.json dir:  ");
-                        ui.text_edit_singleline(&mut self.connections.i2p_tunnels_json)
-                            .labelled_by(cm_i2p_tunnels_label.id);
                     });
                 }
                 let mut is_remote_node = self.connections.is_remote_node;
@@ -339,42 +298,6 @@ impl eframe::App for HomeApp {
                 }
                 if ui.button("Exit").clicked() {
                     self.is_editing_connections = false;
-                    self.is_loading = false;
-                }
-            });
-
-        // Installation Manager window
-        //-----------------------------------------------------------------------------------
-        let mut is_installing = self.is_installing;
-        egui::Window::new("installation")
-            .open(&mut is_installing)
-            .title_bar(false)
-            .vscroll(true)
-            .show(&ctx, |ui| {
-                ui.heading("Installation Manager");
-                let mut wants_i2p_zero = self.installations.i2p_zero;
-                let mut wants_xmr = self.installations.xmr;
-                if ui.checkbox(&mut wants_i2p_zero, "i2p-zero").changed() {
-                    self.installations.i2p_zero = !self.installations.i2p_zero;
-                }
-                if ui.checkbox(&mut wants_xmr, "xmr").changed() {
-                    self.installations.xmr = !self.installations.xmr;
-                }
-                let install = &self.installations;
-                if install.i2p_zero || install.xmr {
-                    if !self.is_loading {
-                        if ui.button("Install").clicked() {
-                            self.is_loading = true;
-                            install_software_req(
-                                self.installation_tx.clone(),
-                                ctx.clone(),
-                                &self.installations,
-                            );
-                        }
-                    }
-                }
-                if ui.button("Exit").clicked() {
-                    self.is_installing = false;
                     self.is_loading = false;
                 }
             });
@@ -420,9 +343,8 @@ impl eframe::App for HomeApp {
             ui.horizontal(|ui| {
                 self.logo_i2p.show(ui);
                 ui.horizontal(|ui| {
-                    let i2p_address = i2p::get_destination(None);
                     ui.label(
-                        RichText::new(format!("- status: {}\n- address: {}", str_i2p_status, i2p_address))
+                        RichText::new(format!("- status: {}\n- address: {}", str_i2p_status, self.b32_destination))
                             .size(16.0)
                             .color(color),
                     ).on_hover_text(hover_txt);
@@ -467,14 +389,6 @@ impl eframe::App for HomeApp {
                     }
                 }
             }
-            if !self.is_core_running && !self.is_installing && !self.connections.is_remote_node && !self.connections.is_i2p_advanced
-            && (self.s_xmr_rpc_ver.result.version == 0 || self.s_i2p_status == i2p::ProxyStatus::Opening) {
-                if !self.is_loading {
-                    if ui.button("Install Software").clicked() {
-                        self.is_installing = true;
-                    }
-                }
-            }
         });
     }
 }
@@ -483,8 +397,7 @@ impl eframe::App for HomeApp {
 //-------------------------------------------------------------------------------------------------
 fn send_xmrd_get_info_req(tx: Sender<reqres::XmrDaemonGetInfoResponse>, ctx: egui::Context) {
     tokio::spawn(async move {
-        let remote_var =
-            std::env::var(neveko_core::GUI_REMOTE_NODE).unwrap_or(utils::empty_string());
+        let remote_var = std::env::var(neveko_core::GUI_REMOTE_NODE).unwrap_or(String::new());
         if remote_var == String::from(neveko_core::GUI_SET_REMOTE_NODE) {
             let p_info = monero::p_get_info().await;
             let info = p_info.unwrap_or(Default::default());
@@ -533,7 +446,7 @@ fn send_wallet_req(
 fn send_i2p_status_req(tx: Sender<i2p::ProxyStatus>, ctx: egui::Context) {
     tokio::spawn(async move {
         let status = i2p::check_connection().await;
-        let _ = tx.send(status);
+        let _ = tx.send(status.unwrap_or(i2p::ProxyStatus::Opening));
         ctx.request_repaint();
     });
 }
@@ -558,22 +471,6 @@ fn start_core_timeout(tx: Sender<bool>, ctx: egui::Context) {
         .await;
         log::error!("start neveko-core timeout");
         let _ = tx.send(true);
-        ctx.request_repaint();
-    });
-}
-
-fn install_software_req(
-    tx: Sender<bool>,
-    ctx: egui::Context,
-    installations: &utils::Installations,
-) {
-    let req_install: utils::Installations = utils::Installations {
-        i2p_zero: installations.i2p_zero,
-        xmr: installations.xmr,
-    };
-    tokio::spawn(async move {
-        let did_install = utils::install_software(req_install).await;
-        let _ = tx.send(did_install);
         ctx.request_repaint();
     });
 }

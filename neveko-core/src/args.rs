@@ -10,21 +10,21 @@ pub struct Args {
         short,
         long,
         help = "Set release environment (dev, prod)",
-        default_value = "dev"
+        default_value = "prod"
     )]
     pub release_env: String,
     /// Monero location
     #[arg(
         long,
         help = "Monero download absolute path.",
-        default_value = "monero-x86_64-linux-gnu-v0.18.3.3"
+        default_value = "monero-x86_64-linux-gnu-v0.18.3.4"
     )]
     pub monero_location: String,
     /// Monero RPC host
     #[arg(
         long,
         help = "Monero RPC host.",
-        default_value = "http://localhost:38083"
+        default_value = "http://localhost:18083"
     )]
     pub monero_rpc_host: String,
     /// Monero blockchain location
@@ -34,18 +34,11 @@ pub struct Args {
         default_value = "/home/user/.bitmonero"
     )]
     pub monero_blockchain_dir: String,
-    /// Absolute path to i2p zero
-    #[arg(
-        long,
-        help = "Absolute path to i2p-zero directroy",
-        default_value = "/home/user/i2p-zero-linux.v1.21"
-    )]
-    pub i2p_zero_dir: String,
     /// Monero RPC daemon host
     #[arg(
         long,
         help = "Monero RPC daemon.",
-        default_value = "http://localhost:38081"
+        default_value = "http://localhost:18081"
     )]
     pub monero_rpc_daemon: String,
     /// Monero RPC Username
@@ -97,14 +90,14 @@ pub struct Args {
     #[arg(
         long,
         help = "i2p http proxy host",
-        default_value = "http://localhost:4444"
+        default_value = "http://localhost:4456"
     )]
     pub i2p_proxy_host: String,
     /// i2p wallet proxy host (i2p socks)
     #[arg(
         long,
         help = "i2p remote node socks proxy host",
-        default_value = "http://localhost:9051"
+        default_value = "http://localhost:9056"
     )]
     pub i2p_socks_proxy_host: String,
     /// Connect wallet rpc for a remote-node, WARNING: may harm privacy
@@ -149,7 +142,7 @@ pub struct Args {
         default_value = "/home/user/neveko/i2p-manual"
     )]
     pub i2p_tunnels_json: String,
-    /// Dummy flag for normal neveko i2p-zero config. Future use.
+    /// Dummy flag for normal neveko i2p config. Future use.
     #[arg(
         long,
         help = "Normal mode. Neveko will handle i2p proxy tunnels and identity.",
@@ -160,7 +153,7 @@ pub struct Args {
     #[arg(
         long,
         help = "Set i2p anon inbound connectivity",
-        default_value = "38089"
+        default_value = "18089"
     )]
     pub anon_inbound_port: u16,
 }

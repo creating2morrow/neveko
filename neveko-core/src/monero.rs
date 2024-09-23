@@ -2,6 +2,7 @@
 
 use crate::{
     args,
+    error::NevekoError,
     i2p,
     proof,
     reqres,
@@ -17,11 +18,7 @@ use log::{
 };
 use std::{
     error::Error,
-    io::Write,
-    process::{
-        Command,
-        Stdio,
-    },
+    process::Command,
 };
 
 use lazy_static::lazy_static;
@@ -176,7 +173,7 @@ impl LockTimeLimit {
 /// Start monerod from the `--monero-location` flag
 ///
 /// default: /home/$USER/monero-xxx-xxx
-pub fn start_daemon() {
+pub fn start_daemon() -> Result<(), NevekoError> {
     info!("starting monerod");
     let blockchain_dir = get_blockchain_dir();
     let bin_dir = get_monero_location();
@@ -184,13 +181,13 @@ pub fn start_daemon() {
     let mut socks_proxy_host = utils::get_i2p_wallet_proxy_host();
     if socks_proxy_host.contains("http://") {
         let values = socks_proxy_host.split("http://");
-        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        let mut v: Vec<String> = values.map(String::from).collect();
         socks_proxy_host = v.remove(1);
     };
     let tx_proxy = format!("i2p,{}", socks_proxy_host);
     // proxy host can't have protocol
     let anon_in_port = get_anon_inbound_port();
-    let destination = i2p::get_destination(Some(anon_in_port));
+    let destination = i2p::get_destination(i2p::ServerTunnelType::App)?;
     let anon_inbound = format!("{},127.0.0.1:{}", destination, anon_in_port);
     let mut args = vec!["--data-dir", &blockchain_dir, "--detach"];
     if release_env == utils::ReleaseEnvironment::Development {
@@ -200,6 +197,7 @@ pub fn start_daemon() {
             .spawn()
             .expect("monerod failed to start");
         debug!("{:?}", output.stdout);
+        Ok(())
     } else {
         args.push("--tx-proxy");
         args.push(&tx_proxy);
@@ -210,16 +208,17 @@ pub fn start_daemon() {
             .spawn()
             .expect("monerod failed to start");
         debug!("{:?}", output.stdout);
+        Ok(())
     }
 }
 
 /// Start monero-wallet-rpc
 pub fn start_rpc() {
-    info!("starting monero-wallet-rpc");
     let cli_args = args::Args::parse();
     let bin_dir = get_monero_location();
     let port = get_rpc_port();
     let login = get_rpc_creds();
+    info!("starting monero-wallet-rpc from {}", &bin_dir);
     let daemon_address = cli_args.monero_rpc_daemon;
     let rpc_login = format!("{}:{}", &login.username, &login.credential);
     let release_env = utils::get_release_env();
@@ -241,7 +240,7 @@ pub fn start_rpc() {
     let mut proxy_host = utils::get_i2p_wallet_proxy_host();
     if proxy_host.contains("http://") {
         let values = proxy_host.split("http://");
-        let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+        let mut v: Vec<String> = values.map(String::from).collect();
         proxy_host = v.remove(1);
     }
     let mut args = vec![
@@ -281,9 +280,9 @@ pub fn start_rpc() {
 
 fn get_rpc_port() -> String {
     let args = args::Args::parse();
-    let rpc = String::from(args.monero_rpc_host);
+    let rpc = args.monero_rpc_host;
     let values = rpc.split(":");
-    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    let mut v: Vec<String> = values.map(String::from).collect();
     let port = v.remove(2);
     debug!("monero-wallet-rpc port: {}", port);
     port
@@ -291,28 +290,22 @@ fn get_rpc_port() -> String {
 
 pub fn get_daemon_port() -> u16 {
     let args = args::Args::parse();
-    let rpc = String::from(args.monero_rpc_daemon);
+    let rpc = args.monero_rpc_daemon;
     let values = rpc.split(":");
-    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    let mut v: Vec<String> = values.map(String::from).collect();
     let port = v.remove(2);
     debug!("monerod port: {}", port);
-    match port.parse::<u16>() {
-        Ok(p) => p,
-        Err(_) => 0,
-    }
+    port.parse::<u16>().unwrap_or(0)
 }
 
 pub fn get_tx_proxy_port() -> u16 {
     let args = args::Args::parse();
-    let rpc = String::from(args.i2p_socks_proxy_host);
+    let rpc = args.i2p_socks_proxy_host;
     let values = rpc.split(":");
-    let mut v: Vec<String> = values.map(|s| String::from(s)).collect();
+    let mut v: Vec<String> = values.map(String::from).collect();
     let port = v.remove(2);
     debug!("i2p socks port: {}", port);
-    match port.parse::<u16>() {
-        Ok(p) => p,
-        Err(_) => 0,
-    }
+    port.parse::<u16>().unwrap_or(0)
 }
 
 pub fn get_anon_inbound_port() -> u16 {
@@ -323,22 +316,21 @@ pub fn get_anon_inbound_port() -> u16 {
 /// Get monero rpc host from command line argument
 fn get_blockchain_dir() -> String {
     let args = args::Args::parse();
-    String::from(args.monero_blockchain_dir)
+    args.monero_blockchain_dir
 }
 
 /// Get monero download location
 fn get_monero_location() -> String {
     let args = args::Args::parse();
-    let user = std::env::var("USER").unwrap_or(utils::empty_string());
-    format!("/home/{}/{}", &user, &args.monero_location)
+    args.monero_location.to_string()
 }
 
 /// Get monero rpc host from the `--monero-rpc-host` cli arg
 fn get_rpc_host() -> String {
     let args = args::Args::parse();
-    let gui_host = std::env::var(crate::MONERO_WALLET_RPC_HOST).unwrap_or(utils::empty_string());
-    let rpc = if gui_host == utils::empty_string() {
-        String::from(args.monero_rpc_host)
+    let gui_host = std::env::var(crate::MONERO_WALLET_RPC_HOST).unwrap_or(String::new());
+    let rpc = if gui_host.is_empty() {
+        args.monero_rpc_host
     } else {
         gui_host
     };
@@ -348,8 +340,8 @@ fn get_rpc_host() -> String {
 /// Get creds from the `--monero-rpc-daemon` cli arg
 fn get_rpc_creds() -> RpcLogin {
     let args = args::Args::parse();
-    let username = String::from(args.monero_rpc_username);
-    let credential = String::from(args.monero_rpc_cred);
+    let username = args.monero_rpc_username;
+    let credential = args.monero_rpc_cred;
     RpcLogin {
         username,
         credential,
@@ -358,9 +350,9 @@ fn get_rpc_creds() -> RpcLogin {
 
 fn get_rpc_daemon() -> String {
     let args = args::Args::parse();
-    let gui_host = std::env::var(crate::MONERO_DAEMON_HOST).unwrap_or(utils::empty_string());
-    if gui_host == utils::empty_string() {
-        String::from(args.monero_rpc_daemon)
+    let gui_host = std::env::var(crate::MONERO_DAEMON_HOST).unwrap_or(String::new());
+    if gui_host.is_empty() {
+        args.monero_rpc_daemon
     } else {
         gui_host
     }
@@ -396,7 +388,7 @@ pub async fn get_version() -> reqres::XmrRpcVersionResponse {
 }
 
 /// Helper function for checking xmr rpc online during app startup
-pub async fn check_rpc_connection() -> () {
+pub async fn check_rpc_connection() {
     let res: reqres::XmrRpcVersionResponse = get_version().await;
     if res.result.version == INVALID_VERSION {
         error!("failed to connect to monero-wallet-rpc");
@@ -531,10 +523,10 @@ fn update_wallet_lock(filename: &String, closing: bool) -> bool {
     }
     if !closing {
         *IS_WALLET_BUSY.lock().unwrap() = true;
-        return true;
+        true
     } else {
         *IS_WALLET_BUSY.lock().unwrap() = false;
-        return true;
+        true
     }
 }
 
@@ -576,7 +568,7 @@ pub async fn open_wallet(filename: &String, password: &String) -> bool {
                     if r.contains("-1") {
                         return false;
                     }
-                    return true;
+                    true
                 }
                 _ => false,
             }
@@ -615,10 +607,7 @@ pub async fn close_wallet(filename: &String, password: &String) -> bool {
             // The result from wallet operation is empty
             let res = response.text().await;
             debug!("{} response: {:?}", RpcFields::Close.value(), res);
-            match res {
-                Ok(_) => true,
-                _ => false,
-            }
+            res.is_ok()
         }
         Err(_) => false,
     }
@@ -662,7 +651,7 @@ pub async fn change_wallet_password(new_password: &String) -> bool {
                     if r.contains("-1") {
                         return false;
                     }
-                    return true;
+                    true
                 }
                 _ => false,
             }

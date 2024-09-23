@@ -1,6 +1,5 @@
 //! Structs for all http requests
 
-use crate::utils;
 use serde::{
     Deserialize,
     Serialize,
@@ -47,7 +46,7 @@ pub struct XmrRpcOpenWalletParams {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct XmrRpcPrepareParams {
-    pub enable_experimental_multisig: bool
+    pub enable_experimental_multisig: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -113,19 +112,10 @@ pub struct XmrRpcGetTxByIdParams {
     pub txid: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Default, Deserialize, Serialize, Debug, PartialEq)]
 pub struct Destination {
     pub address: String,
     pub amount: u128,
-}
-
-impl Default for Destination {
-    fn default() -> Self {
-        Destination {
-            address: utils::empty_string(),
-            amount: 0,
-        }
-    }
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -158,13 +148,13 @@ pub struct XmrDaemonGetBlockParams {
     pub height: u64,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcChangePasswordParams {
     pub old_password: String,
     pub new_password: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcQueryKeyParams {
     pub key_type: String,
 }
@@ -343,7 +333,7 @@ pub struct XmrRpcCreateAddressRequest {
     pub params: XmrRpcCreateAddressParams,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcChangePasswordRequest {
     pub jsonrpc: String,
     pub id: String,
@@ -351,7 +341,7 @@ pub struct XmrRpcChangePasswordRequest {
     pub params: XmrRpcChangePasswordParams,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcQueryKeyRequest {
     pub jsonrpc: String,
     pub id: String,
@@ -360,7 +350,7 @@ pub struct XmrRpcQueryKeyRequest {
 }
 
 // results
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcValidateAddressResult {
     pub integrated: bool,
     pub nettype: String,
@@ -369,60 +359,60 @@ pub struct XmrRpcValidateAddressResult {
     pub valid: bool,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcSignResult {
     pub signature: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcVerifyResult {
     pub good: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcVersionResult {
     pub version: u32,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcPrepareResult {
     pub multisig_info: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcMakeResult {
     pub address: String,
     pub multisig_info: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcExportResult {
     pub info: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcImportResult {
     pub n_outputs: u8,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcSignMultisigResult {
     pub tx_data_hex: String,
     pub tx_hash_list: Vec<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcSubmitMultisigResult {
     pub tx_hash_list: Vec<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcExchangeMultisigKeysResult {
     pub address: String,
     pub multisig_info: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct SubAddressInfo {
     pub account_index: u64,
     pub address_index: u64,
@@ -435,7 +425,7 @@ pub struct SubAddressInfo {
     pub blocks_to_unlock: u64,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct Address {
     pub address: String,
     pub address_index: u64,
@@ -443,13 +433,13 @@ pub struct Address {
     pub used: bool,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcAddressResult {
     pub address: String,
     pub addresses: Vec<Address>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcBalanceResult {
     pub balance: u128,
     pub unlocked_balance: u128,
@@ -459,7 +449,7 @@ pub struct XmrRpcBalanceResult {
     pub per_subaddress: Vec<SubAddressInfo>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcCheckTxProofResult {
     pub confirmations: u64,
     pub good: bool,
@@ -467,24 +457,18 @@ pub struct XmrRpcCheckTxProofResult {
     pub received: u128,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcGetTxProofResult {
     pub signature: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct SubAddressIndex {
     pub major: u64,
     pub minor: u64,
 }
 
-impl Default for SubAddressIndex {
-    fn default() -> Self {
-        SubAddressIndex { major: 0, minor: 0 }
-    }
-}
-
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct Transfer {
     pub address: String,
     pub amount: u128,
@@ -506,13 +490,13 @@ pub struct Transfer {
     pub unlock_time: u64,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcGetTxByIdResult {
     pub transfer: Transfer,
     pub transfers: Vec<Transfer>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcTranferResult {
     pub amount: u128,
     pub fee: u128,
@@ -524,7 +508,7 @@ pub struct XmrRpcTranferResult {
     pub unsigned_txset: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct TransferDescription {
     pub amount_in: u128,
     pub amount_out: u128,
@@ -538,17 +522,17 @@ pub struct TransferDescription {
     pub extra: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcDescribeTranferResult {
     pub desc: Vec<TransferDescription>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct KeyImageList {
     key_images: Vec<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcSweepAllResult {
     pub amount_list: Vec<u128>,
     pub fee_list: Vec<u128>,
@@ -559,7 +543,7 @@ pub struct XmrRpcSweepAllResult {
     pub weight_list: Vec<u128>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcCreateAddressResult {
     pub address: String,
     pub address_index: u64,
@@ -567,13 +551,13 @@ pub struct XmrRpcCreateAddressResult {
     pub addresses: Vec<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcRefreshResult {
     pub blocks_fetched: u64,
     pub received_money: bool,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcIsMultisigResult {
     pub multisig: bool,
     pub ready: bool,
@@ -581,17 +565,17 @@ pub struct XmrRpcIsMultisigResult {
     pub total: u16,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcGetHeightResult {
     pub height: u64,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcQueryKeyResult {
     pub key: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrDaemonGetInfoResult {
     pub adjusted_time: u64,
     pub alt_blocks_count: u64,
@@ -637,7 +621,7 @@ pub struct XmrDaemonGetInfoResult {
     pub wide_difficulty: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct BlockHeader {
     pub block_size: u32,
     pub block_weight: u32,
@@ -663,36 +647,7 @@ pub struct BlockHeader {
     pub wide_difficulty: String,
 }
 
-impl Default for BlockHeader {
-    fn default() -> Self {
-        BlockHeader {
-            block_size: 0,
-            block_weight: 0,
-            cumulative_difficulty: 0,
-            cumulative_difficulty_top64: 0,
-            depth: 0,
-            difficulty: 0,
-            difficulty_top64: 0,
-            hash: utils::empty_string(),
-            height: 0,
-            long_term_weight: 0,
-            major_version: 0,
-            miner_tx_hash: utils::empty_string(),
-            minor_version: 0,
-            nonce: 0,
-            num_txes: 0,
-            orphan_status: false,
-            pow_hash: utils::empty_string(),
-            prev_hash: utils::empty_string(),
-            reward: 0,
-            timestamp: 0,
-            wide_cumulative_difficulty: utils::empty_string(),
-            wide_difficulty: utils::empty_string(),
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrDaemonGetBlockResult {
     pub blob: String,
     pub block_header: BlockHeader,
@@ -709,7 +664,7 @@ pub struct XmrDaemonGetBlockResult {
 }
 // responses
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrDaemonGetHeightResponse {
     pub hash: String,
     pub height: u64,
@@ -717,123 +672,25 @@ pub struct XmrDaemonGetHeightResponse {
     pub untrusted: bool,
 }
 
-impl Default for XmrDaemonGetHeightResponse {
-    fn default() -> Self {
-        XmrDaemonGetHeightResponse {
-            hash: utils::empty_string(),
-            height: 0,
-            status: utils::empty_string(),
-            untrusted: false,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrDaemonGetInfoResponse {
     pub result: XmrDaemonGetInfoResult,
 }
 
-impl Default for XmrDaemonGetInfoResponse {
-    fn default() -> Self {
-        XmrDaemonGetInfoResponse {
-            result: XmrDaemonGetInfoResult {
-                adjusted_time: 0,
-                alt_blocks_count: 0,
-                block_size_limit: 0,
-                block_size_median: 0,
-                block_weight_median: 0,
-                bootstrap_daemon_address: utils::empty_string(),
-                busy_syncing: false,
-                credits: 0,
-                cumulative_difficulty: 0,
-                cumulative_difficulty_top64: 0,
-                database_size: 0,
-                difficulty: 0,
-                difficulty_top64: 0,
-                free_space: 0,
-                grey_peerlist_size: 0,
-                height: 0,
-                height_without_bootstrap: 0,
-                incoming_connections_count: 0,
-                mainnet: false,
-                nettype: utils::empty_string(),
-                offline: false,
-                outgoing_connections_count: 0,
-                restricted: false,
-                rpc_connections_count: 0,
-                stagenet: false,
-                start_time: 0,
-                status: utils::empty_string(),
-                synchronized: false,
-                target: 0,
-                target_height: 0,
-                testnet: false,
-                top_block_hash: utils::empty_string(),
-                top_hash: utils::empty_string(),
-                tx_count: 0,
-                tx_pool_size: 0,
-                untrusted: false,
-                update_available: false,
-                version: utils::empty_string(),
-                was_bootstrap_ever_used: false,
-                white_peerlist_size: 0,
-                wide_cumulative_difficulty: utils::empty_string(),
-                wide_difficulty: utils::empty_string(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrDaemonGetBlockResponse {
     pub result: XmrDaemonGetBlockResult,
 }
 
-impl Default for XmrDaemonGetBlockResponse {
-    fn default() -> Self {
-        XmrDaemonGetBlockResponse {
-            result: XmrDaemonGetBlockResult {
-                blob: utils::empty_string(),
-                block_header: Default::default(),
-                credits: 0,
-                json: utils::empty_string(),
-                miner_tx_hash: utils::empty_string(),
-                status: utils::empty_string(),
-                top_hash: utils::empty_string(),
-                tx_hashes: Some(Vec::new()),
-                untrusted: false,
-            },
-        }
-    }
-}
-
 /// Only extract the json string. TODO(c2m): map to a struct
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrDaemonGetTransactionsResponse {
     pub txs_as_json: Vec<String>,
 }
 
-impl Default for XmrDaemonGetTransactionsResponse {
-    fn default() -> Self {
-        XmrDaemonGetTransactionsResponse {
-            txs_as_json: Vec::new(),
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcSignResponse {
     pub result: XmrRpcSignResult,
-}
-
-impl Default for XmrRpcSignResponse {
-    fn default() -> Self {
-        XmrRpcSignResponse {
-            result: XmrRpcSignResult {
-                signature: utils::empty_string(),
-            },
-        }
-    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -841,403 +698,127 @@ pub struct XmrRpcVerifyResponse {
     pub result: XmrRpcVerifyResult,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct XmrRpcVersionResponse {
     pub result: XmrRpcVersionResult,
 }
 
-impl Default for XmrRpcVersionResponse {
-    fn default() -> Self {
-        XmrRpcVersionResponse {
-            result: XmrRpcVersionResult { version: 0 },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcPrepareResponse {
     pub result: XmrRpcPrepareResult,
 }
 
-impl Default for XmrRpcPrepareResponse {
-    fn default() -> Self {
-        XmrRpcPrepareResponse {
-            result: XmrRpcPrepareResult {
-                multisig_info: String::from(""),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcBalanceResponse {
     pub result: XmrRpcBalanceResult,
 }
 
-impl Default for XmrRpcBalanceResponse {
-    fn default() -> Self {
-        XmrRpcBalanceResponse {
-            result: XmrRpcBalanceResult {
-                balance: 0,
-                unlocked_balance: 0,
-                multisig_import_needed: false,
-                time_to_unlock: 0,
-                blocks_to_unlock: 0,
-                per_subaddress: Vec::new(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcValidateAddressResponse {
     pub result: XmrRpcValidateAddressResult,
 }
 
-impl Default for XmrRpcValidateAddressResponse {
-    fn default() -> Self {
-        XmrRpcValidateAddressResponse {
-            result: XmrRpcValidateAddressResult {
-                integrated: false,
-                nettype: utils::empty_string(),
-                openalias_address: utils::empty_string(),
-                subaddress: false,
-                valid: false,
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcAddressResponse {
     pub result: XmrRpcAddressResult,
 }
 
-impl Default for XmrRpcAddressResponse {
-    fn default() -> Self {
-        XmrRpcAddressResponse {
-            result: XmrRpcAddressResult {
-                address: utils::empty_string(),
-                addresses: Vec::new(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcMakeResponse {
     pub result: XmrRpcMakeResult,
 }
 
-impl Default for XmrRpcMakeResponse {
-    fn default() -> Self {
-        XmrRpcMakeResponse {
-            result: XmrRpcMakeResult {
-                address: utils::empty_string(),
-                multisig_info: utils::empty_string(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcExportResponse {
     pub result: XmrRpcExportResult,
 }
 
-impl Default for XmrRpcExportResponse {
-    fn default() -> Self {
-        XmrRpcExportResponse {
-            result: XmrRpcExportResult {
-                info: utils::empty_string(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcImportResponse {
     pub result: XmrRpcImportResult,
 }
 
-impl Default for XmrRpcImportResponse {
-    fn default() -> Self {
-        XmrRpcImportResponse {
-            result: XmrRpcImportResult { n_outputs: 0 },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcSignMultisigResponse {
     pub result: XmrRpcSignMultisigResult,
 }
 
-impl Default for XmrRpcSignMultisigResponse {
-    fn default() -> Self {
-        XmrRpcSignMultisigResponse {
-            result: XmrRpcSignMultisigResult {
-                tx_data_hex: utils::empty_string(),
-                tx_hash_list: Vec::new(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcSubmitMultisigResponse {
     pub result: XmrRpcSubmitMultisigResult,
 }
 
-impl Default for XmrRpcSubmitMultisigResponse {
-    fn default() -> Self {
-        XmrRpcSubmitMultisigResponse {
-            result: XmrRpcSubmitMultisigResult {
-                tx_hash_list: Vec::new(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcExchangeMultisigKeysResponse {
     pub result: XmrRpcExchangeMultisigKeysResult,
 }
 
-impl Default for XmrRpcExchangeMultisigKeysResponse {
-    fn default() -> Self {
-        XmrRpcExchangeMultisigKeysResponse {
-            result: XmrRpcExchangeMultisigKeysResult {
-                address: utils::empty_string(),
-                multisig_info: utils::empty_string(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcCheckTxProofResponse {
     pub result: XmrRpcCheckTxProofResult,
 }
 
-impl Default for XmrRpcCheckTxProofResponse {
-    fn default() -> Self {
-        XmrRpcCheckTxProofResponse {
-            result: XmrRpcCheckTxProofResult {
-                confirmations: 0,
-                good: false,
-                in_pool: false,
-                received: 0,
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcGetTxProofResponse {
     pub result: XmrRpcGetTxProofResult,
 }
 
-impl Default for XmrRpcGetTxProofResponse {
-    fn default() -> Self {
-        XmrRpcGetTxProofResponse {
-            result: XmrRpcGetTxProofResult {
-                signature: utils::empty_string(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcGetTxByIdResponse {
     pub result: XmrRpcGetTxByIdResult,
 }
 
-impl Default for XmrRpcGetTxByIdResponse {
-    fn default() -> Self {
-        XmrRpcGetTxByIdResponse {
-            result: XmrRpcGetTxByIdResult {
-                transfer: Transfer {
-                    address: utils::empty_string(),
-                    amount: 0,
-                    amounts: Vec::new(),
-                    confirmations: None,
-                    double_spend_seen: false,
-                    fee: 0,
-                    height: 0,
-                    locked: false,
-                    note: utils::empty_string(),
-                    payment_id: utils::empty_string(),
-                    subaddr_index: Default::default(),
-                    subaddr_indices: Vec::new(),
-                    suggested_confirmations_threshold: 0,
-                    timestamp: 0,
-                    txid: utils::empty_string(),
-                    r#type: utils::empty_string(),
-                    unlock_time: 0,
-                },
-                transfers: Vec::new(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcTransferResponse {
     pub result: XmrRpcTranferResult,
 }
 
-impl Default for XmrRpcTransferResponse {
-    fn default() -> Self {
-        XmrRpcTransferResponse {
-            result: XmrRpcTranferResult {
-                amount: 0,
-                fee: 0,
-                multisig_txset: utils::empty_string(),
-                tx_blob: utils::empty_string(),
-                tx_hash: utils::empty_string(),
-                tx_key: utils::empty_string(),
-                tx_metadata: utils::empty_string(),
-                unsigned_txset: utils::empty_string(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcDescribeTransferResponse {
     pub result: XmrRpcDescribeTranferResult,
 }
 
-impl Default for XmrRpcDescribeTransferResponse {
-    fn default() -> Self {
-        XmrRpcDescribeTransferResponse {
-            result: XmrRpcDescribeTranferResult { desc: Vec::new() },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcSweepAllResponse {
     pub result: XmrRpcSweepAllResult,
 }
 
-impl Default for XmrRpcSweepAllResponse {
-    fn default() -> Self {
-        XmrRpcSweepAllResponse {
-            result: XmrRpcSweepAllResult {
-                amount_list: Vec::new(),
-                fee_list: Vec::new(),
-                multisig_txset: utils::empty_string(),
-                spent_key_images_list: Vec::new(),
-                tx_hash_list: Some(Vec::new()),
-                unsigned_txset: utils::empty_string(),
-                weight_list: Vec::new(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcCreateAddressResponse {
     pub result: XmrRpcCreateAddressResult,
 }
 
-impl Default for XmrRpcCreateAddressResponse {
-    fn default() -> Self {
-        XmrRpcCreateAddressResponse {
-            result: XmrRpcCreateAddressResult {
-                address: utils::empty_string(),
-                address_index: 0,
-                address_indices: Vec::new(),
-                addresses: Vec::new(),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcRefreshResponse {
     pub result: XmrRpcRefreshResult,
 }
 
-impl Default for XmrRpcRefreshResponse {
-    fn default() -> Self {
-        XmrRpcRefreshResponse {
-            result: XmrRpcRefreshResult {
-                blocks_fetched: 0,
-                received_money: false,
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcIsMultisigResponse {
     pub result: XmrRpcIsMultisigResult,
 }
 
-impl Default for XmrRpcIsMultisigResponse {
-    fn default() -> Self {
-        XmrRpcIsMultisigResponse {
-            result: XmrRpcIsMultisigResult {
-                multisig: false,
-                ready: false,
-                threshold: 0,
-                total: 0,
-            },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcGetHeightResponse {
     pub result: XmrRpcGetHeightResult,
 }
 
-impl Default for XmrRpcGetHeightResponse {
-    fn default() -> Self {
-        XmrRpcGetHeightResponse {
-            result: XmrRpcGetHeightResult { height: 0 },
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize)]
 pub struct XmrRpcQueryKeyResponse {
     pub result: XmrRpcQueryKeyResult,
-}
-
-impl Default for XmrRpcQueryKeyResponse {
-    fn default() -> Self {
-        XmrRpcQueryKeyResponse {
-            result: XmrRpcQueryKeyResult {
-                key: utils::empty_string(),
-            },
-        }
-    }
 }
 // END XMR Structs
 
 /// Container for the message decipher
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct DecipheredMessageBody {
     pub mid: String,
     pub body: String,
 }
 
-impl Default for DecipheredMessageBody {
-    fn default() -> Self {
-        DecipheredMessageBody {
-            mid: utils::empty_string(),
-            body: utils::empty_string(),
-        }
-    }
-}
-
 /// Invoice response for host.b32.i2p/invoice
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Invoice {
     pub address: String,
@@ -1245,50 +826,24 @@ pub struct Invoice {
     pub conf_threshold: u64,
 }
 
-impl Default for Invoice {
-    fn default() -> Self {
-        Invoice {
-            address: utils::empty_string(),
-            pay_threshold: 0,
-            conf_threshold: 0,
-        }
-    }
-}
-
 /// Not to be confused with the PaymentProof guard.
 ///
 /// This is the response when proving payment
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Jwp {
     pub jwp: String,
 }
 
-impl Default for Jwp {
-    fn default() -> Self {
-        Jwp {
-            jwp: utils::empty_string(),
-        }
-    }
-}
-
 /// For handling 402, 404 and 500 error responses
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct ErrorResponse {
     pub error: String,
 }
 
-impl Default for ErrorResponse {
-    fn default() -> Self {
-        ErrorResponse {
-            error: utils::empty_string(),
-        }
-    }
-}
-
 /// Handle intial order information for request
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct OrderRequest {
     pub cid: String,
@@ -1298,20 +853,8 @@ pub struct OrderRequest {
     pub quantity: u128,
 }
 
-impl Default for OrderRequest {
-    fn default() -> Self {
-        OrderRequest {
-            cid: utils::empty_string(),
-            adjudicator: utils::empty_string(),
-            pid: utils::empty_string(),
-            ship_address: utils::empty_string(),
-            quantity: 0,
-        }
-    }
-}
-
 /// Handle multisig info requests
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct MultisigInfoRequest {
     pub contact: String,
@@ -1326,38 +869,16 @@ pub struct MultisigInfoRequest {
     pub orid: String,
 }
 
-impl Default for MultisigInfoRequest {
-    fn default() -> Self {
-        MultisigInfoRequest {
-            contact: utils::empty_string(),
-            info: Vec::new(),
-            init_adjudicator: false,
-            kex_init: false,
-            msig_type: utils::empty_string(),
-            orid: utils::empty_string(),
-        }
-    }
-}
-
 /// Request for signing and submitting the unsigned txset
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct SignAndSubmitRequest {
     pub orid: String,
     pub txset: String,
 }
 
-impl Default for SignAndSubmitRequest {
-    fn default() -> Self {
-        SignAndSubmitRequest {
-            orid: utils::empty_string(),
-            txset: utils::empty_string(),
-        }
-    }
-}
-
 /// Response for the order finalization
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FinalizeOrderResponse {
     pub orid: String,
@@ -1367,25 +888,9 @@ pub struct FinalizeOrderResponse {
     pub vendor_update_success: bool,
 }
 
-impl Default for FinalizeOrderResponse {
-    fn default() -> Self {
-        FinalizeOrderResponse {
-            orid: utils::empty_string(),
-            delivery_info: utils::empty_string(),
-            vendor_update_success: false,
-        }
-    }
-}
-
 /// Response for the vendor mode
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct VendorModeResponse {
     pub mode: bool,
-}
-
-impl Default for VendorModeResponse {
-    fn default() -> Self {
-        VendorModeResponse { mode: false }
-    }
 }

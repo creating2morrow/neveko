@@ -34,12 +34,12 @@ impl Default for WalletApp {
             is_showing_qr: false,
             is_showing_sweep_result: false,
             qr: egui_extras::RetainedImage::from_image_bytes("qr.png", &contents).unwrap(),
-            sweep_address: utils::empty_string(),
+            sweep_address: String::new(),
             xmr_address_rx,
             xmr_address_tx,
             xmr_sweep_all_rx,
             xmr_sweep_all_tx,
-            s_xmr_address: utils::empty_string(),
+            s_xmr_address: String::new(),
             x_xmr_sweep_res: Default::default(),
         }
     }
@@ -85,7 +85,7 @@ impl eframe::App for WalletApp {
             .title_bar(false)
             .vscroll(true)
             .show(ctx, |ui| {
-                if !self.is_qr_set && self.s_xmr_address != utils::empty_string() {
+                if !self.is_qr_set && !self.s_xmr_address.is_empty() {
                     let code = QrCode::new(&self.s_xmr_address.clone()).unwrap();
                     let image = code.render::<Luma<u8>>().build();
                     let file_path = format!(
@@ -135,7 +135,7 @@ impl eframe::App for WalletApp {
                         ctx.clone(),
                         self.sweep_address.clone(),
                     );
-                    self.sweep_address = utils::empty_string();
+                    self.sweep_address = String::new();
                     self.is_showing_sweep_result = true;
                     self.is_loading = true;
                 }

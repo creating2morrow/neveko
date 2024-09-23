@@ -1,11 +1,16 @@
 //! External authorization module via JWPs
 
 use crate::{
-    db,
+    db::{
+        self,
+        DATABASE_LOCK,
+    },
+    error::NevekoError,
     monero,
     reqres,
     utils,
 };
+use kn0sys_lmdb_rs::MdbError;
 use log::{
     error,
     info,
@@ -31,25 +36,13 @@ use serde::{
 use sha2::Sha512;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct TxProof {
     pub subaddress: String,
     pub confirmations: u64,
     pub hash: String,
     pub message: String,
     pub signature: String,
-}
-
-impl Default for TxProof {
-    fn default() -> Self {
-        TxProof {
-            subaddress: utils::empty_string(),
-            confirmations: 0,
-            hash: utils::empty_string(),
-            message: utils::empty_string(),
-            signature: utils::empty_string(),
-        }
-    }
 }
 
 /// Provide neccessary information for contacts to
@@ -89,12 +82,12 @@ pub async fn create_jwp(proof: &TxProof) -> String {
     info!("creating jwp");
     // validate the proof
     let c_txp: TxProof = validate_proof(proof).await;
-    if c_txp.hash == utils::empty_string() {
+    if c_txp.hash.is_empty() {
         error!("invalid transaction proof");
-        return utils::empty_string();
+        return String::new();
     }
-    let jwp_secret_key = utils::get_jwp_secret_key();
-    let key: Hmac<Sha512> = Hmac::new_from_slice(&jwp_secret_key.as_bytes()).expect("hash");
+    let jwp_secret_key = utils::get_jwp_secret_key().unwrap_or_default();
+    let key: Hmac<Sha512> = Hmac::new_from_slice(jwp_secret_key.as_bytes()).expect("hash");
     let header = Header {
         algorithm: AlgorithmType::Hs512,
         ..Default::default()
@@ -134,10 +127,16 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
             match res {
                 Ok(r) => {
                     // cache the jwp for for fts
-                    let s = db::Interface::open();
+                    let db = &DATABASE_LOCK;
                     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-                    db::Interface::delete(&s.env, &s.handle, &k);
-                    db::Interface::write(&s.env, &s.handle, &k, &r.jwp);
+                    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())?;
+                    db::write_chunks(
+                        &db.env,
+                        &db.handle,
+                        &k.as_bytes(),
+                        &r.jwp.as_bytes().to_vec(),
+                    )
+                    .map_err(|_| NevekoError::Database(MdbError::Panic))?;
                     Ok(r)
                 }
                 _ => Ok(Default::default()),
@@ -192,8 +191,8 @@ impl<'r> FromRequest<'r> for PaymentProof {
         match proof {
             Some(proof) => {
                 // check validity of address, payment amount and tx confirmations
-                let jwp_secret_key = utils::get_jwp_secret_key();
-                let key: Hmac<Sha512> = Hmac::new_from_slice(&jwp_secret_key.as_bytes()).expect("");
+                let jwp_secret_key = utils::get_jwp_secret_key().unwrap_or_default();
+                let key: Hmac<Sha512> = Hmac::new_from_slice(jwp_secret_key.as_bytes()).expect("");
                 let jwp: Result<
                     Token<jwt::Header, BTreeMap<std::string::String, std::string::String>, _>,
                     jwt::Error,
@@ -301,5 +300,5 @@ async fn validate_subaddress(subaddress: &String) -> bool {
     for s_address in all_address {
         address_list.push(s_address.address);
     }
-    return address_list.contains(&subaddress);
+    address_list.contains(subaddress)
 }

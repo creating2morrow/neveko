@@ -1,3 +1,4 @@
+use db::DATABASE_LOCK;
 use neveko_core::*;
 use sha2::{
     Digest,
@@ -22,7 +23,7 @@ impl Default for SettingsApp {
     fn default() -> Self {
         let (change_wallet_password_tx, change_wallet_password_rx) = std::sync::mpsc::channel();
         SettingsApp {
-            credential: utils::empty_string(),
+            credential: String::new(),
             change_wallet_password_rx,
             change_wallet_password_tx,
             is_loading: false,
@@ -63,20 +64,27 @@ impl eframe::App for SettingsApp {
                 }
                 if ui.button("Change").clicked() {
                     self.is_loading = true;
-                    let s = db::Interface::open();
+                    let db = &DATABASE_LOCK;
                     let k = CREDENTIAL_KEY;
-                    db::Interface::delete(&s.env, &s.handle, &k);
+                    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())
+                        .unwrap_or_else(|_| log::error!("failed to delete credential"));
                     let mut hasher = Sha512::new();
                     hasher.update(self.credential.clone());
                     let result = hasher.finalize();
-                    db::Interface::write(&s.env, &s.handle, &k, &hex::encode(&result[..]));
+                    db::write_chunks(
+                        &db.env,
+                        &db.handle,
+                        k.as_bytes(),
+                        hex::encode(&result[..]).as_bytes(),
+                    )
+                    .unwrap_or_else(|_| log::error!("failed to write credential"));
                     // update wallet rpc
                     change_wallet_password(
                         self.change_wallet_password_tx.clone(),
                         &self.credential,
                         ctx.clone(),
                     );
-                    self.credential = utils::empty_string();
+                    self.credential = String::new();
                 }
             });
         });

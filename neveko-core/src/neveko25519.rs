@@ -1,5 +1,6 @@
 //! NEVEKO modified ed25519 library extending curve25519-dalek
 
+use crate::monero;
 use curve25519_dalek::{
     edwards::{
         CompressedEdwardsY,
@@ -14,11 +15,6 @@ use num::{
 use sha2::{
     Digest,
     Sha512,
-};
-
-use crate::{
-    monero,
-    utils,
 };
 
 #[derive(Debug)]
@@ -39,8 +35,8 @@ impl Default for NevekoMessageKeys {
         NevekoMessageKeys {
             nmpk: [0u8; 32],
             nmsk: [0u8; 32],
-            hex_nmpk: utils::empty_string(),
-            hex_nmsk: utils::empty_string(),
+            hex_nmpk: String::new(),
+            hex_nmsk: String::new(),
         }
     }
 }
@@ -54,7 +50,7 @@ fn curve_l_as_big_int() -> BigInt {
 }
 
 fn big_int_to_string(b: &BigInt) -> String {
-    String::from(String::from_utf8(b.to_signed_bytes_le()).unwrap_or_default())
+    String::from_utf8(b.to_signed_bytes_le()).unwrap_or_default()
 }
 
 /// Hash string input to scalar
@@ -96,7 +92,7 @@ fn hash_to_scalar(s: Vec<&str>) -> Scalar {
 /// Neveko Message Public Key (NMPK).
 pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
     log::info!("generating neveko message keys");
-    let password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(utils::empty_string());
+    let password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::new());
     let filename = String::from(crate::APP_NAME);
     let m_wallet = monero::open_wallet(&filename, &password).await;
     if !m_wallet {
@@ -110,8 +106,8 @@ pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
     let point_nmpk = EdwardsPoint::mul_base(&scalar_nmsk);
     let nmsk = *scalar_nmsk.as_bytes();
     let nmpk: [u8; 32] = *point_nmpk.compress().as_bytes();
-    let hex_nmpk = hex::encode(&nmpk);
-    let hex_nmsk = hex::encode(&nmsk);
+    let hex_nmpk = hex::encode(nmpk);
+    let hex_nmsk = hex::encode(nmsk);
     NevekoMessageKeys {
         nmpk,
         nmsk,
@@ -130,7 +126,7 @@ pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
 ///
 /// Pass `None` to encipher parameter to perform deciphering.
 pub async fn cipher(hex_nmpk: &String, message: String, encipher: Option<String>) -> String {
-    let unwrap_encipher: String = encipher.unwrap_or(utils::empty_string());
+    let unwrap_encipher: String = encipher.unwrap_or(String::new());
     let keys: NevekoMessageKeys = generate_neveko_message_keys().await;
     // shared secret = nmpk * nmsk
     let scalar_nmsk = Scalar::from_bytes_mod_order(keys.nmsk);
@@ -143,15 +139,15 @@ pub async fn cipher(hex_nmpk: &String, message: String, encipher: Option<String>
     // x = m + h or x = m - h'
     let h = hash_to_scalar(vec![&ss_hex[..]]);
     let h_bi = BigInt::from_bytes_le(Sign::Plus, h.as_bytes());
-    if unwrap_encipher == String::from(ENCIPHER) {
-        let msg_bi = BigInt::from_bytes_le(Sign::Plus, &message.as_bytes());
+    if unwrap_encipher == *ENCIPHER {
+        let msg_bi = BigInt::from_bytes_le(Sign::Plus, message.as_bytes());
         let x = msg_bi + h_bi;
-        return hex::encode(x.to_bytes_le().1);
+        hex::encode(x.to_bytes_le().1)
     } else {
         let msg_bi = BigInt::from_bytes_le(Sign::Plus, &hex::decode(&message).unwrap_or_default());
         let x = msg_bi - h_bi;
-        return big_int_to_string(&x);
-    };
+        big_int_to_string(&x)
+    }
 }
 
 // Tests
@@ -162,7 +158,7 @@ mod tests {
     use super::*;
 
     fn test_cipher(message: &String, encipher: Option<String>) -> String {
-        let unwrap_encipher: String = encipher.unwrap_or(utils::empty_string());
+        let unwrap_encipher: String = encipher.unwrap_or(String::new());
         let test_nmpk: [u8; 32] = [
             203, 2, 188, 13, 167, 96, 59, 189, 38, 238, 2, 71, 84, 155, 153, 73, 241, 137, 9, 30,
             28, 134, 91, 137, 134, 73, 231, 45, 174, 98, 103, 158,
