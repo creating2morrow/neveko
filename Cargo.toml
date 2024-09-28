@@ -1,16 +1,16 @@
 [package]
 name = "neveko"
-version = "0.1.2-beta"
+version = "0.2.0-beta-rc.1-beta"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-env_logger = "0.10.0"
+env_logger = "0.11.0"
 neveko_auth    =   { path = "./neveko-auth" }
 neveko_contact =   { path = "./neveko-contact" }
 neveko_core    =   { path = "./neveko-core" }
 neveko_gui     =   { path = "./neveko-gui" }
 neveko_market  =   { path = "./neveko-market" }
 neveko_message =   { path = "./neveko-message" }
-rocket = { version = "0.5.0-rc.2", features = ["json"] }
+rocket = { version = "0.5.0-rc.3", features = ["json"] }

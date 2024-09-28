@@ -907,7 +907,7 @@ impl eframe::App for MarketApp {
                                 });
                                 row.col(|ui| {
                                     let h_date =
-                                        chrono::NaiveDateTime::from_timestamp_opt(o.date, 0)
+                                        chrono::DateTime::from_timestamp(o.date, 0)
                                             .unwrap()
                                             .to_string();
                                     ui.label(format!("{}", h_date));
@@ -1209,7 +1209,7 @@ impl eframe::App for MarketApp {
                                                 Err(_e) => 0,
                                             };
                                             self.vendor_status.h_exp =
-                                                chrono::NaiveDateTime::from_timestamp_opt(
+                                                chrono::DateTime::from_timestamp(
                                                     expire, 0,
                                                 )
                                                 .unwrap()
@@ -1608,7 +1608,7 @@ impl eframe::App for MarketApp {
                                 });
                                 row.col(|ui| {
                                     let h_date =
-                                        chrono::NaiveDateTime::from_timestamp_opt(o.date, 0)
+                                        chrono::DateTime::from_timestamp(o.date, 0)
                                             .unwrap()
                                             .to_string();
                                     ui.label(format!("{}", h_date));
@@ -2542,7 +2542,6 @@ fn release_txset(contact: String, orid: String, ctx: egui::Context, tx: Sender<b
         // update order to delivered if success
         let _ = tx.send(finalize.vendor_update_success);
         ctx.request_repaint();
-        todo!()
     });
 }
 

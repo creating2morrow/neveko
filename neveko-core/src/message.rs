@@ -63,7 +63,7 @@ pub async fn create(
     let created = chrono::offset::Utc::now().timestamp();
     // get contact public message key and encipher the message
     debug!("sending message: {:?}", &m);
-    let contact: Contact = contact::find(&m.to).map_err(|_| NevekoError::Message)?;
+    let contact: Contact = contact::find_by_i2p_address(&m.to).map_err(|_| NevekoError::Message)?;
     let hex_nmpk: String = contact.nmpk;
     let encipher = Some(String::from(neveko25519::ENCIPHER));
     let e_body = neveko25519::cipher(&hex_nmpk, String::from(&m.body), encipher).await;
@@ -296,7 +296,7 @@ pub fn find_all() -> Result<Vec<Message>, NevekoError> {
     let i_v: Vec<String> = i_v_mid.map(String::from).collect();
     let mut messages: Vec<Message> = Vec::new();
     for m in i_v {
-        let message: Message = find(&m)?;
+        let message: Message = find(&m).unwrap_or_default();
         if !message.mid.is_empty() {
             messages.push(message);
         }
@@ -311,7 +311,7 @@ pub fn find_all() -> Result<Vec<Message>, NevekoError> {
     let o_v_mid = o_r.split(",");
     let o_v: Vec<String> = o_v_mid.map(String::from).collect();
     for m in o_v {
-        let message: Message = find(&m)?;
+        let message: Message = find(&m).unwrap_or_default();
         if !message.mid.is_empty() {
             messages.push(message);
         }

@@ -283,12 +283,11 @@ impl eframe::App for HomeApp {
                     self.connections.is_i2p_advanced = !self.connections.is_i2p_advanced;
                     log::debug!("is i2p advanced mode: {}", self.connections.is_i2p_advanced);
                 }
-                // TODO(c2m): uncomment this to add mainnet flag to gui
-                // let mut is_mainnet = self.connections.mainnet;
-                // if ui.checkbox(&mut is_mainnet, "mainnet").changed() {
-                //     self.connections.mainnet = !self.connections.mainnet;
-                //     log::debug!("is mainnet: {}", self.connections.mainnet);
-                // }
+                let mut is_mainnet = self.connections.mainnet;
+                if ui.checkbox(&mut is_mainnet, "mainnet").changed() {
+                    self.connections.mainnet = !self.connections.mainnet;
+                    log::debug!("is mainnet: {}", self.connections.mainnet);
+                }
                 if ui.button("Start/Restart").clicked() {
                     self.is_editing_connections = false;
                     utils::kill_child_processes(true);

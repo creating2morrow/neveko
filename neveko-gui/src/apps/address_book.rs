@@ -570,7 +570,7 @@ impl eframe::App for AddressBookApp {
                                             Err(_e) => 0,
                                         };
                                         self.status.h_exp =
-                                            chrono::NaiveDateTime::from_timestamp_opt(expire, 0)
+                                            chrono::DateTime::from_timestamp(expire, 0)
                                                 .unwrap()
                                                 .to_string();
                                         send_contact_info_req(

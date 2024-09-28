@@ -116,7 +116,7 @@ impl eframe::App for MailBoxApp {
                         let row_height = 200.0;
                         body.row(row_height, |mut row| {
                             row.col(|ui| {
-                                let h = chrono::NaiveDateTime::from_timestamp_opt(m.created, 0)
+                                let h = chrono::DateTime::from_timestamp(m.created, 0)
                                     .unwrap()
                                     .to_string();
                                 ui.label(format!("{}", h));

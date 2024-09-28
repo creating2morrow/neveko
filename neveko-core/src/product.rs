@@ -86,7 +86,7 @@ pub fn find_all() -> Result<Vec<Product>, NevekoError> {
     let i_v: Vec<String> = i_v_pid.map(String::from).collect();
     let mut products: Vec<Product> = Vec::new();
     for p in i_v {
-        let mut product: Product = find(&p)?;
+        let mut product: Product = find(&p).unwrap_or_default();
         if !product.pid.is_empty() {
             // don't return images
             product.image = Vec::new();

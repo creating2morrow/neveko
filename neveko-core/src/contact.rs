@@ -118,7 +118,7 @@ pub fn find_all() -> Result<Vec<Contact>, MdbError> {
     let mut contacts: Vec<Contact> = Vec::new();
     for id in v {
         if !id.is_empty() {
-            let contact: Contact = find(&id)?;
+            let contact: Contact = find(&id).unwrap_or_default();
             contacts.push(contact);
         }
     }
