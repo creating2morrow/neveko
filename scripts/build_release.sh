@@ -4,17 +4,34 @@
 # usage: ./scripts/build_release vX.X.X-ver
 
 # Linux x86_64 output directory
-
 LINUX_X86_64="x86_64-linux-gnu"
 RELEASE_NAME="neveko-$LINUX_X86_64-$1"
 LINUX_OUTPUT_DIR=".build/release/$RELEASE_NAME"
-
 mkdir -p $LINUX_OUTPUT_DIR
+# monero version
+MONERO_VERSION="monero-linux-x64-v0.18.3.4"
+# build jars for j4-i2p-rs
+git clone --depth 1 https://github.com/kn0sys/i2p.i2p
+cd i2p.i2p && ant buildRouter buildI2PTunnelJars buildSAM jbigi buildAddressbook
+mkdir -p ../opt/j4-i2p-rs/jassets && cp build/* ../opt/j4-i2p-rs/jassets/
+cd ../
+cp -r opt/ $LINUX_OUTPUT_DIR
+# certificates for reseed
+cp -r j4-i2p-rs/certificates $LINUX_OUTPUT_DIR
+# download monero and extract monero wallet rpc
+wget https://downloads.getmonero.org/cli/$MONERO_VERSION.tar.bz2
+tar xvf $MONERO_VERSION.tar.bz2
+mkdir $LINUX_OUTPUT_DIR/$MONERO_VERSION
+cp $MONERO_VERSION/monero-wallet-rpc $LINUX_OUTPUT_DIR/$MONERO_VERSION
+cp $MONERO_VERSION/monerod $LINUX_OUTPUT_DIR/$MONERO_VERSION
+# build neveko-core
 cargo build --release
 cp target/release/neveko $LINUX_OUTPUT_DIR
+# build gui
 cd neveko-gui && cargo build --release && cp target/release/neveko_gui ../$LINUX_OUTPUT_DIR
 cp -r assets/ ../$LINUX_OUTPUT_DIR
 cd ../
+# build dev servers for API use
 cd neveko-auth && cargo build --release && cp target/release/neveko_auth ../$LINUX_OUTPUT_DIR
 cd ../
 cd neveko-contact && cargo build --release && cp target/release/neveko_contact ../$LINUX_OUTPUT_DIR

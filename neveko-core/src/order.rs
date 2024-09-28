@@ -172,7 +172,7 @@ pub fn find_all() -> Result<Vec<Order>, NevekoError> {
     let i_v: Vec<String> = i_v_oid.map(String::from).collect();
     let mut orders: Vec<Order> = Vec::new();
     for o in i_v {
-        let order: Order = find(&o)?;
+        let order: Order = find(&o).unwrap_or_default();
         if !order.orid.is_empty() {
             orders.push(order);
         }

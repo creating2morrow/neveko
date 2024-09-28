@@ -26,10 +26,10 @@ NEVidebla-EKOnomia (invisible economy)
 * `git clone --recursive https://github.com/creating2morrow/neveko`
 * `cd neveko && ./scripts/build_all_and_run.sh "-- -h"`
 * Example to start neveko with remote stagenet node / i2p proxy remote for development:
-    * `./scripts/build_all_and_run.sh "-- --monero-location monero-x86_64-linux-gnu-v0.18.3.4 --monero-rpc-host http://127.0.0.1:38083 --monero-rpc-daemon http://xmr3kaacphwkk4z2gp35bdl47lrrnzimmyqj4oliauqrjzqecofa.b32.i2p:38081 --monero-rpc-username user --monero-rpc-cred pass --remote-node --i2p-advanced --i2p-tunnels-json /home/user/neveko/i2p-manual/config --i2p-proxy-host http://x.x.x.x:xxxx --i2p-socks-proxy-host http://x.x.x.x:xxxx"`
+    * `./scripts/build_all_and_run.sh "-- --monero-location monero-x86_64-linux-gnu-v0.18.3.4 --monero-rpc-host http://127.0.0.1:18083 --monero-rpc-daemon http://xmr3kaacphwkk4z2gp35bdl47lrrnzimmyqj4oliauqrjzqecofa.b32.i2p:18081 --monero-rpc-username user --monero-rpc-cred pass --remote-node --i2p-advanced --i2p-tunnels-json /home/user/neveko/i2p-manual/config --i2p-proxy-host http://x.x.x.x:xxxx --i2p-socks-proxy-host http://x.x.x.x:xxxx"`
     * the `--monero-location` flag is needed even when using a remote node because
       neveko has its own monero-wallet-rpc instance
-    * remote nodes are forced over the `--i2p-proxy-host`
+    * remote nodes are forced over the `--i2p-socks-proxy-host`
 * Recommended neveko-core startup with full node:
     * ` ./scripts/build_all_and_run.sh "-- --monero-blockchain-dir=/home/user/.bitmonero --monero-location monero-x86_64-linux-gnu-v0.18.3.4 --monero-blockchain-dir /home/user/.bitmonero"`
     * monerod doesn't need to be running because neveko will start it and monero-wallet-rpc
@@ -44,14 +44,6 @@ NEVidebla-EKOnomia (invisible economy)
 * copy the `certificates` directory from `j4-i2p-rs` to `neveko` root
 * see [j4-i2p-rs](https://github.com/kn0sys/j4-i2p-rs) for more information on embedded i2p
 * darknet release server links are located at: http://neveko.i2p/index.txt
-
-## Installation Mananger
-
-* additional required software can be downloaded from `Binaries` links below
-* hashes are in core [lib.rs](./neveko-core/src/lib.rs)
-* download monero, update connection manager or cli
-  * `--monero-blockchain-dir`, where to put lmdb for monero (e.g. path/to/ssd)
-  * `--monero-location`, path to monero download
 
 ## Contributing and Releasing
 
@@ -98,10 +90,10 @@ NEVidebla-EKOnomia (invisible economy)
 * neveko-market - `internal` marketplace admin server
 * neveko-message - `internal` message tx/read etc. server
 * neveko - `external` primary server for contact share, payment, market, message rx etc.
-* [monerod](https://www.getmonero.org/downloads/#cli) - (not included) monero-wallet-rpc needs this
+* [monerod](https://www.getmonero.org/downloads/#cli) - monero-wallet-rpc needs this
     * can be overriden with remote node
     * use the `--remote-node` flag
-* [monero-wallet-rpc](https://www.getmonero.org/downloads/#cli) - (not included) interface for xmr wallet ops
+* [monero-wallet-rpc](https://www.getmonero.org/downloads/#cli) - interface for xmr wallet ops
 
 most of the complex logic stays in neveko-core, exported from [lib.rs](./neveko-core/src/lib.rs)
 

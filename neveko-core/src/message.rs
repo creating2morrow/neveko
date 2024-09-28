@@ -296,7 +296,7 @@ pub fn find_all() -> Result<Vec<Message>, NevekoError> {
     let i_v: Vec<String> = i_v_mid.map(String::from).collect();
     let mut messages: Vec<Message> = Vec::new();
     for m in i_v {
-        let message: Message = find(&m)?;
+        let message: Message = find(&m).unwrap_or_default();
         if !message.mid.is_empty() {
             messages.push(message);
         }
@@ -311,7 +311,7 @@ pub fn find_all() -> Result<Vec<Message>, NevekoError> {
     let o_v_mid = o_r.split(",");
     let o_v: Vec<String> = o_v_mid.map(String::from).collect();
     for m in o_v {
-        let message: Message = find(&m)?;
+        let message: Message = find(&m).unwrap_or_default();
         if !message.mid.is_empty() {
             messages.push(message);
         }
