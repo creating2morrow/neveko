@@ -13,4 +13,4 @@ neveko_core    =   { path = "./neveko-core" }
 neveko_gui     =   { path = "./neveko-gui" }
 neveko_market  =   { path = "./neveko-market" }
 neveko_message =   { path = "./neveko-message" }
-rocket = { version = "0.5.0-rc.3", features = ["json"] }
+rocket = { version = "0.5.1", features = ["json"] }

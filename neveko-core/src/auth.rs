@@ -251,7 +251,7 @@ impl<'r> FromRequest<'r> for BearerToken {
                         debug!("claim address: {}", claims["address"]);
                         // verify address
                         if claims["address"] != address {
-                            return Outcome::Failure((
+                            return Outcome::Error((
                                 Status::Unauthorized,
                                 BearerTokenError::Invalid,
                             ));
@@ -260,17 +260,17 @@ impl<'r> FromRequest<'r> for BearerToken {
                         let now: i64 = chrono::offset::Utc::now().timestamp();
                         let expire = claims["expiration"].parse::<i64>().unwrap_or(0);
                         if now > expire {
-                            return Outcome::Failure((
+                            return Outcome::Error((
                                 Status::Unauthorized,
                                 BearerTokenError::Expired,
                             ));
                         }
                         Outcome::Success(BearerToken(String::from(token)))
                     }
-                    Err(_) => Outcome::Failure((Status::Unauthorized, BearerTokenError::Invalid)),
+                    Err(_) => Outcome::Error((Status::Unauthorized, BearerTokenError::Invalid)),
                 };
             }
-            None => Outcome::Failure((Status::Unauthorized, BearerTokenError::Missing)),
+            None => Outcome::Error((Status::Unauthorized, BearerTokenError::Missing)),
         }
     }
 }

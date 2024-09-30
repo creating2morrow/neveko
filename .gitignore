@@ -30,3 +30,4 @@ peerProfiles/*
 opt-backup/j4-i2p-rs/jassets/addressbook.war
 **/i2p/*
 neveko-x86_64-linux-gnu-*
+*.lock

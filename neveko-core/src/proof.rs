@@ -203,7 +203,7 @@ impl<'r> FromRequest<'r> for PaymentProof {
                         let subaddress = &claims["subaddress"];
                         let is_valid_subaddress = validate_subaddress(subaddress).await;
                         if !is_valid_subaddress {
-                            return Outcome::Failure((
+                            return Outcome::Error((
                                 Status::PaymentRequired,
                                 PaymentProofError::Invalid,
                             ));
@@ -224,7 +224,7 @@ impl<'r> FromRequest<'r> for PaymentProof {
                         let expire = utils::get_conf_threshold();
                         // TODO(c2m): offline verification from created and expire fields
                         if c_txp.confirmations > expire {
-                            return Outcome::Failure((
+                            return Outcome::Error((
                                 Status::Unauthorized,
                                 PaymentProofError::Expired,
                             ));
@@ -233,14 +233,14 @@ impl<'r> FromRequest<'r> for PaymentProof {
                     }
                     Err(e) => {
                         error!("jwp error: {:?}", e);
-                        return Outcome::Failure((
+                        return Outcome::Error((
                             Status::PaymentRequired,
                             PaymentProofError::Invalid,
                         ));
                     }
                 };
             }
-            None => Outcome::Failure((Status::PaymentRequired, PaymentProofError::Missing)),
+            None => Outcome::Error((Status::PaymentRequired, PaymentProofError::Missing)),
         }
     }
 }
