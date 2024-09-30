@@ -83,7 +83,7 @@ fn update_expiration(f_auth: &Authorization, address: &String) -> Result<Authori
         create_token(String::from(address), time),
     );
     let db = &DATABASE_LOCK;
-    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, &u_auth.aid.as_bytes().to_vec())?;
+    db::DatabaseEnvironment::delete(&db.env, &db.handle, u_auth.aid.as_bytes())?;
     let k = u_auth.aid.as_bytes();
     let v = bincode::serialize(&u_auth).unwrap_or_default();
     db::write_chunks(&db.env, &db.handle, k, &v)?;
@@ -128,7 +128,7 @@ pub async fn verify_login(
         // update auth with uid
         let u_auth = Authorization::update_uid(f_auth, String::from(&u.uid));
         let db = &DATABASE_LOCK;
-        let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, &u_auth.aid.as_bytes())?;
+        db::DatabaseEnvironment::delete(&db.env, &db.handle, u_auth.aid.as_bytes())?;
         let v = bincode::serialize(&u_auth).unwrap_or_default();
         db::write_chunks(&db.env, &db.handle, u_auth.aid.as_bytes(), &v)?;
         monero::close_wallet(&wallet_name, &wallet_password).await;

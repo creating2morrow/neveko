@@ -328,7 +328,7 @@ fn get_monero_location() -> String {
 /// Get monero rpc host from the `--monero-rpc-host` cli arg
 fn get_rpc_host() -> String {
     let args = args::Args::parse();
-    let gui_host = std::env::var(crate::MONERO_WALLET_RPC_HOST).unwrap_or(String::new());
+    let gui_host = std::env::var(crate::MONERO_WALLET_RPC_HOST).unwrap_or_default();
     let rpc = if gui_host.is_empty() {
         args.monero_rpc_host
     } else {
@@ -350,7 +350,7 @@ fn get_rpc_creds() -> RpcLogin {
 
 fn get_rpc_daemon() -> String {
     let args = args::Args::parse();
-    let gui_host = std::env::var(crate::MONERO_DAEMON_HOST).unwrap_or(String::new());
+    let gui_host = std::env::var(crate::MONERO_DAEMON_HOST).unwrap_or_default();
     if gui_host.is_empty() {
         args.monero_rpc_daemon
     } else {
@@ -378,10 +378,7 @@ pub async fn get_version() -> reqres::XmrRpcVersionResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcVersionResponse>().await;
             debug!("{} response: {:?}", RpcFields::GetVersion.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_e) => Default::default(),
     }
@@ -417,10 +414,7 @@ pub async fn sign(data: String) -> reqres::XmrRpcSignResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcSignResponse>().await;
             debug!("{} response: {:?}", RpcFields::Sign.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_e) => Default::default(),
     }
@@ -687,10 +681,7 @@ pub async fn get_balance() -> reqres::XmrRpcBalanceResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcBalanceResponse>().await;
             debug!("{} response: {:?}", RpcFields::Balance.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -761,10 +752,7 @@ pub async fn validate_address(address: &String) -> reqres::XmrRpcValidateAddress
                 .json::<reqres::XmrRpcValidateAddressResponse>()
                 .await;
             debug!("{} response: {:?}", RpcFields::ValidateAddress.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -795,10 +783,7 @@ pub async fn prepare_wallet() -> reqres::XmrRpcPrepareResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcPrepareResponse>().await;
             debug!("{} response: {:?}", RpcFields::Prepare.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -829,10 +814,7 @@ pub async fn make_wallet(info: Vec<String>) -> reqres::XmrRpcMakeResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcMakeResponse>().await;
             debug!("{} response: {:?}", RpcFields::Make.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -857,10 +839,7 @@ pub async fn export_multisig_info() -> reqres::XmrRpcExportResponse {
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcExportResponse>().await;
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -888,10 +867,7 @@ pub async fn import_multisig_info(info: Vec<String>) -> reqres::XmrRpcImportResp
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcImportResponse>().await;
             debug!("{} response: {:?}", RpcFields::Import.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -919,10 +895,7 @@ pub async fn sign_multisig(tx_data_hex: String) -> reqres::XmrRpcSignMultisigRes
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcSignMultisigResponse>().await;
             debug!("{} response: {:?}", RpcFields::SignMultisig.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -952,10 +925,7 @@ pub async fn submit_multisig(tx_data_hex: String) -> reqres::XmrRpcSubmitMultisi
                 .json::<reqres::XmrRpcSubmitMultisigResponse>()
                 .await;
             debug!("{} response: {:?}", RpcFields::SubmitMultisig.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -997,10 +967,7 @@ pub async fn exchange_multisig_keys(
                 RpcFields::ExchangeMultisigKeys.value(),
                 res
             );
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1034,10 +1001,7 @@ pub async fn check_tx_proof(txp: &proof::TxProof) -> reqres::XmrRpcCheckTxProofR
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcCheckTxProofResponse>().await;
             debug!("{} response: {:?}", RpcFields::CheckTxProof.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1069,10 +1033,7 @@ pub async fn get_tx_proof(ptxp: proof::TxProof) -> reqres::XmrRpcGetTxProofRespo
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcGetTxProofResponse>().await;
             debug!("{} response: {:?}", RpcFields::GetTxProof.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1102,10 +1063,7 @@ pub async fn get_transfer_by_txid(txid: &str) -> reqres::XmrRpcGetTxByIdResponse
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcGetTxByIdResponse>().await;
             debug!("{} response: {:?}", RpcFields::GetTxById.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1116,8 +1074,7 @@ pub async fn transfer(d: reqres::Destination) -> reqres::XmrRpcTransferResponse 
     info!("executing {}", RpcFields::Transfer.value());
     let client = reqwest::Client::new();
     let host = get_rpc_host();
-    let mut destinations: Vec<reqres::Destination> = Vec::new();
-    destinations.push(d);
+    let destinations = vec![d];
     let params: reqres::XmrRpcTransferParams = reqres::XmrRpcTransferParams {
         account_index: 0,
         destinations,
@@ -1142,10 +1099,7 @@ pub async fn transfer(d: reqres::Destination) -> reqres::XmrRpcTransferResponse 
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcTransferResponse>().await;
             debug!("{} response: {:?}", RpcFields::Transfer.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1181,10 +1135,7 @@ pub async fn describe_transfer(multisig_txset: &String) -> reqres::XmrRpcDescrib
                 RpcFields::DescribeTransfer.value(),
                 res
             );
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1212,10 +1163,7 @@ pub async fn sweep_all(address: String) -> reqres::XmrRpcSweepAllResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcSweepAllResponse>().await;
             debug!("{} response: {:?}", RpcFields::SweepAll.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1244,10 +1192,7 @@ pub async fn create_address() -> reqres::XmrRpcCreateAddressResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcCreateAddressResponse>().await;
             debug!("{} response: {:?}", RpcFields::CreateAddress.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1273,10 +1218,7 @@ pub async fn refresh() -> reqres::XmrRpcRefreshResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcRefreshResponse>().await;
             debug!("{} response: {:?}", RpcFields::Refresh.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1302,10 +1244,7 @@ pub async fn is_multisig() -> reqres::XmrRpcIsMultisigResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcIsMultisigResponse>().await;
             debug!("{} response: {:?}", RpcFields::IsMultisig.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1331,10 +1270,7 @@ pub async fn get_wallet_height() -> reqres::XmrRpcGetHeightResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcGetHeightResponse>().await;
             debug!("{} response: {:?}", RpcFields::GetHeight.value(), res);
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1363,10 +1299,7 @@ pub async fn query_view_key() -> reqres::XmrRpcQueryKeyResponse {
     {
         Ok(response) => {
             let res = response.json::<reqres::XmrRpcQueryKeyResponse>().await;
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1389,10 +1322,7 @@ pub async fn get_info() -> reqres::XmrDaemonGetInfoResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrDaemonGetInfoResponse>().await;
             // add debug log here if needed for adding more info to home screen in gui
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1433,10 +1363,7 @@ pub async fn get_height() -> reqres::XmrDaemonGetHeightResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrDaemonGetHeightResponse>().await;
             // don't log this one. The fee estimator blows up logs (T_T)
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1479,10 +1406,7 @@ pub async fn get_block(height: u64) -> reqres::XmrDaemonGetBlockResponse {
         Ok(response) => {
             let res = response.json::<reqres::XmrDaemonGetBlockResponse>().await;
             // don't log this one. The fee estimator blows up logs (T_T)
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }
@@ -1531,10 +1455,7 @@ pub async fn get_transactions(txs_hashes: Vec<String>) -> reqres::XmrDaemonGetTr
                 .json::<reqres::XmrDaemonGetTransactionsResponse>()
                 .await;
             // don't log this one. The fee estimator blows up logs (T_T)
-            match res {
-                Ok(res) => res,
-                _ => Default::default(),
-            }
+            res.unwrap_or_default()
         }
         Err(_) => Default::default(),
     }

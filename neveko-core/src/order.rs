@@ -267,10 +267,10 @@ pub fn modify(o: Json<Order>) -> Result<Order, NevekoError> {
     }
     let db = &DATABASE_LOCK;
     let u_order = Order::update(String::from(&f_order.orid), &o);
-    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, &u_order.orid.as_bytes())
+    db::DatabaseEnvironment::delete(&db.env, &db.handle, u_order.orid.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let v = bincode::serialize(&u_order).unwrap_or_default();
-    let _ = db::write_chunks(&db.env, &db.handle, &u_order.orid.as_bytes(), &v)
+    db::write_chunks(&db.env, &db.handle, u_order.orid.as_bytes(), &v)
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(u_order)
 }
@@ -379,7 +379,7 @@ pub async fn validate_order_for_ship(
     let mut j_order: Order = find(orid).map_err(|_| NevekoError::Order)?;
     let m_product: Product = product::find(&m_order.pid).map_err(|_| NevekoError::Product)?;
     let price = m_product.price;
-    let total = price * &m_order.quantity;
+    let total = price * m_order.quantity;
     let wallet_password = String::new();
     monero::open_wallet(orid, &wallet_password).await;
     // check balance and unlock_time

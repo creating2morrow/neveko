@@ -27,7 +27,7 @@ pub fn create(address: &String) -> Result<User, MdbError> {
     let db = &DATABASE_LOCK;
     let k = &new_user.uid;
     let v = bincode::serialize(&new_user).unwrap_or_default();
-    let _ = db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v)?;
+    db::write_chunks(&db.env, &db.handle, k.as_bytes(), &v)?;
     Ok(new_user)
 }
 

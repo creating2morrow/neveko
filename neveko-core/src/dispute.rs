@@ -134,7 +134,7 @@ pub async fn settle_dispute() -> Result<(), NevekoError> {
         if cleared {
             // index was created but cleared
             info!("terminating dispute auto-settle thread");
-            let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, list_key.as_bytes())
+            db::DatabaseEnvironment::delete(&db.env, &db.handle, list_key.as_bytes())
                 .map_err(|_| NevekoError::Database(MdbError::Panic))?;
             return Ok(());
         }
@@ -188,7 +188,7 @@ fn remove_from_auto_settle(did: String) -> Result<(), NevekoError> {
     let pre_v_fts = str_r.split(",");
     let v: Vec<String> = pre_v_fts
         .map(|s| {
-            if s != &did {
+            if s != did {
                 String::from(s)
             } else {
                 String::new()
@@ -263,5 +263,5 @@ pub async fn trigger_dispute_request(
         error!("failed to create dispute");
         return Err(NevekoError::Dispute);
     }
-    Ok(dispute.map_err(|_| NevekoError::Dispute)?)
+    dispute.map_err(|_| NevekoError::Dispute)
 }

@@ -116,7 +116,7 @@ pub fn get_destination(st: ServerTunnelType) -> Result<String, NevekoError> {
     )
     .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let anon_b32_dest: String = bincode::deserialize(&r_anon_b32_dest[..]).unwrap_or_default();
-    let app_b32_dest: String = bincode::deserialize(&&r_app_b32_dest[..]).unwrap_or_default();
+    let app_b32_dest: String = bincode::deserialize(&r_app_b32_dest[..]).unwrap_or_default();
     match st {
         ServerTunnelType::App => Ok(app_b32_dest),
         ServerTunnelType::AnonInbound => Ok(anon_b32_dest),

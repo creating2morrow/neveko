@@ -107,7 +107,7 @@ pub fn modify(p: Json<Product>) -> Result<Product, NevekoError> {
     }
     let u_prod = Product::update(f_prod, &p);
     let db = &DATABASE_LOCK;
-    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, u_prod.pid.as_bytes())
+    db::DatabaseEnvironment::delete(&db.env, &db.handle, u_prod.pid.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     let product = bincode::serialize(&u_prod).unwrap_or_default();
     let db = &DATABASE_LOCK;

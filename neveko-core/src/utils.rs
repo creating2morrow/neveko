@@ -219,7 +219,7 @@ pub fn get_app_port() -> u16 {
 /// i2p http proxy
 pub fn get_i2p_http_proxy() -> String {
     let args = args::Args::parse();
-    let advanced_proxy = std::env::var(crate::NEVEKO_I2P_PROXY_HOST).unwrap_or(String::new());
+    let advanced_proxy = std::env::var(crate::NEVEKO_I2P_PROXY_HOST).unwrap_or_default();
     if advanced_proxy.is_empty() {
         args.i2p_proxy_host
     } else {
@@ -514,7 +514,7 @@ pub async fn start_up() -> Result<(), NevekoError> {
     .map_err(|_| NevekoError::Database(MdbError::Panic))?;
 
     info!("neveko is starting up");
-    let _ = reset_i2p_status()?;
+    reset_i2p_status()?;
     warn!("monero multisig is experimental and usage of neveko may lead to loss of funds");
     let args = args::Args::parse();
     if args.clear_fts {
@@ -665,7 +665,7 @@ pub async fn estimate_fee() -> u128 {
     let mut count: u64 = 1;
     let mut v_fee: Vec<u128> = Vec::new();
     let mut r_height: reqres::XmrDaemonGetHeightResponse = Default::default();
-    let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or(String::new());
+    let remote_var = std::env::var(crate::GUI_REMOTE_NODE).unwrap_or_default();
     let remote_set = remote_var == *crate::GUI_SET_REMOTE_NODE;
     if remote_set {
         let p_height = monero::p_get_height().await;
@@ -710,16 +710,13 @@ pub async fn estimate_fee() -> u128 {
                 let fee_split = v1.remove(1);
                 let post_fee_split = fee_split.split(",");
                 let mut v2: Vec<String> = post_fee_split.map(String::from).collect();
-                let fee: u128 = match v2.remove(0).trim().parse::<u128>() {
-                    Ok(n) => n,
-                    Err(_e) => 0,
-                };
+                let fee: u128 = v2.remove(0).trim().parse::<u128>().unwrap_or_default();
                 v_fee.push(fee);
             }
         }
         count += 1;
     }
-    &v_fee.iter().sum::<u128>() / v_fee.len() as u128
+    v_fee.iter().sum::<u128>() / v_fee.len() as u128
 }
 
 /// Combine the results `estimate_fee()` and `get_balance()` to

@@ -19,6 +19,7 @@ use sha2::{
 
 #[derive(Debug)]
 /// Container for the Neveko Message Keys
+#[derive(Default)]
 pub struct NevekoMessageKeys {
     /// Neveko Message Secret Key
     pub nmsk: [u8; 32],
@@ -30,16 +31,6 @@ pub struct NevekoMessageKeys {
     pub hex_nmpk: String,
 }
 
-impl Default for NevekoMessageKeys {
-    fn default() -> Self {
-        NevekoMessageKeys {
-            nmpk: [0u8; 32],
-            nmsk: [0u8; 32],
-            hex_nmpk: String::new(),
-            hex_nmsk: String::new(),
-        }
-    }
-}
 
 /// L value as defined at https://eprint.iacr.org/2008/013.pdf
 const CURVE_L: &str = "edd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010";
@@ -67,13 +58,11 @@ fn hash_to_scalar(s: Vec<&str>) -> Scalar {
         hasher.update(&result);
         let hash = hasher.finalize().to_owned();
         let mut hash_container: [u8; 32] = [0u8; 32];
-        let mut index = 0;
-        for byte in result.as_bytes() {
+        for (index, byte) in result.as_bytes().iter().enumerate() {
             if index == hash_container.len() - 1 {
                 break;
             }
             hash_container[index] = *byte;
-            index += 1;
         }
         let hash_value = BigInt::from_bytes_le(Sign::Plus, &hash_container);
         if hash_value < curve_l_as_big_int() {
@@ -92,7 +81,7 @@ fn hash_to_scalar(s: Vec<&str>) -> Scalar {
 /// Neveko Message Public Key (NMPK).
 pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
     log::info!("generating neveko message keys");
-    let password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or(String::new());
+    let password = std::env::var(crate::MONERO_WALLET_PASSWORD).unwrap_or_default();
     let filename = String::from(crate::APP_NAME);
     let m_wallet = monero::open_wallet(&filename, &password).await;
     if !m_wallet {
@@ -126,7 +115,7 @@ pub async fn generate_neveko_message_keys() -> NevekoMessageKeys {
 ///
 /// Pass `None` to encipher parameter to perform deciphering.
 pub async fn cipher(hex_nmpk: &String, message: String, encipher: Option<String>) -> String {
-    let unwrap_encipher: String = encipher.unwrap_or(String::new());
+    let unwrap_encipher: String = encipher.unwrap_or_default();
     let keys: NevekoMessageKeys = generate_neveko_message_keys().await;
     // shared secret = nmpk * nmsk
     let scalar_nmsk = Scalar::from_bytes_mod_order(keys.nmsk);

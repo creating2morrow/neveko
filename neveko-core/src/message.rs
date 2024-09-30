@@ -151,7 +151,7 @@ pub async fn rx(m: Json<Message>) -> Result<(), NevekoError> {
 async fn parse_multisig_message(mid: String) -> Result<MultisigMessageData, NevekoError> {
     let d: reqres::DecipheredMessageBody = decipher_body(mid).await?;
     let mut bytes = hex::decode(d.body.into_bytes()).unwrap_or_default();
-    let decoded = String::from_utf8(bytes).unwrap_or(String::new());
+    let decoded = String::from_utf8(bytes).unwrap_or_default();
     let values = decoded.split(":");
     let mut v: Vec<String> = values.map(String::from).collect();
     if v.len() != VALID_MSIG_MSG_LENGTH {
@@ -374,7 +374,7 @@ pub async fn decipher_body(mid: String) -> Result<reqres::DecipheredMessageBody,
 /// Message deletion
 pub fn delete(mid: &String) -> Result<(), NevekoError> {
     let db = &DATABASE_LOCK;
-    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, mid.as_bytes())
+    db::DatabaseEnvironment::delete(&db.env, &db.handle, mid.as_bytes())
         .map_err(|_| NevekoError::Database(MdbError::Panic))?;
     Ok(())
 }
@@ -465,7 +465,7 @@ fn remove_from_fts(mid: String) -> Result<(), NevekoError> {
     let pre_v_fts = s_r.split(",");
     let v: Vec<String> = pre_v_fts
         .map(|s| {
-            if s != &mid {
+            if s != mid {
                 String::from(s)
             } else {
                 String::new()
@@ -509,8 +509,7 @@ pub async fn retry_fts() -> Result<(), NevekoError> {
         if cleared {
             // index was created but cleared
             info!("terminating retry fts thread");
-            let _ =
-                db::DatabaseEnvironment::delete(&db.env, &db.handle, &list_key.as_bytes().to_vec())
+            db::DatabaseEnvironment::delete(&db.env, &db.handle, list_key.as_bytes())
                     .map_err(|_| NevekoError::Database(MdbError::Panic))?;
             break Err(NevekoError::Database(MdbError::NotFound));
         }
@@ -689,7 +688,7 @@ pub async fn send_export_info(orid: &String, contact: &String) -> Result<(), Nev
 /// multisig info after funding. Once the info is imported
 ///
 /// successfully the order needs to be updated to `MultisigComplete`.
-pub async fn send_import_info(orid: &String, info: &Vec<String>) -> Result<(), NevekoError> {
+pub async fn send_import_info(orid: &String, info: &[String]) -> Result<(), NevekoError> {
     let wallet_name = String::from(orid);
     let wallet_password = String::new();
     monero::open_wallet(&wallet_name, &wallet_password).await;

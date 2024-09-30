@@ -98,7 +98,7 @@ pub fn delete(cid: &String) -> Result<(), MdbError> {
         error!("contact not found");
         return Err(MdbError::NotFound);
     }
-    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, cid.as_bytes())?;
+    db::DatabaseEnvironment::delete(&db.env, &db.handle, cid.as_bytes())?;
     Ok(())
 }
 

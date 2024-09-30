@@ -129,12 +129,12 @@ pub async fn prove_payment(contact: String, txp: &TxProof) -> Result<reqres::Jwp
                     // cache the jwp for for fts
                     let db = &DATABASE_LOCK;
                     let k = format!("{}-{}", crate::FTS_JWP_DB_KEY, &contact);
-                    let _ = db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())?;
+                    db::DatabaseEnvironment::delete(&db.env, &db.handle, k.as_bytes())?;
                     db::write_chunks(
                         &db.env,
                         &db.handle,
-                        &k.as_bytes(),
-                        &r.jwp.as_bytes().to_vec(),
+                        k.as_bytes(),
+                        r.jwp.as_bytes(),
                     )
                     .map_err(|_| NevekoError::Database(MdbError::Panic))?;
                     Ok(r)
