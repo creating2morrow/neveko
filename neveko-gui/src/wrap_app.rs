@@ -226,6 +226,15 @@ impl eframe::App for WrapApp {
         // sanity check that wallet password is no longer in user environment
         std::env::set_var(neveko_core::MONERO_WALLET_PASSWORD, "");
         let is_bg = std::env::var(crate::NEVEKO_DEV_BACKGROUND).unwrap_or(String::from("0"));
+        let db = &DATABASE_LOCK;
+        let v = bincode::serialize(&neveko_core::i2p::ProxyStatus::Opening).unwrap_or_default();
+        db::write_chunks(
+            &db.env,
+            &db.handle,
+            neveko_core::I2P_STATUS.as_bytes(),
+            &v,
+        )
+        .unwrap_or_else(|_| log::error!("failed to write i2p status."));
         if is_bg != String::from("1") {
             utils::kill_child_processes(false);
         }
