@@ -63,7 +63,7 @@ pub async fn create(
     let created = chrono::offset::Utc::now().timestamp();
     // get contact public message key and encipher the message
     debug!("sending message: {:?}", &m);
-    let contact: Contact = contact::find(&m.to).map_err(|_| NevekoError::Message)?;
+    let contact: Contact = contact::find_by_i2p_address(&m.to).map_err(|_| NevekoError::Message)?;
     let hex_nmpk: String = contact.nmpk;
     let encipher = Some(String::from(neveko25519::ENCIPHER));
     let e_body = neveko25519::cipher(&hex_nmpk, String::from(&m.body), encipher).await;

@@ -9,4 +9,4 @@ edition = "2021"
 env_logger = "0.11.0"
 neveko_core = { path = "../neveko-core" }
 log = "0.4"
-rocket = { version = "0.5.0-rc.3", features = ["json"] }
+rocket = { version = "0.5.1", features = ["json"] }

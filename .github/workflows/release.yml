@@ -16,14 +16,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install dependencies
-        run: sudo apt install -y libssl-dev build-essential
+        run: sudo apt install -y libssl-dev build-essential gettext ant
       - name: Extract branch name
         shell: bash
         run: echo "branch=$(echo ${GITHUB_REF#refs/heads/})" >>$GITHUB_OUTPUT
         id: extract_branch
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'true'
       - run: ./scripts/build_release.sh ${{ steps.extract_branch.outputs.branch }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: neveko-x86_64-linux-gnu-${{ steps.extract_branch.outputs.branch }}
           path: neveko-x86_64-linux-gnu-${{ steps.extract_branch.outputs.branch }}.tar.bz2
