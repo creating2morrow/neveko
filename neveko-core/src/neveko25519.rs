@@ -32,12 +32,12 @@ pub struct NevekoMessageKeys {
 }
 
 
-/// L value as defined at https://eprint.iacr.org/2008/013.pdf
+/// L value as defined at https://datatracker.ietf.org/doc/html/rfc8032#section-5.1
 const CURVE_L: &str = "edd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010";
 pub const ENCIPHER: &str = "ENCIPHER";
 
 fn curve_l_as_big_int() -> BigInt {
-    BigInt::from_bytes_le(Sign::Plus, CURVE_L.as_bytes())
+    BigInt::from_bytes_le(Sign::Plus, &hex::decode(CURVE_L).unwrap_or_default())
 }
 
 fn big_int_to_string(b: &BigInt) -> String {
